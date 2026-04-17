@@ -43,15 +43,18 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   .dots{display:none;}
 }
 
-.card{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid #ffffff08;position:relative;overflow:hidden;transition:border-color .5s;height:100%;display:flex;flex-direction:column;}
+.card{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid #ffffff08;position:relative;overflow:hidden;transition:border-color .5s;height:100%;display:grid;grid-template-rows:auto 1fr auto;}
 .card-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
 .card-header .icon{font-size:1.1rem;}
 .card-header .label{font-size:.88rem;font-weight:700;}
 
-.session-idle{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:12px 0 0;}
-.session-idle .idle-emoji{font-size:2.8rem;opacity:.6;margin-top:8px;}
+.session-idle{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:12px 0 0;}
+.session-idle .idle-emoji{font-size:2.8rem;opacity:.6;}
 .session-idle .idle-text{font-size:.85rem;color:var(--text-dim);line-height:1.5;}
-.start-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:14px;padding:14px;font-size:.95rem;cursor:pointer;transition:.15s;background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;box-shadow:0 4px 20px #66bb6a30;margin-top:auto;}
+
+/* Bottom zone: button + row2 + mini-garden, always at card bottom */
+.card-bottom{display:flex;flex-direction:column;gap:6px;}
+.start-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:14px;padding:14px;font-size:.95rem;cursor:pointer;transition:.15s;background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;box-shadow:0 4px 20px #66bb6a30;}
 .start-btn:active{transform:scale(.95);}
 
 .sit-card.z-silent{border-color:#ffffff15;}
@@ -75,7 +78,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .thresh-row{display:flex;gap:5px;justify-content:center;margin:10px 0 4px;}
 .th-btn{background:var(--card-alt);border:2px solid transparent;color:var(--text-dim);padding:4px 12px;border-radius:20px;font-size:.72rem;font-family:inherit;cursor:pointer;transition:.2s;}
 .th-btn.on{border-color:var(--green);color:var(--green);background:#66bb6a15;}
-.act-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:12px;padding:14px;font-size:.95rem;cursor:pointer;transition:.15s;color:#fff;box-shadow:0 4px 16px #66bb6a25;margin-top:10px;}
+.act-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:12px;padding:14px;font-size:.95rem;cursor:pointer;transition:.15s;color:#fff;box-shadow:0 4px 16px #66bb6a25;}
 .act-btn:active{transform:scale(.95);}
 .act-btn.sit-go{background:linear-gradient(135deg,var(--green),var(--green-dark));}
 .act-btn.sit-grey{background:linear-gradient(135deg,var(--grey),var(--grey-dark));box-shadow:none;}
@@ -86,7 +89,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .sit-status{font-size:.68rem;color:var(--text-dim);}
 
 .water-card{border-color:#42a5f520;}
-.water-body{flex:1;display:flex;flex-direction:column;}
+.water-body{}
 .water-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .water-count{font-family:'Fredoka',sans-serif;font-size:1.05rem;font-weight:700;color:var(--blue-light);}
 .water-ml{font-size:.7rem;color:var(--text-dim);}
@@ -97,7 +100,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .cup.filled{border-color:var(--blue);}
 .cup.filled .water{height:85%;}
 .cup-num{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:.45rem;color:#fff;font-weight:700;opacity:.7;z-index:1;}
-.water-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:12px;padding:14px;font-size:.95rem;cursor:pointer;transition:.15s;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;box-shadow:0 4px 14px #42a5f520;margin-top:auto;}
+.water-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:12px;padding:14px;font-size:.95rem;cursor:pointer;transition:.15s;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;box-shadow:0 4px 14px #42a5f520;}
 .water-btn:active{transform:scale(.95);}
 .water-btn:disabled{opacity:.4;cursor:default;transform:none;}
 .water-btn .xp-badge{display:inline-block;background:#ffffff25;border-radius:8px;padding:2px 7px;margin-left:6px;font-size:.72rem;font-weight:400;}
@@ -194,26 +197,32 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="card-slide">
       <div class="card sit-card" id="sitCard">
         <div class="card-header"><span class="icon">🪑</span><span class="label">久坐追蹤</span></div>
-        <div class="session-idle" id="sitIdle">
-          <div class="idle-emoji">💺</div>
-          <div class="idle-text">準備坐下工作了嗎？<br>按下開始，我幫你追蹤</div>
-          <button class="start-btn" onclick="startSession()">▶ 開始工作</button>
-        </div>
-        <div class="sit-center" id="sitActive" style="display:none">
-          <div class="timer-disp c-dim" id="sitDisp">00:00</div>
-          <div class="timer-hint" id="sitHint">剛坐下，還不用擔心 😌</div>
-          <div class="thresh-row">
-            <button class="th-btn" data-m="20" onclick="pickThresh(20)">20分</button>
-            <button class="th-btn on" data-m="30" onclick="pickThresh(30)">30分</button>
-            <button class="th-btn" data-m="45" onclick="pickThresh(45)">45分</button>
+        <!-- Content area (row 2 of grid) -->
+        <div>
+          <div class="session-idle" id="sitIdle">
+            <div class="idle-emoji">💺</div>
+            <div class="idle-text">準備坐下工作了嗎？<br>按下開始，我幫你追蹤</div>
           </div>
-          <button class="act-btn sit-go" id="standBtn" onclick="handleStandup()">🧍 我站起來了<span class="xp-badge" id="sitBadge"></span></button>
-          <div class="sit-row2">
+          <div class="sit-center" id="sitActive" style="display:none">
+            <div class="timer-disp c-dim" id="sitDisp">00:00</div>
+            <div class="timer-hint" id="sitHint">剛坐下，還不用擔心 😌</div>
+            <div class="thresh-row">
+              <button class="th-btn" data-m="20" onclick="pickThresh(20)">20分</button>
+              <button class="th-btn on" data-m="30" onclick="pickThresh(30)">30分</button>
+              <button class="th-btn" data-m="45" onclick="pickThresh(45)">45分</button>
+            </div>
+          </div>
+        </div>
+        <!-- Bottom zone (row 3 of grid) — always at bottom -->
+        <div class="card-bottom">
+          <button class="start-btn" id="sitIdleBtn" onclick="startSession()">▶ 開始工作</button>
+          <button class="act-btn sit-go" id="standBtn" onclick="handleStandup()" style="display:none">🧍 我站起來了<span class="xp-badge" id="sitBadge"></span></button>
+          <div class="sit-row2" id="sitRow2" style="display:none">
             <button class="end-btn" onclick="endSession()">⏹ 結束工作</button>
             <span class="sit-status" id="sitStatus">工作中</span>
           </div>
+          <div class="mini-garden" id="mg1"></div>
         </div>
-        <div class="mini-garden" id="mg1"></div>
         <div class="timer-bar"><div class="timer-bar-fill" id="sitBarFill"></div></div>
       </div>
     </div>
@@ -221,19 +230,23 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="card-slide">
       <div class="card water-card">
         <div class="card-header"><span class="icon">💧</span><span class="label">喝水追蹤</span></div>
+        <!-- Content area -->
         <div class="water-body">
           <div class="water-info">
             <div class="water-count"><span id="wNum">0</span> / 10 杯</div>
             <div class="water-ml" id="wMl">≈ 0 ml</div>
           </div>
           <div class="cups-row" id="cupsRow"></div>
+        </div>
+        <!-- Bottom zone -->
+        <div class="card-bottom">
           <button class="water-btn" id="waterBtn" onclick="drinkWater()">💧 喝了一杯<span class="xp-badge">+0.5 XP</span></button>
           <div class="water-row2">
             <div class="water-note">工作中每 2 小時提醒一次</div>
             <button class="undo-btn" id="undoBtn" onclick="undoWater()">↩ 按錯了</button>
           </div>
+          <div class="mini-garden" id="mg2"></div>
         </div>
-        <div class="mini-garden" id="mg2"></div>
       </div>
     </div>
     <!-- CARD 3: GARDEN -->
@@ -418,19 +431,19 @@ function startSession(){
 
   document.getElementById('sitIdle').style.display='none';
   document.getElementById('sitActive').style.display='block';
+  document.getElementById('sitIdleBtn').style.display='none';
+  document.getElementById('standBtn').style.display='block';
+  document.getElementById('sitRow2').style.display='flex';
   document.getElementById('sitStatus').textContent='工作中';
 
-  // Start UI refresh interval
   if(tickId)clearInterval(tickId);
   tickId=setInterval(tick,1000);
-  tick(); // immediate first update
-
+  tick();
   saveS();
 }
 
 function endSession(){
   if(!inSession)return;
-  // Accumulate session time
   S.sessionSecTotal=sessionAccum+getSessionElapsed();
   inSession=false;
   clearInterval(tickId);tickId=null;
@@ -438,6 +451,9 @@ function endSession(){
 
   document.getElementById('sitIdle').style.display='flex';
   document.getElementById('sitActive').style.display='none';
+  document.getElementById('sitIdleBtn').style.display='block';
+  document.getElementById('standBtn').style.display='none';
+  document.getElementById('sitRow2').style.display='none';
 
   saveS();updTopBar(0);renderAll();
 }
