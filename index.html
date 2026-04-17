@@ -399,19 +399,8 @@ onAuthStateChanged(fbAuth,async u=>{
     dbRef=ref(fbDb,`health-tracker/${u.uid}`);
     btn.innerHTML=`<span class="dot on"></span>${u.displayName?.split(' ')[0]||'已登入'}`;
     btn.classList.add('on');
-    try{
-      const snap=await get(dbRef);
-      if(snap.exists()){
-        const c=snap.val(),today=new Date().toDateString();
-        if(c.lastDate===today||S.lastDate!==today){
-          Object.assign(S,c);
-          if(!Array.isArray(S.garden))S.garden=[];
-          // Migrate old garden format (strings → objects)
-          S.garden=S.garden.map(g=>typeof g==='string'?{type:'sit',emoji:g}:g);
-          saveLocal();
-        }else await cloudSave();
-      }else await cloudSave();
-    }catch(e){console.log('FB err',e);}
+    await cloudPull(true); // true = first-pull after login
+    resumeSessionIfNeeded();
     renderAll();
   }else{
     dbRef=null;
@@ -421,6 +410,63 @@ onAuthStateChanged(fbAuth,async u=>{
 });
 window.handleLogin=async()=>{if(fbUser){if(confirm('確定登出？'))await signOut(fbAuth);}else{try{await signInWithPopup(fbAuth,prov);}catch(e){}}};
 async function cloudSave(){if(!dbRef)return;try{await set(dbRef,{...S});}catch(e){}}
+
+// Pull from cloud — merge cloud state intelligently
+// firstPull=true means this is right after login; normal case is visibility/tab switch
+async function cloudPull(firstPull){
+  if(!dbRef)return;
+  try{
+    const snap=await get(dbRef);
+    if(!snap.exists()){if(firstPull)await cloudSave();return;}
+    const c=snap.val();
+    const today=new Date().toDateString();
+    // If cloud data is from a previous day, don't use it
+    if(c.lastDate&&c.lastDate!==today&&c.lastDate!==null){
+      if(firstPull)await cloudSave();
+      return;
+    }
+    // Migrate garden format
+    if(!Array.isArray(c.garden))c.garden=[];
+    c.garden=c.garden.map(g=>typeof g==='string'?{type:'sit',emoji:g}:g);
+
+    // Decide whether to apply cloud data
+    // Rule: if cloud has a more recent sit/session activity, use cloud
+    // Otherwise, keep local
+    const cloudNewer=isCloudNewer(c);
+    if(cloudNewer||firstPull){
+      const wasInSession=S.inSession;
+      Object.assign(S,c);
+      saveLocal();
+      // If session state changed, update UI
+      if(S.inSession&&!wasInSession){
+        // Cloud says we're in session but local didn't know — resume it
+        resumeSessionIfNeeded();
+      }else if(!S.inSession&&wasInSession){
+        // Cloud ended session while we thought we were in — sync UI
+        if(tid){clearInterval(tid);tid=null;}
+        applySessionUI(false);
+      }
+      renderAll();
+    }
+  }catch(e){console.log('cloudPull err',e);}
+}
+
+// Heuristic: is cloud data newer than local?
+// Compare session start times, counters, and total activity
+function isCloudNewer(c){
+  // If cloud has active session but local doesn't → cloud newer
+  if(c.inSession&&!S.inSession)return true;
+  // If local has active session but cloud doesn't → local newer
+  if(S.inSession&&!c.inSession)return false;
+  // Both in session: compare sitStartAt (newer = more recent activity)
+  if(c.inSession&&S.inSession){
+    return (c.sitStartAt||0)>(S.sitStartAt||0);
+  }
+  // Neither in session: compare total activity (standUps + waterCount)
+  const cloudTotal=(c.todayStand||0)+(c.todayWater||0)+(c.garden?.length||0);
+  const localTotal=(S.todayStand||0)+(S.todayWater||0)+(S.garden?.length||0);
+  return cloudTotal>localTotal;
+}
 
 // ===== CONFIG =====
 const SILENT=600,AWAY=3600,W_INT=7200,W_GOAL=12,ML=150,S_GOAL=5,W_STREAK=8;
@@ -468,7 +514,8 @@ window.S=loadL();
 function defS(){return{thresh:30,todayStand:0,todayWater:0,streak:0,lastDate:null,
   sitStageIdx:0,sitStageXP:0,waterStageIdx:0,waterStageXP:0,
   garden:[],soundOn:true,totalStands:0,totalWater:0,restToday:false,
-  sessionSecTotal:0,longestSit:0}}
+  sessionSecTotal:0,longestSit:0,
+  inSession:false,sitStartAt:0,sessionStartAt:0,sessionAccum:0,lastWaterRemindAt:0,alerted:false}}
 function loadL(){
   try{
     const d=JSON.parse(localStorage.getItem('health12'));
@@ -479,6 +526,7 @@ function loadL(){
         if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
         else if(diff>1)d.streak=0;
         d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;d.sessionSecTotal=0;d.longestSit=0;
+        d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
       }
       if(!Array.isArray(d.garden))d.garden=[];
       // Migrate old garden items (strings → objects)
@@ -501,49 +549,86 @@ window.switchTab=function(i){
   tabs.forEach((t,j)=>t.classList.toggle('active',i===j));
 };
 
-// ===== TIMING =====
-let inS=false,sitAt=0,sessAt=0,sessAcc=0,lastW=0,alerted=false,tid=null;
+// ===== TIMING (session state now stored in S for cross-device sync) =====
+// S.inSession, S.sitStartAt, S.sessionStartAt, S.sessionAccum, S.lastWaterRemindAt, S.alerted
+let tid=null;
 const now=()=>Date.now();
-const sitE=()=>inS&&sitAt?Math.floor((now()-sitAt)/1000):0;
-const sessE=()=>inS&&sessAt?Math.floor((now()-sessAt)/1000):0;
-const totalSS=()=>sessAcc+sessE();
+const sitE=()=>S.inSession&&S.sitStartAt?Math.floor((now()-S.sitStartAt)/1000):0;
+const sessE=()=>S.inSession&&S.sessionStartAt?Math.floor((now()-S.sessionStartAt)/1000):0;
+const totalSS=()=>(S.sessionAccum||0)+sessE();
 function zone(s){const t=S.thresh*60;return s<SILENT?'silent':s<t?'active':s<AWAY?'reminded':'away';}
 
 function tick(){
-  if(!inS)return;
+  if(!S.inSession)return;
   const e=sitE(),t=S.thresh*60;
   if(e>S.longestSit)S.longestSit=e;
-  S.sessionSecTotal=sessAcc+sessE();
-  if(!alerted&&e>=t){alerted=true;if(S.soundOn)playChime();fireNotif('坐太久了！站起來！');}
-  if(lastW&&(now()-lastW)>=W_INT*1000){lastW=now();if(S.soundOn)playDrop();fireNotif('💧 該喝水了！');}
+  S.sessionSecTotal=(S.sessionAccum||0)+sessE();
+  if(!S.alerted&&e>=t){S.alerted=true;if(S.soundOn)playChime();fireNotif('坐太久了！站起來！');}
+  if(S.lastWaterRemindAt&&(now()-S.lastWaterRemindAt)>=W_INT*1000){S.lastWaterRemindAt=now();if(S.soundOn)playDrop();fireNotif('💧 該喝水了！');}
   updSit(e);updTop(e);
   if(e%30===0)saveLocal();
 }
 
 window.startSession=function(){
-  inS=true;const n=now();sitAt=n;sessAt=n;sessAcc=S.sessionSecTotal;lastW=n;alerted=false;
-  document.getElementById('sitIdle').style.display='none';
-  document.getElementById('sitActive').style.display='flex';
-  document.getElementById('sitIdleBtn').style.display='none';
-  document.getElementById('standBtn').style.display='block';
-  document.getElementById('sitEndBtn').style.display='inline-block';
-  document.getElementById('sitSubtitle').textContent='（工作中）';
-  document.getElementById('tabSitBadge').textContent='工作中';
+  const n=now();
+  S.inSession=true;S.sitStartAt=n;S.sessionStartAt=n;S.sessionAccum=S.sessionSecTotal||0;
+  S.lastWaterRemindAt=n;S.alerted=false;
+  applySessionUI(true);
   if(tid)clearInterval(tid);tid=setInterval(tick,1000);tick();saveSync();
 };
 window.endSession=function(){
-  if(!inS)return;S.sessionSecTotal=sessAcc+sessE();inS=false;clearInterval(tid);tid=null;sitAt=0;sessAt=0;alerted=false;
-  document.getElementById('sitIdle').style.display='flex';
-  document.getElementById('sitActive').style.display='none';
-  document.getElementById('sitIdleBtn').style.display='block';
-  document.getElementById('standBtn').style.display='none';
-  document.getElementById('sitEndBtn').style.display='none';
-  document.getElementById('sitSubtitle').textContent='';
-  document.getElementById('tabSitBadge').textContent='';
+  if(!S.inSession)return;
+  S.sessionSecTotal=(S.sessionAccum||0)+sessE();
+  S.inSession=false;
+  S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
+  if(tid){clearInterval(tid);tid=null;}
+  applySessionUI(false);
   saveSync();updTop(0);renderAll();
 };
-function resetSit(){sitAt=now();alerted=false;}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&inS)tick();});
+function resetSit(){S.sitStartAt=now();S.alerted=false;}
+
+// Apply session UI (used by start, end, and sync-from-cloud recovery)
+function applySessionUI(active){
+  document.getElementById('sitIdle').style.display=active?'none':'flex';
+  document.getElementById('sitActive').style.display=active?'flex':'none';
+  document.getElementById('sitIdleBtn').style.display=active?'none':'block';
+  document.getElementById('standBtn').style.display=active?'block':'none';
+  document.getElementById('sitEndBtn').style.display=active?'inline-block':'none';
+  document.getElementById('sitSubtitle').textContent=active?'（工作中）':'';
+  document.getElementById('tabSitBadge').textContent=active?'工作中':'';
+}
+
+// Resume session from loaded state (after login pulls cloud, or on page load with local data)
+function resumeSessionIfNeeded(){
+  if(S.inSession&&S.sitStartAt){
+    // Session still active — check if sitStartAt is too old (> 6 hours means stale)
+    const ageMin=(now()-S.sitStartAt)/60000;
+    if(ageMin>360){
+      // Too old, treat as stale — end session silently
+      S.inSession=false;S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
+      applySessionUI(false);
+      saveLocal();
+      return;
+    }
+    applySessionUI(true);
+    if(tid)clearInterval(tid);
+    tid=setInterval(tick,1000);
+    tick();
+  }else{
+    applySessionUI(false);
+  }
+}
+let lastPullAt=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    if(S.inSession)tick();
+    // Pull cloud only if it's been > 10s since last pull (avoid spamming)
+    if(now()-lastPullAt>10000){
+      lastPullAt=now();
+      cloudPull();
+    }
+  }
+});
 
 function updSit(e){
   const m=Math.floor(e/60),s=e%60,d=document.getElementById('sitDisp');
@@ -558,10 +643,10 @@ function updSit(e){
   else if(z==='reminded'){d.className='timer-num c-red';card.className='card sit-card z-red';fill.style.background='var(--red)';hint.textContent='坐太久了！站起來吧！🔴';hint.className='timer-sub urgent';badge.textContent='+1 XP';}
   else{d.className='timer-num c-grey';card.className='card sit-card z-grey';fill.style.background='var(--grey)';hint.textContent='超過 60 分鐘，你可能已經離開了 🫥';hint.className='timer-sub grey';badge.textContent='重設';btn.className='btn-primary grey';}
 }
-window.pickThresh=function(m){S.thresh=m;saveSync();document.querySelectorAll('.tp').forEach(b=>b.classList.toggle('on',+b.dataset.m===m));if(inS){alerted=false;tick();}};
+window.pickThresh=function(m){S.thresh=m;saveSync();document.querySelectorAll('.tp').forEach(b=>b.classList.toggle('on',+b.dataset.m===m));if(S.inSession){S.alerted=false;tick();}};
 
 window.handleStandup=function(){
-  if(!inS)return;
+  if(!S.inSession)return;
   const e=sitE(),z=zone(e);
   if(z==='silent'||z==='away'){resetSit();if(z==='away')showAway();else tick();return;}
   const xp=z==='active'?2:1,tree=applySitXP(xp);
@@ -573,7 +658,7 @@ window.drinkWater=function(){
   S.todayWater++;S.totalWater++;
   applyWaterXP(0.5);
   S.lastDate=new Date().toDateString();
-  if(inS)lastW=now();
+  if(S.inSession)S.lastWaterRemindAt=now();
   saveSync();renderAll();
   const u=document.getElementById('undoBtn');u.style.display='inline';setTimeout(()=>u.style.display='none',5000);
 };
@@ -691,7 +776,7 @@ function renderMini(el,type){
 }
 
 function renderAll(){
-  updTop(inS?sitE():0);
+  updTop(S.inSession?sitE():0);
   // Cups
   const cg=document.getElementById('cupsGrid');
   let ch='';
@@ -742,7 +827,7 @@ function renderAll(){
 
 function updTop(e){
   const tb=document.getElementById('tbTimer');
-  if(!inS){tb.textContent='--:--';tb.className='v off';}
+  if(!S.inSession){tb.textContent='--:--';tb.className='v off';}
   else{const m=Math.floor(e/60),s=e%60;tb.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;const z=zone(e);tb.className='v '+(z==='silent'?'off':z==='active'?'on':z==='reminded'?'warn':'off');}
   const ts=document.getElementById('tbStand');ts.textContent=`${S.todayStand}/${S_GOAL}`;ts.className='v'+(S.todayStand>=S_GOAL?' done':'');
   const tw=document.getElementById('tbWater');tw.textContent=`${S.todayWater}/${W_STREAK}`;tw.className='v'+(S.todayWater>=W_STREAK?' done':'');
@@ -773,6 +858,7 @@ function updNotifDot(){
 }
 updNotifDot();
 
+resumeSessionIfNeeded();
 renderAll();
 </script>
 </body>
