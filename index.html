@@ -9,294 +9,373 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0c1810;--card:#152319;--card-alt:#1d3226;
-  --accent:#ff7043;--accent2:#ffab91;
-  --green:#66bb6a;--green-light:#a5d6a7;--green-dark:#2e7d32;
-  --gold:#ffd54f;--yellow:#ffca28;--red:#ef5350;
-  --blue:#42a5f5;--blue-light:#90caf9;--blue-dark:#1565c0;
-  --grey:#78909c;--grey-dark:#455a64;
-  --text:#e8f5e9;--text-dim:#7da57d;--radius:14px;
-  --tab-h:56px;
+  --bg:#0c1810; --card:#152319; --card-alt:#1d3226;
+  --accent:#ff7043; --accent2:#ffab91;
+  --green:#66bb6a; --green-light:#a5d6a7; --green-dark:#2e7d32;
+  --gold:#ffd54f; --yellow:#ffca28; --red:#ef5350;
+  --blue:#42a5f5; --blue-light:#90caf9; --blue-dark:#1565c0;
+  --grey:#78909c; --grey-dark:#455a64;
+  --text:#e8f5e9; --text-dim:#7da57d;
+  --radius:14px;
+  --top-h:52px;
+  --tab-h:58px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;font-size:16px;}
+html,body{height:100%;}
+body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:var(--text);font-size:16px;-webkit-tap-highlight-color:transparent;}
 
-/* ========== MOBILE: TAB-BASED ========== */
+/* ========== TOP BAR ========== */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:50;height:var(--top-h);background:#0c1810ee;backdrop-filter:blur(8px);border-bottom:1px solid #ffffff08;display:flex;align-items:center;padding:0 12px;gap:6px;}
+.tb-title{font-family:'Fredoka',sans-serif;font-size:1rem;font-weight:700;color:var(--green-light);margin-right:auto;white-space:nowrap;}
+.tb-chip{background:var(--card);border-radius:8px;padding:4px 7px;font-size:.7rem;color:var(--text-dim);display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.tb-chip .v{font-family:'Fredoka',sans-serif;font-weight:700;font-size:.8rem;color:var(--gold);}
+.tb-chip .v.on{color:var(--green-light);}
+.tb-chip .v.off{color:var(--grey);}
+.tb-chip .v.done{color:var(--green);}
+.tb-chip .v.warn{color:var(--red);}
+.tb-login{background:var(--card-alt);border:1px solid #ffffff20;color:var(--text-dim);padding:4px 8px;border-radius:8px;font-size:.65rem;font-family:inherit;cursor:pointer;white-space:nowrap;}
+.tb-login.on{border-color:var(--green);color:var(--green-light);}
+.dot{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:3px;}
+.dot.on{background:var(--green);} .dot.off{background:var(--grey);}
+.tb-snd{background:none;border:none;font-size:1rem;cursor:pointer;padding:2px;}
 
-/* Top status bar */
-.m-top{position:fixed;top:0;left:0;right:0;z-index:50;background:#0c1810e8;backdrop-filter:blur(8px);padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #ffffff08;height:52px;}
-.m-top .title{font-family:'Fredoka',sans-serif;font-size:1.05rem;font-weight:700;color:var(--green-light);margin-right:auto;}
-.m-chip{background:var(--card);border-radius:8px;padding:4px 8px;font-size:.72rem;color:var(--text-dim);display:flex;align-items:center;gap:3px;}
-.m-chip .v{font-family:'Fredoka',sans-serif;font-weight:700;font-size:.82rem;color:var(--gold);}
-.m-chip .v.on{color:var(--green-light);}
-.m-chip .v.off{color:var(--grey);}
-.m-chip .v.done{color:var(--green);}
-.m-chip .v.warn{color:var(--red);}
-.login-btn{background:var(--card-alt);border:1px solid #ffffff20;color:var(--text-dim);padding:4px 8px;border-radius:8px;font-size:.62rem;font-family:inherit;cursor:pointer;white-space:nowrap;}
-.login-btn.on{border-color:var(--green);color:var(--green-light);}
-.sync-dot{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:3px;vertical-align:middle;}
-.sync-dot.on{background:var(--green);}
-.sync-dot.off{background:var(--grey);}
-.snd-btn{background:none;border:none;font-size:1rem;cursor:pointer;padding:0 2px;}
+/* Hide some chips on small phones to prevent overflow */
+@media(max-width:430px){
+  .tb-title{font-size:.9rem;}
+  .tb-chip{font-size:.65rem;padding:3px 5px;}
+  .tb-chip .v{font-size:.72rem;}
+}
 
-/* Bottom tabs */
-.m-tabs{position:fixed;bottom:0;left:0;right:0;z-index:50;background:#0c1810f0;backdrop-filter:blur(8px);display:flex;border-top:1px solid #ffffff10;padding-bottom:env(safe-area-inset-bottom,0);}
-.m-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 0 6px;cursor:pointer;color:var(--text-dim);transition:.2s;gap:2px;-webkit-tap-highlight-color:transparent;}
-.m-tab.active{color:var(--green-light);}
-.m-tab .t-icon{font-size:1.3rem;}
-.m-tab .t-label{font-size:.62rem;font-weight:700;}
-.m-tab .t-badge{font-size:.55rem;color:var(--gold);min-height:.7em;}
+/* ========== MAIN CONTAINER ========== */
+.main{padding-top:var(--top-h);padding-bottom:var(--tab-h);min-height:100dvh;}
 
-/* Views — normal flow, padded to avoid fixed bars */
-.views-container{padding-top:52px;padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom,0));min-height:100dvh;}
-.m-view{display:none;padding:16px;min-height:calc(100dvh - 52px - var(--tab-h));}
-.m-view.active{display:flex;flex-direction:column;}
+/* ========== BOTTOM TABS (MOBILE ONLY) ========== */
+.tabs{position:fixed;bottom:0;left:0;right:0;z-index:50;height:var(--tab-h);background:#0c1810f2;backdrop-filter:blur(8px);border-top:1px solid #ffffff10;display:flex;padding-bottom:env(safe-area-inset-bottom,0);}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);cursor:pointer;transition:color .2s;gap:2px;}
+.tab.active{color:var(--green-light);}
+.tab .ti{font-size:1.3rem;line-height:1;}
+.tab .tl{font-size:.62rem;font-weight:700;}
+.tab .tb{font-size:.55rem;color:var(--gold);min-height:.7em;}
 
-/* ========== SIT VIEW ========== */
-.sit-idle{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;gap:16px;}
-.sit-idle .big-icon{font-size:4rem;opacity:.5;}
-.sit-idle .desc{font-size:1rem;color:var(--text-dim);line-height:1.6;}
+/* ========== VIEWS (one at a time on mobile) ========== */
+.views{padding:12px;}
+.view{display:none;}
+.view.active{display:block;}
 
-.sit-active{display:none;text-align:center;height:100%;display:flex;flex-direction:column;}
-.sit-active.on{display:flex;}
+/* ========== CARD (unified structure) ========== */
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  border:1px solid #ffffff08;
+  padding:18px;
+  transition:border-color .5s;
+  display:flex;
+  flex-direction:column;
+}
+.card-title{display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:1rem;font-weight:700;}
+.card-title .ci{font-size:1.15rem;}
+.card-title .cs{font-size:.72rem;color:var(--text-dim);font-weight:400;margin-left:4px;}
 
-.timer-block{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-.timer-num{font-family:'Fredoka',sans-serif;font-size:4.5rem;font-weight:700;letter-spacing:3px;line-height:1;transition:color .5s;}
+/* Content zone: fixed min-height so cards align */
+.card-content{
+  min-height:280px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+/* Bottom zone: always stacked at bottom, same structure in all cards */
+.card-actions{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+.card-actions-sub{min-height:28px;display:flex;align-items:center;justify-content:center;}
+
+/* Buttons */
+.btn-primary{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:14px;padding:15px;font-size:1.05rem;cursor:pointer;transition:transform .15s;color:#fff;}
+.btn-primary:active{transform:scale(.96);}
+.btn-primary.green{background:linear-gradient(135deg,var(--green),var(--green-dark));box-shadow:0 4px 18px #66bb6a25;}
+.btn-primary.blue{background:linear-gradient(135deg,var(--blue),var(--blue-dark));box-shadow:0 4px 16px #42a5f525;}
+.btn-primary.grey{background:linear-gradient(135deg,var(--grey),var(--grey-dark));box-shadow:none;}
+.btn-primary:disabled{opacity:.4;cursor:default;transform:none;}
+.btn-primary .xp{display:inline-block;background:#ffffff25;border-radius:8px;padding:2px 8px;margin-left:6px;font-size:.75rem;font-weight:400;}
+
+.btn-sub{background:none;border:1px solid #ffffff20;color:var(--text-dim);padding:5px 16px;border-radius:8px;font-size:.75rem;font-family:inherit;cursor:pointer;transition:.2s;}
+.btn-sub:hover{border-color:var(--accent);color:var(--accent);}
+.btn-link{background:none;border:none;color:var(--text-dim);font-size:.72rem;font-family:inherit;cursor:pointer;text-decoration:underline;}
+
+/* Mini garden footer on sit/water cards */
+.mini-footer{margin-top:14px;padding-top:12px;border-top:1px solid #ffffff08;}
+.mini-row{display:flex;align-items:center;gap:8px;}
+.mini-plant{font-size:1.4rem;animation:sway 3s ease-in-out infinite;}
+@keyframes sway{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
+.mini-info{flex:1;min-width:0;}
+.mini-name{font-size:.72rem;color:var(--green-light);font-weight:700;}
+.mini-bar{height:4px;background:#ffffff10;border-radius:2px;margin-top:3px;overflow:hidden;}
+.mini-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .5s;}
+.mini-trees{display:flex;gap:3px;flex-wrap:wrap;margin-top:6px;min-height:18px;}
+.mini-tree{font-size:.95rem;}
+.mini-empty{font-size:.65rem;color:var(--text-dim);}
+
+/* ========== SIT CARD CONTENT ========== */
+.sit-idle-content{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+.sit-idle-icon{font-size:3.2rem;opacity:.55;}
+.sit-idle-text{font-size:.95rem;color:var(--text-dim);line-height:1.5;}
+
+.sit-active-content{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%;}
+.timer-num{font-family:'Fredoka',sans-serif;font-size:3.6rem;font-weight:700;letter-spacing:3px;line-height:1;transition:color .4s;}
 .timer-num.c-dim{color:var(--text-dim);}
 .timer-num.c-green{color:var(--green-light);}
 .timer-num.c-yellow{color:var(--yellow);}
 .timer-num.c-red{color:var(--red);animation:pulse 1s ease-in-out infinite;}
 .timer-num.c-grey{color:var(--grey);}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
-.timer-sub{font-size:.88rem;color:var(--text-dim);margin-top:8px;}
+.timer-sub{font-size:.8rem;color:var(--text-dim);min-height:1.2em;}
 .timer-sub.urgent{color:var(--accent2);}
 .timer-sub.grey{color:var(--grey);}
-.timer-progress{width:80%;max-width:280px;height:5px;background:#ffffff10;border-radius:3px;margin-top:14px;overflow:hidden;}
-.timer-progress-fill{height:100%;border-radius:3px;transition:width 1s linear,background .5s;}
+.timer-progress{width:85%;max-width:260px;height:4px;background:#ffffff10;border-radius:2px;overflow:hidden;margin-top:4px;}
+.timer-progress-fill{height:100%;border-radius:2px;transition:width 1s linear,background .5s;}
 
-.thresh-pills{display:flex;gap:8px;justify-content:center;margin-top:16px;}
-.tp{background:var(--card-alt);border:2px solid transparent;color:var(--text-dim);padding:6px 18px;border-radius:24px;font-size:.85rem;font-family:inherit;cursor:pointer;transition:.2s;}
+.thresh-pills{display:flex;gap:6px;justify-content:center;margin-top:8px;}
+.tp{background:var(--card-alt);border:2px solid transparent;color:var(--text-dim);padding:5px 14px;border-radius:20px;font-size:.78rem;font-family:inherit;cursor:pointer;transition:.2s;}
 .tp.on{border-color:var(--green);color:var(--green);background:#66bb6a18;}
 
-.sit-btns{padding:10px 0;flex-shrink:0;}
-.big-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:16px;padding:16px;font-size:1.15rem;cursor:pointer;transition:.15s;color:#fff;}
-.big-btn:active{transform:scale(.96);}
-.big-btn.green{background:linear-gradient(135deg,var(--green),var(--green-dark));box-shadow:0 6px 24px #66bb6a30;}
-.big-btn.grey{background:linear-gradient(135deg,var(--grey),var(--grey-dark));}
-.big-btn .xp{background:#ffffff25;border-radius:8px;padding:2px 10px;margin-left:8px;font-size:.78rem;font-weight:400;}
-.end-row{text-align:center;margin-top:8px;}
-.end-link{background:none;border:none;color:var(--text-dim);font-size:.82rem;font-family:inherit;cursor:pointer;text-decoration:underline;padding:6px 12px;}
+/* Sit card border color by zone */
+.card.sit-card.z-green{border-color:#66bb6a40;}
+.card.sit-card.z-yellow{border-color:#ffca2860;}
+.card.sit-card.z-red{border-color:#ef535060;}
+.card.sit-card.z-grey{border-color:#78909c40;}
 
-/* Mini garden strip at bottom of sit/water views */
-.mini-strip{background:var(--card);border-radius:var(--radius);padding:10px 14px;margin-top:auto;flex-shrink:0;}
-.ms-row{display:flex;align-items:center;gap:8px;}
-.ms-plant{font-size:1.4rem;animation:sway 3s ease-in-out infinite;}
-@keyframes sway{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
-.ms-info{flex:1;}
-.ms-name{font-size:.75rem;color:var(--green-light);font-weight:700;}
-.ms-bar{height:4px;background:#ffffff10;border-radius:2px;margin-top:3px;overflow:hidden;}
-.ms-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .5s;}
-.ms-trees{display:flex;gap:3px;flex-wrap:wrap;margin-top:5px;}
-.ms-tree{font-size:.9rem;}
-.ms-empty{font-size:.65rem;color:var(--text-dim);}
+/* ========== WATER CARD CONTENT ========== */
+.water-content{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;width:100%;}
+.water-big{font-family:'Fredoka',sans-serif;font-size:2.3rem;font-weight:700;color:var(--blue-light);}
+.water-ml{font-size:.78rem;color:var(--text-dim);}
+.cups-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:280px;}
+.cup{aspect-ratio:.72;position:relative;border-radius:0 0 7px 7px;border:2px solid #ffffff20;border-top:none;background:var(--card-alt);overflow:hidden;transition:.3s;}
+.cup::before{content:'';position:absolute;top:0;left:-2px;right:-2px;height:3px;background:#ffffff20;border-radius:2px 2px 0 0;}
+.cup .water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,var(--blue-light),var(--blue));border-radius:0 0 5px 5px;transition:height .5s ease;}
+.cup.filled{border-color:var(--blue);}
+.cup.filled .water-fill{height:82%;}
+.cup .cn{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:.6rem;color:#fff;font-weight:700;opacity:.6;z-index:1;}
 
-/* ========== WATER VIEW ========== */
-.water-header{text-align:center;margin-bottom:12px;}
-.water-big{font-family:'Fredoka',sans-serif;font-size:2.4rem;font-weight:700;color:var(--blue-light);}
-.water-ml-info{font-size:.82rem;color:var(--text-dim);margin-top:2px;}
+.card.water-card{border-color:#42a5f520;}
 
-.cups-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;max-width:320px;margin:16px auto;}
-.cup2{aspect-ratio:.7;position:relative;border-radius:0 0 8px 8px;border:2.5px solid #ffffff20;border-top:none;background:var(--card-alt);overflow:hidden;transition:.3s;}
-.cup2::before{content:'';position:absolute;top:0;left:-3px;right:-3px;height:3px;background:#ffffff20;border-radius:3px 3px 0 0;}
-.cup2 .w{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,var(--blue-light),var(--blue));border-radius:0 0 6px 6px;transition:height .5s ease;}
-.cup2.filled{border-color:var(--blue);}
-.cup2.filled .w{height:82%;}
-.cup2 .cn{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:.7rem;color:#fff;font-weight:700;opacity:.6;z-index:1;}
+/* ========== GARDEN CARD ========== */
+.garden-card .card-content{min-height:auto;display:block;text-align:center;}
+.garden-plant{text-align:center;margin-bottom:14px;}
+.gp-emoji{font-size:3.6rem;animation:sway 3s ease-in-out infinite;filter:drop-shadow(0 0 12px #66bb6a30);}
+.gp-ground{width:45%;height:12px;margin:0 auto;background:linear-gradient(180deg,#3e2723,#5d4037);border-radius:50%;opacity:.5;margin-top:-4px;}
+.gp-name{font-size:1rem;font-weight:700;color:var(--green-light);margin-top:10px;}
+.gp-stage{font-size:.75rem;color:var(--text-dim);margin-top:2px;}
+.gp-xp{display:flex;align-items:center;gap:10px;max-width:260px;margin:10px auto 0;}
+.gp-bar{flex:1;height:8px;background:#ffffff10;border-radius:4px;overflow:hidden;}
+.gp-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .5s;}
+.gp-xp-text{font-size:.7rem;color:var(--text-dim);min-width:45px;text-align:right;}
 
-.water-btns{margin-top:20px;}
-.undo-row{text-align:center;margin-top:6px;min-height:24px;}
-.undo-link{background:none;border:none;color:var(--text-dim);font-size:.75rem;font-family:inherit;cursor:pointer;text-decoration:underline;display:none;}
-
-/* ========== GARDEN VIEW ========== */
-.garden-view-inner{text-align:center;}
-.gv-plant{font-size:4.5rem;animation:sway 3s ease-in-out infinite;filter:drop-shadow(0 0 16px #66bb6a30);}
-.gv-ground{width:50%;height:14px;margin:0 auto;background:linear-gradient(180deg,#3e2723,#5d4037);border-radius:50%;opacity:.5;margin-top:-6px;}
-.gv-name{font-size:1.1rem;font-weight:700;color:var(--green-light);margin-top:12px;}
-.gv-stage{font-size:.8rem;color:var(--text-dim);margin-top:3px;}
-.gv-xp{display:flex;align-items:center;gap:10px;margin:10px auto 0;max-width:240px;}
-.gv-bar{flex:1;height:10px;background:#ffffff10;border-radius:5px;overflow:hidden;}
-.gv-bar-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .5s;}
-.gv-xp-text{font-size:.78rem;color:var(--text-dim);min-width:45px;text-align:right;}
-
-.garden-box{margin-top:20px;}
-.garden-box h3{font-size:.9rem;color:var(--text-dim);margin-bottom:10px;}
-.gb-area{min-height:120px;background:linear-gradient(180deg,#1b2f1b 0%,#2a3f2a 60%,#3e2723 85%,#5d4037 100%);border-radius:14px;padding:14px;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;justify-content:center;}
-.gb-tree{font-size:2rem;animation:gsway 4s ease-in-out infinite;transition:transform .2s;}
-.gb-tree:active{transform:scale(1.3);}
+.garden-grid-title{font-size:.82rem;color:var(--text-dim);margin-bottom:10px;text-align:center;}
+.garden-area{min-height:100px;background:linear-gradient(180deg,#1b2f1b 0%,#2a3f2a 60%,#3e2723 85%,#5d4037 100%);border-radius:12px;padding:12px;display:flex;flex-wrap:wrap;gap:5px;align-items:flex-end;justify-content:center;}
+.ga-tree{font-size:1.8rem;animation:gsway 4s ease-in-out infinite;}
 @keyframes gsway{0%,100%{transform:rotate(-1deg);}50%{transform:rotate(1deg);}}
-.gb-empty{width:100%;text-align:center;font-size:.85rem;color:var(--text-dim);padding:20px 0;}
-.gb-count{font-size:.75rem;color:var(--text-dim);margin-top:8px;text-align:center;}
+.ga-empty{width:100%;text-align:center;font-size:.82rem;color:var(--text-dim);padding:16px 0;}
+.ga-count{text-align:center;font-size:.72rem;color:var(--text-dim);margin-top:6px;}
 
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid #ffffff08;}
-.sg-item{text-align:center;}
-.sg-val{font-family:'Fredoka',sans-serif;font-size:1.3rem;font-weight:700;color:var(--gold);}
-.sg-label{font-size:.6rem;color:var(--text-dim);margin-top:2px;}
-.rest-row{margin-top:16px;text-align:center;}
-.rest-link{background:var(--card-alt);border:1px solid #ffffff15;color:var(--text-dim);padding:8px 20px;border-radius:12px;font-size:.78rem;font-family:inherit;cursor:pointer;}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:16px;padding-top:14px;border-top:1px solid #ffffff08;}
+.stat{text-align:center;}
+.stat-v{font-family:'Fredoka',sans-serif;font-size:1.2rem;font-weight:700;color:var(--gold);}
+.stat-l{font-size:.58rem;color:var(--text-dim);margin-top:2px;}
+
+.rest-row{margin-top:14px;text-align:center;}
+.rest-btn{background:var(--card-alt);border:1px solid #ffffff15;color:var(--text-dim);padding:7px 18px;border-radius:10px;font-size:.74rem;font-family:inherit;cursor:pointer;}
 
 /* ========== OVERLAY ========== */
-.overlay{position:fixed;inset:0;background:#0c1810ee;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(10px);}
+.overlay{position:fixed;inset:0;background:#0c1810ee;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(10px);}
 .overlay.show{display:flex;}
-.ov-card{background:var(--card);border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;border:2px solid var(--green);box-shadow:0 0 60px #66bb6a20;animation:pop .4s cubic-bezier(.34,1.56,.64,1);}
+.ov-card{background:var(--card);border-radius:20px;padding:26px 22px;max-width:340px;width:100%;text-align:center;border:2px solid var(--green);animation:pop .4s cubic-bezier(.34,1.56,.64,1);}
 @keyframes pop{0%{transform:scale(.7);opacity:0;}100%{transform:scale(1);opacity:1;}}
-.ov-card h2{font-size:1.25rem;margin-bottom:4px;color:var(--accent2);}
-.ov-card .big-emoji{font-size:3rem;margin-bottom:8px;animation:bounce .6s ease infinite alternate;}
+.ov-card h2{font-size:1.2rem;margin-bottom:4px;color:var(--accent2);}
+.ov-card .big-emoji{font-size:2.8rem;margin-bottom:6px;animation:bounce .6s ease infinite alternate;}
 @keyframes bounce{0%{transform:translateY(0);}100%{transform:translateY(-8px);}}
-.spinner-area{margin:14px 0;position:relative;height:68px;overflow:hidden;background:var(--card-alt);border-radius:14px;border:2px solid var(--green-dark);display:none;}
+.spinner-area{margin:12px 0;position:relative;height:66px;overflow:hidden;background:var(--card-alt);border-radius:12px;border:2px solid var(--green-dark);display:none;}
 .spinner-area.show{display:block;}
 .spinner-track{display:flex;flex-direction:column;}
-.spinner-item{height:68px;display:flex;align-items:center;justify-content:center;gap:10px;padding:0 14px;}
-.spinner-item .s-icon{font-size:1.7rem;flex-shrink:0;}
-.spinner-item .s-text{font-size:.9rem;text-align:left;line-height:1.3;}
+.spinner-item{height:66px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;}
+.spinner-item .s-icon{font-size:1.6rem;flex-shrink:0;}
+.spinner-item .s-text{font-size:.88rem;text-align:left;line-height:1.3;}
 .sp-ptr{position:absolute;top:50%;transform:translateY(-50%);border-top:9px solid transparent;border-bottom:9px solid transparent;}
 .sp-ptr.l{left:-2px;border-left:10px solid var(--gold);}
 .sp-ptr.r{right:-2px;border-right:10px solid var(--gold);}
-.result-box{margin-top:10px;padding:14px;background:var(--card-alt);border-radius:12px;display:none;animation:pop .3s ease;}
+.result-box{margin-top:10px;padding:12px;background:var(--card-alt);border-radius:12px;display:none;animation:pop .3s ease;}
 .result-box.show{display:block;}
-.result-box .r-icon{font-size:1.8rem;}
-.result-box .r-text{font-size:.95rem;margin-top:5px;line-height:1.4;}
-.pro-msg{margin:14px 0;padding:12px;background:#66bb6a18;border-radius:12px;border:1px solid #66bb6a30;display:none;animation:pop .3s ease;}
+.result-box .r-icon{font-size:1.7rem;}
+.result-box .r-text{font-size:.92rem;margin-top:4px;line-height:1.4;}
+.pro-msg{margin:12px 0;padding:10px;background:#66bb6a18;border-radius:10px;border:1px solid #66bb6a30;display:none;animation:pop .3s ease;}
 .pro-msg.show{display:block;}
-.pro-msg .pm-text{font-size:.92rem;line-height:1.5;color:var(--green-light);}
-.reward-line{margin-top:6px;font-size:.8rem;color:var(--gold);display:none;}
+.pro-msg .pm-text{font-size:.9rem;line-height:1.5;color:var(--green-light);}
+.reward-line{margin-top:6px;font-size:.76rem;color:var(--gold);display:none;}
 .reward-line.show{display:block;}
-.xp-earned{display:inline-block;background:var(--gold);color:#333;border-radius:8px;padding:3px 10px;font-weight:700;font-size:.85rem;margin-top:8px;}
-.ov-done{margin-top:14px;width:100%;background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;font-family:inherit;font-weight:700;border:none;border-radius:14px;padding:14px;font-size:1rem;cursor:pointer;box-shadow:0 4px 16px #66bb6a30;}
+.xp-earned{display:inline-block;background:var(--gold);color:#333;border-radius:8px;padding:2px 10px;font-weight:700;font-size:.82rem;margin-top:6px;}
+.ov-done{margin-top:12px;width:100%;background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;font-family:inherit;font-weight:700;border:none;border-radius:14px;padding:12px;font-size:.95rem;cursor:pointer;}
 .ov-done:active{transform:scale(.96);}
 
-.notif-toast{position:fixed;top:52px;left:16px;right:16px;background:var(--card-alt);border:1px dashed #ffffff20;border-radius:10px;padding:10px;font-size:.78rem;color:var(--text-dim);text-align:center;z-index:60;cursor:pointer;display:none;}
+.notif-toast{position:fixed;top:calc(var(--top-h) + 6px);left:12px;right:12px;background:var(--card-alt);border:1px dashed #ffffff20;border-radius:10px;padding:9px;font-size:.72rem;color:var(--text-dim);text-align:center;z-index:60;cursor:pointer;display:none;}
 
 /* ========== DESKTOP ========== */
 @media(min-width:768px){
   body{font-size:17px;}
-  .m-tabs{display:none;}
-  .m-top{position:sticky;top:0;padding:12px 20px;}
-  .views-container{padding-top:0;padding-bottom:0;min-height:auto;max-width:960px;margin:0 auto;padding:14px 20px 40px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-  .m-view{display:flex!important;flex-direction:column;background:var(--card);border-radius:var(--radius);padding:22px;border:1px solid #ffffff08;min-height:auto;}
-  .m-view:nth-child(3){grid-column:1/3;}
-  .timer-num{font-size:3.5rem;}
-  .cups-grid{max-width:100%;}
-  .sit-idle{height:auto;min-height:200px;}
-  .mini-strip{margin-top:16px;}
+  .tabs{display:none;}
+  .main{padding-bottom:30px;}
+  .views{max-width:1000px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;}
+  .view{display:block!important;}
+  .view.garden-view{grid-column:1/3;}
+  .card{height:100%;}
+  /* Desktop slightly smaller timer */
+  .timer-num{font-size:3.2rem;}
+  /* Make card content height consistent by matching natural sizes */
+  .card-content{min-height:300px;}
+  .garden-card .card-content{min-height:auto;}
 }
 </style>
 </head>
 <body>
 
-<!-- ===== MOBILE TOP BAR ===== -->
-<div class="m-top">
-  <div class="title">🌱 起來動一動</div>
-  <div class="m-chip"><span>🪑</span><span class="v off" id="tbTimer">--:--</span></div>
-  <div class="m-chip"><span>站</span><span class="v" id="tbStand">0/5</span></div>
-  <div class="m-chip"><span>💧</span><span class="v" id="tbWater">0/6</span></div>
-  <button class="login-btn" id="loginBtn" onclick="handleLogin()"><span class="sync-dot off" id="syncDot"></span>登入</button>
-  <button class="snd-btn" id="soundToggle">🔔</button>
-</div>
-
-<!-- ===== VIEWS ===== -->
-<div class="views-container">
-
-<!-- SIT VIEW -->
-<div class="m-view active" id="viewSit">
-  <div class="sit-idle" id="sitIdle2">
-    <div class="big-icon">💺</div>
-    <div class="desc">準備坐下工作了嗎？<br>按下開始，我幫你追蹤</div>
-    <button class="big-btn green" onclick="startSession()" style="width:100%;max-width:320px">▶ 開始工作</button>
-  </div>
-  <div id="sitActive2" style="display:none;flex:1;flex-direction:column;">
-    <div class="timer-block">
-      <div class="timer-num c-dim" id="sitDisp">00:00</div>
-      <div class="timer-sub" id="sitHint">剛坐下，還不用擔心 😌</div>
-      <div class="timer-progress"><div class="timer-progress-fill" id="sitBarFill"></div></div>
-      <div class="thresh-pills">
-        <button class="tp" data-m="20" onclick="pickThresh(20)">20分</button>
-        <button class="tp on" data-m="30" onclick="pickThresh(30)">30分</button>
-        <button class="tp" data-m="45" onclick="pickThresh(45)">45分</button>
-      </div>
-    </div>
-    <div class="sit-btns">
-      <button class="big-btn green" id="standBtn" onclick="handleStandup()">🧍 我站起來了<span class="xp" id="sitBadge"></span></button>
-      <div class="end-row"><button class="end-link" onclick="endSession()">⏹ 結束工作</button></div>
-    </div>
-    <div class="mini-strip" id="ms1"></div>
-  </div>
-</div>
-
-<!-- WATER VIEW -->
-<div class="m-view" id="viewWater">
-  <div class="water-header">
-    <div class="water-big"><span id="wNum">0</span> / 10 杯</div>
-    <div class="water-ml-info" id="wMl">≈ 0 ml ・ 每 2 小時提醒</div>
-  </div>
-  <div class="cups-grid" id="cupsGrid"></div>
-  <div class="water-btns">
-    <button class="big-btn blue" id="waterBtn" onclick="drinkWater()" style="background:linear-gradient(135deg,var(--blue),var(--blue-dark));box-shadow:0 6px 24px #42a5f525;">💧 喝了一杯<span class="xp">+0.5 XP</span></button>
-    <div class="undo-row"><button class="undo-link" id="undoBtn" onclick="undoWater()">↩ 按錯了</button></div>
-  </div>
-  <div class="mini-strip" id="ms2" style="margin-top:20px;"></div>
-</div>
-
-<!-- GARDEN VIEW -->
-<div class="m-view" id="viewGarden">
-  <div class="garden-view-inner">
-    <div class="gv-plant" id="fpEmoji">🌱</div>
-    <div class="gv-ground"></div>
-    <div class="gv-name" id="fpName">種子</div>
-    <div class="gv-stage">階段 <span id="fpStage">1</span> / 8</div>
-    <div class="gv-xp">
-      <div class="gv-bar"><div class="gv-bar-fill" id="fpBarFill" style="width:0%"></div></div>
-      <div class="gv-xp-text" id="fpXpText">0 / 3</div>
-    </div>
-  </div>
-  <div class="garden-box">
-    <h3>🌿 我的植物園</h3>
-    <div class="gb-area" id="gfArea"><div class="gb-empty">還沒有樹，繼續努力吧！</div></div>
-    <div class="gb-count">共 <span id="gfNum">0</span> 棵樹</div>
-  </div>
-  <div class="stats-grid">
-    <div class="sg-item"><div class="sg-val" id="streakVal">0</div><div class="sg-label">連續天數</div></div>
-    <div class="sg-item"><div class="sg-val" id="sessionTime">0m</div><div class="sg-label">今日在位</div></div>
-    <div class="sg-item"><div class="sg-val" id="longestSit">0m</div><div class="sg-label">最長久坐</div></div>
-    <div class="sg-item"><div class="sg-val" id="totalStands">0</div><div class="sg-label">累計站起</div></div>
-  </div>
-  <div class="rest-row"><button class="rest-link" onclick="restDay()">😴 今天休息（不中斷連續天數）</button></div>
-</div>
-
-</div><!-- end views-container -->
-
-<!-- ===== BOTTOM TABS ===== -->
-<div class="m-tabs" id="mTabs">
-  <div class="m-tab active" onclick="switchTab(0)">
-    <span class="t-icon">🪑</span>
-    <span class="t-label">久坐</span>
-    <span class="t-badge" id="tabSitBadge"></span>
-  </div>
-  <div class="m-tab" onclick="switchTab(1)">
-    <span class="t-icon">💧</span>
-    <span class="t-label">喝水</span>
-    <span class="t-badge" id="tabWaterBadge"></span>
-  </div>
-  <div class="m-tab" onclick="switchTab(2)">
-    <span class="t-icon">🌱</span>
-    <span class="t-label">植物園</span>
-    <span class="t-badge" id="tabGardenBadge"></span>
-  </div>
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="tb-title">🌱 起來動一動</div>
+  <div class="tb-chip"><span>🪑</span><span class="v off" id="tbTimer">--:--</span></div>
+  <div class="tb-chip"><span>站</span><span class="v" id="tbStand">0/5</span></div>
+  <div class="tb-chip"><span>💧</span><span class="v" id="tbWater">0/6</span></div>
+  <button class="tb-login" id="loginBtn" onclick="handleLogin()"><span class="dot off"></span>登入</button>
+  <button class="tb-snd" id="soundToggle">🔔</button>
 </div>
 
 <!-- NOTIFICATION TOAST -->
 <div class="notif-toast" id="notifToast" onclick="askNotif()">🔔 點此開啟通知，背景也能提醒你</div>
 
-<!-- ===== OVERLAY ===== -->
+<!-- MAIN -->
+<div class="main">
+  <div class="views">
+
+    <!-- SIT VIEW -->
+    <div class="view active" id="viewSit">
+      <div class="card sit-card" id="sitCard">
+        <div class="card-title">
+          <span class="ci">🪑</span>
+          <span>久坐追蹤</span>
+          <span class="cs" id="sitSubtitle"></span>
+        </div>
+        <!-- Content zone -->
+        <div class="card-content">
+          <!-- Idle state -->
+          <div class="sit-idle-content" id="sitIdle">
+            <div class="sit-idle-icon">💺</div>
+            <div class="sit-idle-text">準備坐下工作了嗎？<br>按下開始，我幫你追蹤</div>
+          </div>
+          <!-- Active state -->
+          <div class="sit-active-content" id="sitActive" style="display:none">
+            <div class="timer-num c-dim" id="sitDisp">00:00</div>
+            <div class="timer-sub" id="sitHint">剛坐下，還不用擔心 😌</div>
+            <div class="timer-progress"><div class="timer-progress-fill" id="sitBarFill"></div></div>
+            <div class="thresh-pills">
+              <button class="tp" data-m="20" onclick="pickThresh(20)">20分</button>
+              <button class="tp on" data-m="30" onclick="pickThresh(30)">30分</button>
+              <button class="tp" data-m="45" onclick="pickThresh(45)">45分</button>
+            </div>
+          </div>
+        </div>
+        <!-- Actions zone -->
+        <div class="card-actions">
+          <button class="btn-primary green" id="sitIdleBtn" onclick="startSession()">▶ 開始工作</button>
+          <button class="btn-primary green" id="standBtn" onclick="handleStandup()" style="display:none">🧍 我站起來了<span class="xp" id="sitBadge"></span></button>
+          <div class="card-actions-sub">
+            <button class="btn-sub" id="sitEndBtn" onclick="endSession()" style="display:none">⏹ 結束工作</button>
+          </div>
+        </div>
+        <!-- Mini garden -->
+        <div class="mini-footer" id="mini1"></div>
+      </div>
+    </div>
+
+    <!-- WATER VIEW -->
+    <div class="view" id="viewWater">
+      <div class="card water-card">
+        <div class="card-title">
+          <span class="ci">💧</span>
+          <span>喝水追蹤</span>
+          <span class="cs">（每 2 小時提醒）</span>
+        </div>
+        <div class="card-content">
+          <div class="water-content">
+            <div>
+              <div class="water-big"><span id="wNum">0</span> / 10 杯</div>
+              <div class="water-ml" id="wMl">≈ 0 ml</div>
+            </div>
+            <div class="cups-grid" id="cupsGrid"></div>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-primary blue" id="waterBtn" onclick="drinkWater()">💧 喝了一杯<span class="xp">+0.5 XP</span></button>
+          <div class="card-actions-sub">
+            <button class="btn-link" id="undoBtn" onclick="undoWater()" style="display:none">↩ 按錯了</button>
+          </div>
+        </div>
+        <div class="mini-footer" id="mini2"></div>
+      </div>
+    </div>
+
+    <!-- GARDEN VIEW -->
+    <div class="view garden-view" id="viewGarden">
+      <div class="card garden-card">
+        <div class="card-title">
+          <span class="ci">🌱</span>
+          <span>植物 & 植物園</span>
+        </div>
+        <div class="card-content">
+          <div class="garden-plant">
+            <div class="gp-emoji" id="fpEmoji">🌱</div>
+            <div class="gp-ground"></div>
+            <div class="gp-name" id="fpName">種子</div>
+            <div class="gp-stage">階段 <span id="fpStage">1</span> / 8</div>
+            <div class="gp-xp">
+              <div class="gp-bar"><div class="gp-bar-fill" id="fpBarFill" style="width:0%"></div></div>
+              <div class="gp-xp-text" id="fpXpText">0 / 3</div>
+            </div>
+          </div>
+          <div class="garden-grid-title">🌿 我的植物園</div>
+          <div class="garden-area" id="gfArea"><div class="ga-empty">還沒有樹，繼續努力吧！</div></div>
+          <div class="ga-count">共 <span id="gfNum">0</span> 棵樹</div>
+          <div class="stats-grid">
+            <div class="stat"><div class="stat-v" id="streakVal">0</div><div class="stat-l">連續天數</div></div>
+            <div class="stat"><div class="stat-v" id="sessionTime">0m</div><div class="stat-l">今日在位</div></div>
+            <div class="stat"><div class="stat-v" id="longestSit">0m</div><div class="stat-l">最長久坐</div></div>
+            <div class="stat"><div class="stat-v" id="totalStands">0</div><div class="stat-l">累計站起</div></div>
+          </div>
+          <div class="rest-row"><button class="rest-btn" onclick="restDay()">😴 今天休息（不中斷連續天數）</button></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOM TABS (mobile) -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">
+    <span class="ti">🪑</span>
+    <span class="tl">久坐</span>
+    <span class="tb" id="tabSitBadge"></span>
+  </div>
+  <div class="tab" onclick="switchTab(1)">
+    <span class="ti">💧</span>
+    <span class="tl">喝水</span>
+    <span class="tb" id="tabWaterBadge"></span>
+  </div>
+  <div class="tab" onclick="switchTab(2)">
+    <span class="ti">🌱</span>
+    <span class="tl">植物園</span>
+    <span class="tb" id="tabGardenBadge"></span>
+  </div>
+</div>
+
+<!-- OVERLAY -->
 <div class="overlay" id="overlay">
   <div class="ov-card">
     <div class="big-emoji" id="ovEmoji">⏰</div>
@@ -309,7 +388,7 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
     <div class="pro-msg" id="proMsg"><div class="pm-text" id="pmText"></div></div>
     <div class="xp-earned" id="xpEarned" style="display:none"></div>
     <div class="reward-line" id="rewardLine"></div>
-    <button class="ov-done" id="doneBtn" onclick="closeOverlay()">👍 好的！</button>
+    <button class="ov-done" onclick="closeOverlay()">👍 好的！</button>
   </div>
 </div>
 
@@ -327,11 +406,25 @@ onAuthStateChanged(fbAuth,async u=>{
   const btn=document.getElementById('loginBtn');
   if(u){
     dbRef=ref(fbDb,`health-tracker/${u.uid}`);
-    btn.innerHTML=`<span class="sync-dot on"></span>${u.displayName?.split(' ')[0]||'已登入'}`;
+    btn.innerHTML=`<span class="dot on"></span>${u.displayName?.split(' ')[0]||'已登入'}`;
     btn.classList.add('on');
-    try{const snap=await get(dbRef);if(snap.exists()){const c=snap.val(),today=new Date().toDateString();if(c.lastDate===today||S.lastDate!==today){Object.assign(S,c);if(!Array.isArray(S.garden))S.garden=[];saveLocal();}else await cloudSave();}else await cloudSave();}catch(e){}
+    try{
+      const snap=await get(dbRef);
+      if(snap.exists()){
+        const c=snap.val(),today=new Date().toDateString();
+        if(c.lastDate===today||S.lastDate!==today){
+          Object.assign(S,c);
+          if(!Array.isArray(S.garden))S.garden=[];
+          saveLocal();
+        }else await cloudSave();
+      }else await cloudSave();
+    }catch(e){console.log('FB err',e);}
     renderAll();
-  }else{dbRef=null;btn.innerHTML='<span class="sync-dot off"></span>登入';btn.classList.remove('on');}
+  }else{
+    dbRef=null;
+    btn.innerHTML='<span class="dot off"></span>登入';
+    btn.classList.remove('on');
+  }
 });
 window.handleLogin=async()=>{if(fbUser){if(confirm('確定登出？'))await signOut(fbAuth);}else{try{await signInWithPopup(fbAuth,prov);}catch(e){}}};
 async function cloudSave(){if(!dbRef)return;try{await set(dbRef,{...S});}catch(e){}}
@@ -358,17 +451,36 @@ const TREES=['🌳','🌲','🎄','🌴','🎋','🌸','🍀','🌺','🌻','�
 window.S=loadL();
 function defS(){return{thresh:30,todayStand:0,todayWater:0,streak:0,lastDate:null,stageIdx:0,stageXP:0,garden:[],soundOn:true,totalStands:0,totalWater:0,restToday:false,sessionSecTotal:0,longestSit:0}}
 function loadL(){
-  try{const d=JSON.parse(localStorage.getItem('health10'));if(d){const today=new Date().toDateString();if(d.lastDate&&d.lastDate!==today){const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}else if(diff>1)d.streak=0;d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;d.sessionSecTotal=0;d.longestSit=0;}if(!Array.isArray(d.garden))d.garden=[];['stageIdx','stageXP','todayWater','totalStands','totalWater','sessionSecTotal','longestSit'].forEach(k=>{if(!d[k])d[k]=0;});if(!d.thresh)d.thresh=30;return d;}}catch(e){}return defS();
+  try{
+    const d=JSON.parse(localStorage.getItem('health11'));
+    if(d){
+      const today=new Date().toDateString();
+      if(d.lastDate&&d.lastDate!==today){
+        const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);
+        if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
+        else if(diff>1)d.streak=0;
+        d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;d.sessionSecTotal=0;d.longestSit=0;
+      }
+      if(!Array.isArray(d.garden))d.garden=[];
+      ['stageIdx','stageXP','todayWater','totalStands','totalWater','sessionSecTotal','longestSit'].forEach(k=>{if(!d[k])d[k]=0;});
+      if(!d.thresh)d.thresh=30;
+      return d;
+    }
+  }catch(e){}
+  return defS();
 }
-function saveLocal(){localStorage.setItem('health10',JSON.stringify(S));}
+function saveLocal(){localStorage.setItem('health11',JSON.stringify(S));}
 function saveSync(){saveLocal();cloudSave();}
 
 // ===== TABS =====
-const views=[document.getElementById('viewSit'),document.getElementById('viewWater'),document.getElementById('viewGarden')];
-const tabs=document.querySelectorAll('.m-tab');
-window.switchTab=function(i){views.forEach((v,j)=>{v.classList.toggle('active',i===j);tabs[j].classList.toggle('active',i===j);});};
+const views=document.querySelectorAll('.view');
+const tabs=document.querySelectorAll('.tab');
+window.switchTab=function(i){
+  views.forEach((v,j)=>v.classList.toggle('active',i===j));
+  tabs.forEach((t,j)=>t.classList.toggle('active',i===j));
+};
 
-// ===== TIMING =====
+// ===== TIMING (timestamp-based) =====
 let inS=false,sitAt=0,sessAt=0,sessAcc=0,lastW=0,alerted=false,tid=null;
 const now=()=>Date.now();
 const sitE=()=>inS&&sitAt?Math.floor((now()-sitAt)/1000):0;
@@ -377,7 +489,8 @@ const totalSS=()=>sessAcc+sessE();
 function zone(s){const t=S.thresh*60;return s<SILENT?'silent':s<t?'active':s<AWAY?'reminded':'away';}
 
 function tick(){
-  if(!inS)return;const e=sitE(),t=S.thresh*60;
+  if(!inS)return;
+  const e=sitE(),t=S.thresh*60;
   if(e>S.longestSit)S.longestSit=e;
   S.sessionSecTotal=sessAcc+sessE();
   if(!alerted&&e>=t){alerted=true;if(S.soundOn)playChime();fireNotif('坐太久了！站起來！');}
@@ -388,15 +501,23 @@ function tick(){
 
 window.startSession=function(){
   inS=true;const n=now();sitAt=n;sessAt=n;sessAcc=S.sessionSecTotal;lastW=n;alerted=false;
-  document.getElementById('sitIdle2').style.display='none';
-  const a=document.getElementById('sitActive2');a.style.display='flex';
-  if(tid)clearInterval(tid);tid=setInterval(tick,1000);tick();saveSync();
+  document.getElementById('sitIdle').style.display='none';
+  document.getElementById('sitActive').style.display='flex';
+  document.getElementById('sitIdleBtn').style.display='none';
+  document.getElementById('standBtn').style.display='block';
+  document.getElementById('sitEndBtn').style.display='inline-block';
+  document.getElementById('sitSubtitle').textContent='（工作中）';
   document.getElementById('tabSitBadge').textContent='工作中';
+  if(tid)clearInterval(tid);tid=setInterval(tick,1000);tick();saveSync();
 };
 window.endSession=function(){
   if(!inS)return;S.sessionSecTotal=sessAcc+sessE();inS=false;clearInterval(tid);tid=null;sitAt=0;sessAt=0;alerted=false;
-  document.getElementById('sitIdle2').style.display='flex';
-  document.getElementById('sitActive2').style.display='none';
+  document.getElementById('sitIdle').style.display='flex';
+  document.getElementById('sitActive').style.display='none';
+  document.getElementById('sitIdleBtn').style.display='block';
+  document.getElementById('standBtn').style.display='none';
+  document.getElementById('sitEndBtn').style.display='none';
+  document.getElementById('sitSubtitle').textContent='';
   document.getElementById('tabSitBadge').textContent='';
   saveSync();updTop(0);renderAll();
 };
@@ -406,87 +527,136 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 function updSit(e){
   const m=Math.floor(e/60),s=e%60,d=document.getElementById('sitDisp');
   d.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  const z=zone(e),t=S.thresh*60,r=Math.min(e/t,1),fill=document.getElementById('sitBarFill'),hint=document.getElementById('sitHint'),badge=document.getElementById('sitBadge'),btn=document.getElementById('standBtn');
-  fill.style.width=(r*100)+'%';btn.className='big-btn green';
-  if(z==='silent'){d.className='timer-num c-dim';fill.style.background='var(--text-dim)';hint.textContent='剛坐下，還不用擔心 😌';hint.className='timer-sub';badge.textContent='';}
-  else if(z==='active'){const a=(e-SILENT)/(t-SILENT);if(a<.7){d.className='timer-num c-green';fill.style.background='var(--green)';hint.textContent='狀態良好 🟢';}else{d.className='timer-num c-yellow';fill.style.background='var(--yellow)';hint.textContent='快到了，考慮站起來？🟡';}hint.className='timer-sub';badge.textContent='+2 XP';}
-  else if(z==='reminded'){d.className='timer-num c-red';fill.style.background='var(--red)';hint.textContent='坐太久了！站起來吧！🔴';hint.className='timer-sub urgent';badge.textContent='+1 XP';}
-  else{d.className='timer-num c-grey';fill.style.background='var(--grey)';hint.textContent='超過 60 分鐘，你可能已經離開了 🫥';hint.className='timer-sub grey';badge.textContent='重設';btn.className='big-btn grey';}
+  const z=zone(e),card=document.getElementById('sitCard'),hint=document.getElementById('sitHint'),fill=document.getElementById('sitBarFill'),badge=document.getElementById('sitBadge'),btn=document.getElementById('standBtn');
+  const t=S.thresh*60,r=Math.min(e/t,1);
+  fill.style.width=(r*100)+'%';
+  btn.className='btn-primary green';
+  card.className='card sit-card';
+  if(z==='silent'){
+    d.className='timer-num c-dim';
+    fill.style.background='var(--text-dim)';
+    hint.textContent='剛坐下，還不用擔心 😌';hint.className='timer-sub';
+    badge.textContent='';
+  }else if(z==='active'){
+    const a=(e-SILENT)/(t-SILENT);
+    if(a<.7){d.className='timer-num c-green';card.className='card sit-card z-green';fill.style.background='var(--green)';hint.textContent='狀態良好 🟢';}
+    else{d.className='timer-num c-yellow';card.className='card sit-card z-yellow';fill.style.background='var(--yellow)';hint.textContent='快到了，考慮站起來？🟡';}
+    hint.className='timer-sub';badge.textContent='+2 XP';
+  }else if(z==='reminded'){
+    d.className='timer-num c-red';card.className='card sit-card z-red';
+    fill.style.background='var(--red)';
+    hint.textContent='坐太久了！站起來吧！🔴';hint.className='timer-sub urgent';
+    badge.textContent='+1 XP';
+  }else{
+    d.className='timer-num c-grey';card.className='card sit-card z-grey';
+    fill.style.background='var(--grey)';
+    hint.textContent='超過 60 分鐘，你可能已經離開了 🫥';hint.className='timer-sub grey';
+    badge.textContent='重設';btn.className='btn-primary grey';
+  }
 }
 window.pickThresh=function(m){S.thresh=m;saveSync();document.querySelectorAll('.tp').forEach(b=>b.classList.toggle('on',+b.dataset.m===m));if(inS){alerted=false;tick();}};
 
 window.handleStandup=function(){
-  if(!inS)return;const e=sitE(),z=zone(e);
+  if(!inS)return;
+  const e=sitE(),z=zone(e);
   if(z==='silent'||z==='away'){resetSit();if(z==='away')showAway();else tick();return;}
   const xp=z==='active'?2:1,tree=applyXP(xp);
   S.todayStand++;S.totalStands++;S.lastDate=new Date().toDateString();
   saveSync();showStandOv(z==='active',xp,tree);renderAll();
 };
 window.drinkWater=function(){
-  if(S.todayWater>=W_GOAL)return;S.todayWater++;S.totalWater++;applyXP(.5);
-  S.lastDate=new Date().toDateString();if(inS)lastW=now();
+  if(S.todayWater>=W_GOAL)return;
+  S.todayWater++;S.totalWater++;applyXP(.5);
+  S.lastDate=new Date().toDateString();
+  if(inS)lastW=now();
   saveSync();renderAll();
   const u=document.getElementById('undoBtn');u.style.display='inline';setTimeout(()=>u.style.display='none',5000);
 };
 window.undoWater=function(){
-  if(S.todayWater<=0)return;S.todayWater--;S.totalWater=Math.max(0,S.totalWater-1);
-  S.stageXP=Math.max(0,S.stageXP-.5);saveSync();renderAll();document.getElementById('undoBtn').style.display='none';
+  if(S.todayWater<=0)return;
+  S.todayWater--;S.totalWater=Math.max(0,S.totalWater-1);
+  S.stageXP=Math.max(0,S.stageXP-.5);
+  saveSync();renderAll();document.getElementById('undoBtn').style.display='none';
 };
 
 function applyXP(xp){
   S.stageXP+=xp;let tree=null;
-  while(true){const st=STG[S.stageIdx];if(st.x===0){tree=TREES[Math.floor(Math.random()*TREES.length)];S.garden.push(tree);S.stageIdx=0;S.stageXP=0;break;}if(S.stageXP>=st.x){S.stageXP-=st.x;S.stageIdx++;if(S.stageIdx>=STG.length-1){tree=TREES[Math.floor(Math.random()*TREES.length)];S.garden.push(tree);S.stageIdx=0;S.stageXP=0;break;}}else break;}
+  while(true){
+    const st=STG[S.stageIdx];
+    if(st.x===0){tree=TREES[Math.floor(Math.random()*TREES.length)];S.garden.push(tree);S.stageIdx=0;S.stageXP=0;break;}
+    if(S.stageXP>=st.x){
+      S.stageXP-=st.x;S.stageIdx++;
+      if(S.stageIdx>=STG.length-1){tree=TREES[Math.floor(Math.random()*TREES.length)];S.garden.push(tree);S.stageIdx=0;S.stageXP=0;break;}
+    }else break;
+  }
   return tree;
 }
 window.restDay=function(){S.restToday=true;saveSync();alert('已標記今天休息 😴');};
 
-// ===== OVERLAYS =====
+// ===== OVERLAY =====
 function showStandOv(pro,xp,tree){
   const sp=document.getElementById('spinnerArea'),rb=document.getElementById('resultBox'),pm=document.getElementById('proMsg'),rl=document.getElementById('rewardLine'),xe=document.getElementById('xpEarned');
   sp.classList.remove('show');rb.classList.remove('show');pm.classList.remove('show');rl.classList.remove('show');
   xe.style.display='inline-block';xe.textContent=`+${xp} XP`;
-  if(pro){document.getElementById('ovEmoji').textContent='💪';document.getElementById('ovTitle').textContent='主動站起來！';document.getElementById('pmText').textContent=PRO[Math.floor(Math.random()*PRO.length)];pm.classList.add('show');document.getElementById('doneBtn').textContent='😎 坐回去繼續';}
-  else{document.getElementById('ovEmoji').textContent='⏰';document.getElementById('ovTitle').textContent='時間到！做個活動吧';sp.classList.add('show');document.getElementById('doneBtn').textContent='✅ 做完了！';runSpinner();}
+  if(pro){
+    document.getElementById('ovEmoji').textContent='💪';
+    document.getElementById('ovTitle').textContent='主動站起來！';
+    document.getElementById('pmText').textContent=PRO[Math.floor(Math.random()*PRO.length)];
+    pm.classList.add('show');
+  }else{
+    document.getElementById('ovEmoji').textContent='⏰';
+    document.getElementById('ovTitle').textContent='時間到！做個活動吧';
+    sp.classList.add('show');
+    runSpinner();
+  }
   if(tree){rl.textContent=`🎉 ${tree} 移入植物園！新種子已播種 🌱`;rl.classList.add('show');}
   document.getElementById('overlay').classList.add('show');
 }
 function showAway(){
-  [document.getElementById('spinnerArea'),document.getElementById('resultBox'),document.getElementById('proMsg'),document.getElementById('rewardLine')].forEach(e=>e.classList.remove('show'));
+  ['spinnerArea','resultBox','proMsg','rewardLine'].forEach(id=>document.getElementById(id).classList.remove('show'));
   document.getElementById('xpEarned').style.display='none';
-  document.getElementById('ovEmoji').textContent='👋';document.getElementById('ovTitle').textContent='歡迎回來！';
-  document.getElementById('pmText').textContent='看起來你離開了一陣子，計時器已重設。';document.getElementById('proMsg').classList.add('show');
-  document.getElementById('doneBtn').textContent='👍 了解';document.getElementById('overlay').classList.add('show');
+  document.getElementById('ovEmoji').textContent='👋';
+  document.getElementById('ovTitle').textContent='歡迎回來！';
+  document.getElementById('pmText').textContent='看起來你離開了一陣子，計時器已重設。';
+  document.getElementById('proMsg').classList.add('show');
+  document.getElementById('overlay').classList.add('show');
 }
 window.closeOverlay=function(){document.getElementById('overlay').classList.remove('show');resetSit();renderAll();tick();};
 
 function runSpinner(){
   const track=document.getElementById('spinnerTrack');track.innerHTML='';
-  const pool=[];for(let i=0;i<40;i++){const a=ACTS[Math.floor(Math.random()*ACTS.length)];pool.push(a);}
+  const pool=[];for(let i=0;i<40;i++)pool.push(ACTS[Math.floor(Math.random()*ACTS.length)]);
   const w=ACTS[Math.floor(Math.random()*ACTS.length)];pool.push(w);
   pool.forEach(a=>{const d=document.createElement('div');d.className='spinner-item';d.innerHTML=`<span class="s-icon">${a.i}</span><span class="s-text">${a.t}</span>`;track.appendChild(d);});
-  const h=68,fp=(pool.length-1)*h,dur=2800,st=performance.now();
+  const h=66,fp=(pool.length-1)*h,dur=2800,st=performance.now();
   (function anim(t){const p=Math.min((t-st)/dur,1);track.style.transform=`translateY(-${(1-Math.pow(1-p,3))*fp}px)`;if(p<1)requestAnimationFrame(anim);else setTimeout(()=>{document.getElementById('rIcon').textContent=w.i;document.getElementById('rText').textContent=w.t;document.getElementById('resultBox').classList.add('show');},300);})(performance.now());
 }
 
 // ===== RENDER =====
 function fmtM(s){const m=Math.floor(s/60);if(m<60)return m+'m';const h=Math.floor(m/60),r=m%60;return r?h+'h'+r+'m':h+'h';}
-function renderMS(el){
+
+function renderMini(el){
   const st=STG[S.stageIdx],need=st.x||1;
-  el.innerHTML=`<div class="ms-row"><div class="ms-plant">${st.e}</div><div class="ms-info"><div class="ms-name">${st.n} (${S.stageIdx+1}/8)</div><div class="ms-bar"><div class="ms-bar-fill" style="width:${Math.min(100,S.stageXP/need*100)}%"></div></div></div></div><div class="ms-trees">${S.garden.length?S.garden.map(t=>`<span class="ms-tree">${t}</span>`).join(''):'<span class="ms-empty">植物園還是空的</span>'}</div>`;
+  el.innerHTML=`<div class="mini-row"><div class="mini-plant">${st.e}</div><div class="mini-info"><div class="mini-name">${st.n} (${S.stageIdx+1}/8)</div><div class="mini-bar"><div class="mini-bar-fill" style="width:${Math.min(100,S.stageXP/need*100)}%"></div></div></div></div><div class="mini-trees">${S.garden.length?S.garden.map(t=>`<span class="mini-tree">${t}</span>`).join(''):'<span class="mini-empty">植物園還是空的</span>'}</div>`;
 }
+
 function renderAll(){
   updTop(inS?sitE():0);
   // Cups
   const cg=document.getElementById('cupsGrid');
-  let ch='';for(let i=0;i<W_GOAL;i++){const f=i<S.todayWater;ch+=`<div class="cup2${f?' filled':''}"><div class="w"></div><div class="cn">${i+1}</div></div>`;}
+  let ch='';
+  for(let i=0;i<W_GOAL;i++){
+    const f=i<S.todayWater;
+    ch+=`<div class="cup${f?' filled':''}"><div class="water-fill"></div><div class="cn">${i+1}</div></div>`;
+  }
   cg.innerHTML=ch;
   document.getElementById('wNum').textContent=S.todayWater;
-  document.getElementById('wMl').textContent=`≈ ${S.todayWater*ML} ml ・ 每 2 小時提醒`;
+  document.getElementById('wMl').textContent=`≈ ${S.todayWater*ML} ml`;
   document.getElementById('waterBtn').disabled=S.todayWater>=W_GOAL;
-  // Mini strips
-  renderMS(document.getElementById('ms1'));
-  renderMS(document.getElementById('ms2'));
-  // Garden
+  // Mini gardens
+  renderMini(document.getElementById('mini1'));
+  renderMini(document.getElementById('mini2'));
+  // Full plant
   const st=STG[S.stageIdx];
   document.getElementById('fpEmoji').textContent=st.e;
   document.getElementById('fpName').textContent=st.n;
@@ -494,8 +664,9 @@ function renderAll(){
   const need=st.x||1;
   document.getElementById('fpBarFill').style.width=Math.min(100,S.stageXP/need*100)+'%';
   document.getElementById('fpXpText').textContent=`${S.stageXP} / ${need}`;
+  // Garden
   const ga=document.getElementById('gfArea');
-  ga.innerHTML=S.garden.length?S.garden.map((t,i)=>`<span class="gb-tree" style="animation-delay:${(i*.3)%4}s">${t}</span>`).join(''):'<div class="gb-empty">還沒有樹，繼續努力吧！</div>';
+  ga.innerHTML=S.garden.length?S.garden.map((t,i)=>`<span class="ga-tree" style="animation-delay:${(i*.3)%4}s">${t}</span>`).join(''):'<div class="ga-empty">還沒有樹，繼續努力吧！</div>';
   document.getElementById('gfNum').textContent=S.garden.length;
   document.getElementById('streakVal').textContent=S.streak;
   document.getElementById('sessionTime').textContent=fmtM(totalSS());
@@ -504,13 +675,19 @@ function renderAll(){
   document.getElementById('soundToggle').textContent=S.soundOn?'🔔':'🔕';
   document.querySelectorAll('.tp').forEach(b=>b.classList.toggle('on',+b.dataset.m===S.thresh));
   // Tab badges
-  document.getElementById('tabWaterBadge').textContent=S.todayWater>=W_STREAK?'✓':`${S.todayWater}杯`;
+  document.getElementById('tabWaterBadge').textContent=S.todayWater>=W_STREAK?'✓':(S.todayWater?`${S.todayWater}杯`:'');
   document.getElementById('tabGardenBadge').textContent=S.garden.length?`${S.garden.length}棵`:'';
 }
+
 function updTop(e){
   const tb=document.getElementById('tbTimer');
   if(!inS){tb.textContent='--:--';tb.className='v off';}
-  else{const m=Math.floor(e/60),s=e%60;tb.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;const z=zone(e);tb.className='v '+(z==='silent'?'off':z==='active'?'on':z==='reminded'?'warn':'off');}
+  else{
+    const m=Math.floor(e/60),s=e%60;
+    tb.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    const z=zone(e);
+    tb.className='v '+(z==='silent'?'off':z==='active'?'on':z==='reminded'?'warn':'off');
+  }
   const ts=document.getElementById('tbStand');ts.textContent=`${S.todayStand}/${S_GOAL}`;ts.className='v'+(S.todayStand>=S_GOAL?' done':'');
   const tw=document.getElementById('tbWater');tw.textContent=`${S.todayWater}/${W_STREAK}`;tw.className='v'+(S.todayWater>=W_STREAK?' done':'');
 }
@@ -519,6 +696,7 @@ function updTop(e){
 function playChime(){try{const c=new(window.AudioContext||window.webkitAudioContext)();[523.25,659.25,783.99].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(.1,c.currentTime+i*.15);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+i*.15+.4);o.connect(g).connect(c.destination);o.start(c.currentTime+i*.15);o.stop(c.currentTime+i*.15+.4);});}catch(e){}}
 function playDrop(){try{const c=new(window.AudioContext||window.webkitAudioContext)();const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(1200,c.currentTime);o.frequency.exponentialRampToValueAtTime(400,c.currentTime+.15);g.gain.setValueAtTime(.08,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.3);o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+.3);}catch(e){}}
 document.getElementById('soundToggle').onclick=()=>{S.soundOn=!S.soundOn;saveSync();renderAll();};
+
 function fireNotif(t){if('Notification'in window&&Notification.permission==='granted')new Notification('🌱 起來動一動',{body:t});}
 window.askNotif=function(){if('Notification'in window)Notification.requestPermission().then(p=>{if(p==='granted')document.getElementById('notifToast').style.display='none';});};
 if('Notification'in window&&Notification.permission!=='granted')document.getElementById('notifToast').style.display='block';
