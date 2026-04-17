@@ -137,7 +137,7 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
 /* ========== WATER ========== */
 .water-big{font-family:'Fredoka',sans-serif;font-size:2rem;font-weight:700;color:var(--blue-light);}
 .water-ml{font-size:.75rem;color:var(--text-dim);}
-.cups-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%;max-width:260px;margin:6px auto 0;}
+.cups-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:100%;max-width:300px;margin:6px auto 0;}
 .cup{aspect-ratio:.72;position:relative;border-radius:0 0 6px 6px;border:2px solid #ffffff20;border-top:none;background:var(--card-alt);overflow:hidden;transition:.3s;}
 .cup::before{content:'';position:absolute;top:0;left:-2px;right:-2px;height:3px;background:#ffffff20;border-radius:2px 2px 0 0;}
 .cup .water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,var(--blue-light),var(--blue));border-radius:0 0 5px 5px;transition:height .5s ease;}
@@ -235,7 +235,7 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
   <div class="tb-title">🌱 起來動一動</div>
   <div class="tb-chip"><span>🪑</span><span class="v off" id="tbTimer">--:--</span></div>
   <div class="tb-chip"><span>站</span><span class="v" id="tbStand">0/5</span></div>
-  <div class="tb-chip"><span>💧</span><span class="v" id="tbWater">0/6</span></div>
+  <div class="tb-chip"><span>💧</span><span class="v" id="tbWater">0/8</span></div>
   <button class="tb-btn" id="notifBtn" onclick="askNotif()" title="開啟通知">🔔<span class="notif-dot" id="notifDot"></span></button>
   <button class="tb-btn" id="soundToggle">🔊</button>
   <button class="tb-login" id="loginBtn" onclick="handleLogin()"><span class="dot off"></span>登入</button>
@@ -289,7 +289,7 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
           <span class="cs">（每 2 小時提醒）</span>
         </div>
         <div class="card-content">
-          <div class="water-big"><span id="wNum">0</span> / 10 杯</div>
+          <div class="water-big"><span id="wNum">0</span> / 12 杯</div>
           <div class="water-ml" id="wMl">≈ 0 ml</div>
           <div class="cups-grid" id="cupsGrid"></div>
         </div>
@@ -423,7 +423,7 @@ window.handleLogin=async()=>{if(fbUser){if(confirm('確定登出？'))await sign
 async function cloudSave(){if(!dbRef)return;try{await set(dbRef,{...S});}catch(e){}}
 
 // ===== CONFIG =====
-const SILENT=600,AWAY=3600,W_INT=7200,W_GOAL=10,ML=250,S_GOAL=5,W_STREAK=6;
+const SILENT=600,AWAY=3600,W_INT=7200,W_GOAL=12,ML=150,S_GOAL=5,W_STREAK=8;
 const ACTS=[
   {i:'🚶',t:'走去倒杯水，順便活動腿部'},{i:'🧘',t:'站著做 5 次深呼吸，肩膀畫大圈'},
   {i:'👀',t:'看向窗外遠方 30 秒，讓眼睛休息'},{i:'🦵',t:'扶著桌子做 10 個淺蹲'},
