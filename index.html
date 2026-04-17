@@ -653,9 +653,11 @@ window.pickThresh=function(m){S.thresh=m;saveSync();document.querySelectorAll('.
 window.handleStandup=function(){
   if(!S.inSession)return;
   const e=sitE(),z=zone(e);
-  if(z==='silent'||z==='away'){resetSit();if(z==='away')showAway();else tick();return;}
+  if(z==='silent'||z==='away'){resetSit();if(z==='away')showAway();else tick();saveSync();return;}
   const xp=z==='active'?2:1,tree=applySitXP(xp);
   S.todayStand++;S.totalStands++;S.lastDate=new Date().toDateString();
+  // Reset sit timer immediately so cloud reflects the reset state for cross-device sync
+  resetSit();
   saveSync();showStandOv(z==='active',xp,tree);renderAll();
 };
 window.drinkWater=function(){
