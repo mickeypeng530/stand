@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>起來動一動！</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c1810;
+  --card: #152319;
+  --card-alt: #1d3226;
+  --accent: #ff7043;
+  --accent2: #ffab91;
+  --green: #66bb6a;
+  --green-light: #a5d6a7;
+  --green-dark: #2e7d32;
+  --gold: #ffd54f;
+  --text: #e8f5e9;
+  --text-dim: #7da57d;
+  --radius: 16px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Noto Sans TC','Fredoka',sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    radial-gradient(ellipse at 25% 10%, #2e7d3215 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 90%, #ff704310 0%, transparent 50%);
+  pointer-events:none;
+}
+.app {
+  position:relative; z-index:1;
+  max-width:440px; margin:0 auto;
+  padding:12px 16px 80px;
+}
+.header { text-align:center; padding:16px 0 8px; }
+.header h1 {
+  font-family:'Fredoka',sans-serif;
+  font-size:1.7rem; font-weight:700;
+  background:linear-gradient(135deg, var(--green-light), var(--gold));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.header .sub { color:var(--text-dim); font-size:0.8rem; margin-top:2px; }
+.stats-bar { display:flex; gap:6px; margin:10px 0; }
+.stat-chip {
+  flex:1; background:var(--card); border-radius:12px;
+  padding:10px 6px; text-align:center;
+  border:1px solid #ffffff08;
+}
+.stat-chip .val {
+  font-family:'Fredoka',sans-serif;
+  font-size:1.3rem; font-weight:700; color:var(--gold);
+}
+.stat-chip .label { font-size:0.65rem; color:var(--text-dim); margin-top:1px; }
+.timer-section {
+  background:var(--card); border-radius:var(--radius);
+  padding:20px; text-align:center; margin:10px 0;
+  border:1px solid #ffffff08; position:relative; overflow:hidden;
+}
+.timer-section::after {
+  content:''; position:absolute;
+  bottom:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg, var(--green), var(--gold), var(--accent));
+  transform:scaleX(var(--progress,0)); transform-origin:left;
+  transition:transform 1s linear;
+}
+.timer-lbl { font-size:0.8rem; color:var(--text-dim); margin-bottom:6px; }
+.timer-disp {
+  font-family:'Fredoka',sans-serif;
+  font-size:3.2rem; font-weight:700; letter-spacing:2px; line-height:1;
+}
+.timer-disp.ok { color:var(--green-light); }
+.timer-disp.warn { color:var(--accent); animation:pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.55;} }
+.intervals { display:flex; gap:6px; justify-content:center; margin:12px 0 6px; }
+.iv-btn {
+  background:var(--card-alt); border:2px solid transparent;
+  color:var(--text-dim); padding:5px 14px; border-radius:20px;
+  font-size:0.78rem; font-family:inherit; cursor:pointer; transition:.2s;
+}
+.iv-btn.on { border-color:var(--green); color:var(--green); background:#66bb6a15; }
+.t-ctrls { display:flex; gap:10px; justify-content:center; margin-top:14px; }
+.btn {
+  font-family:inherit; font-weight:700; border:none;
+  border-radius:12px; padding:11px 26px; font-size:.95rem;
+  cursor:pointer; transition:.15s;
+}
+.btn:active { transform:scale(.94); }
+.btn-go {
+  background:linear-gradient(135deg, var(--green), var(--green-dark));
+  color:#fff; box-shadow:0 4px 16px #66bb6a30;
+}
+.btn-sec { background:var(--card-alt); color:var(--text-dim); }
+.plant-section {
+  background:var(--card); border-radius:var(--radius);
+  padding:18px; margin:10px 0; border:1px solid #ffffff08; text-align:center;
+}
+.plant-section h3 { font-size:.82rem; color:var(--text-dim); margin-bottom:10px; }
+.plant-visual {
+  height:120px; display:flex; align-items:flex-end; justify-content:center;
+  position:relative;
+}
+.plant-emoji {
+  font-size:3.2rem; transition:all .5s ease;
+  filter:drop-shadow(0 0 12px #66bb6a30);
+  animation: sway 3s ease-in-out infinite;
+}
+@keyframes sway { 0%,100%{transform:rotate(-2deg);} 50%{transform:rotate(2deg);} }
+.plant-ground {
+  position:absolute; bottom:0; left:10%; right:10%;
+  height:18px; background:linear-gradient(180deg, #3e2723, #5d4037);
+  border-radius:50%; opacity:.5;
+}
+.plant-info { margin-top:8px; }
+.plant-name { font-size:.9rem; font-weight:700; color:var(--green-light); }
+.plant-stage { font-size:.72rem; color:var(--text-dim); margin-top:2px; }
+.xp-row { display:flex; align-items:center; gap:8px; margin-top:8px; }
+.xp-bar { flex:1; height:8px; background:#ffffff10; border-radius:4px; overflow:hidden; }
+.xp-fill {
+  height:100%; border-radius:4px;
+  background:linear-gradient(90deg, var(--green), var(--gold));
+  transition:width .5s ease;
+}
+.xp-text { font-size:.7rem; color:var(--text-dim); min-width:50px; text-align:right; }
+.garden-section {
+  background:var(--card); border-radius:var(--radius);
+  padding:18px; margin:10px 0; border:1px solid #ffffff08;
+}
+.garden-section h3 {
+  font-size:.82rem; color:var(--text-dim); margin-bottom:10px; text-align:center;
+}
+.garden-area {
+  min-height:100px;
+  background:
+    linear-gradient(180deg, #1b2f1b 0%, #2a3f2a 60%, #3e2723 85%, #5d4037 100%);
+  border-radius:12px; padding:12px;
+  display:flex; flex-wrap:wrap; gap:4px;
+  align-items:flex-end; justify-content:center;
+  position:relative; overflow:hidden;
+}
+.garden-area::before {
+  content:''; position:absolute; inset:0;
+  background:
+    radial-gradient(circle at 20% 30%, #ffffff06 0%, transparent 40%),
+    radial-gradient(circle at 80% 60%, #ffffff04 0%, transparent 35%);
+  pointer-events:none;
+}
+.garden-tree {
+  font-size:1.8rem; position:relative; z-index:1;
+  animation: gsway 4s ease-in-out infinite;
+  cursor:default; transition:transform .2s;
+}
+.garden-tree:hover { transform:scale(1.3); }
+@keyframes gsway { 0%,100%{transform:rotate(-1deg);} 50%{transform:rotate(1deg);} }
+.garden-empty {
+  width:100%; text-align:center;
+  font-size:.8rem; color:var(--text-dim); padding:20px 0;
+}
+.garden-count {
+  text-align:center; font-size:.72rem; color:var(--text-dim); margin-top:8px;
+}
+.notif-bar {
+  background:var(--card-alt); border-radius:10px;
+  padding:9px 14px; font-size:.75rem; color:var(--text-dim);
+  text-align:center; margin:8px 0; cursor:pointer;
+  border:1px dashed #ffffff18; display:none;
+}
+.sound-toggle {
+  position:fixed; top:10px; right:10px; z-index:50;
+  background:var(--card); border:1px solid #ffffff15;
+  border-radius:10px; padding:5px 9px; font-size:1rem;
+  cursor:pointer; color:var(--text);
+}
+.overlay {
+  position:fixed; inset:0; background:#0c1810ee;
+  z-index:100; display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+  padding:20px; backdrop-filter:blur(10px);
+}
+.overlay.show { display:flex; }
+.overlay-card {
+  background:var(--card); border-radius:20px;
+  padding:28px 22px; max-width:360px; width:100%;
+  text-align:center; border:2px solid var(--green);
+  box-shadow:0 0 60px #66bb6a20;
+  animation:pop .4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pop { 0%{transform:scale(.7);opacity:0;} 100%{transform:scale(1);opacity:1;} }
+.spinner-area {
+  margin:16px 0; position:relative;
+  height:70px; overflow:hidden;
+  background:var(--card-alt); border-radius:14px;
+  border:2px solid var(--green-dark);
+}
+.spinner-track {
+  display:flex; flex-direction:column;
+  transition:transform .1s linear;
+}
+.spinner-item {
+  height:70px; display:flex;
+  align-items:center; justify-content:center;
+  gap:10px; font-size:1rem; padding:0 16px;
+}
+.spinner-item .s-icon { font-size:1.8rem; flex-shrink:0; }
+.spinner-item .s-text { font-size:.88rem; text-align:left; line-height:1.3; }
+.spinner-pointer {
+  position:absolute; right:-2px; top:50%; transform:translateY(-50%);
+  width:0; height:0;
+  border-top:10px solid transparent;
+  border-bottom:10px solid transparent;
+  border-right:12px solid var(--gold);
+}
+.spinner-pointer-l {
+  position:absolute; left:-2px; top:50%; transform:translateY(-50%);
+  width:0; height:0;
+  border-top:10px solid transparent;
+  border-bottom:10px solid transparent;
+  border-left:12px solid var(--gold);
+}
+.overlay-card h2 { font-size:1.3rem; margin-bottom:4px; color:var(--accent2); }
+.overlay-card .big-emoji {
+  font-size:3.2rem; margin-bottom:8px;
+  animation:bounce .6s ease infinite alternate;
+}
+@keyframes bounce { 0%{transform:translateY(0);} 100%{transform:translateY(-8px);} }
+.result-box {
+  margin-top:14px; padding:14px; background:var(--card-alt);
+  border-radius:12px; display:none; animation:pop .3s ease;
+}
+.result-box.show { display:block; }
+.result-box .r-icon { font-size:2rem; }
+.result-box .r-text { font-size:1rem; margin-top:6px; line-height:1.4; }
+.reward-line {
+  margin-top:10px; font-size:.78rem; color:var(--gold); display:none;
+}
+.reward-line.show { display:block; }
+.btn-done {
+  margin-top:16px; width:100%;
+  background:linear-gradient(135deg, var(--green), var(--green-dark));
+  color:#fff; font-family:inherit; font-weight:700;
+  border:none; border-radius:12px; padding:13px; font-size:1rem;
+  cursor:pointer; box-shadow:0 4px 16px #66bb6a30; transition:.15s;
+}
+.btn-done:active { transform:scale(.95); }
+@media(max-width:380px) {
+  .timer-disp { font-size:2.6rem; }
+  .header h1 { font-size:1.4rem; }
+}
+</style>
+</head>
+<body>
+<button class="sound-toggle" id="soundToggle" title="音效">🔔</button>
+<div class="app">
+  <div class="header">
+    <h1>🌱 起來動一動</h1>
+    <div class="sub">久坐提醒 · 種樹養成 · 活動轉盤</div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat-chip"><div class="val" id="todayCount">0</div><div class="label">今日站起</div></div>
+    <div class="stat-chip"><div class="val" id="streakCount">0</div><div class="label">連續天數</div></div>
+    <div class="stat-chip"><div class="val" id="treeCount">0</div><div class="label">植物園🌳</div></div>
+  </div>
+  <div class="timer-section" id="timerSection">
+    <div class="timer-lbl">距離下次站起來</div>
+    <div class="timer-disp ok" id="timerDisp">30:00</div>
+    <div class="intervals">
+      <button class="iv-btn" data-m="20" onclick="pickInterval(20)">20分</button>
+      <button class="iv-btn on" data-m="30" onclick="pickInterval(30)">30分</button>
+      <button class="iv-btn" data-m="45" onclick="pickInterval(45)">45分</button>
+    </div>
+    <div class="t-ctrls">
+      <button class="btn btn-go" id="goBtn" onclick="toggleTimer()">開始計時</button>
+      <button class="btn btn-sec" onclick="resetTimer()">重設</button>
+    </div>
+  </div>
+  <div class="notif-bar" id="notifBar" onclick="askNotif()">🔔 點此開啟通知，切到其他 App 也能提醒你</div>
+  <div class="plant-section">
+    <h3>正在培育</h3>
+    <div class="plant-visual">
+      <div class="plant-ground"></div>
+      <div class="plant-emoji" id="plantE">🌱</div>
+    </div>
+    <div class="plant-info">
+      <div class="plant-name" id="plantName">種子</div>
+      <div class="plant-stage">階段 <span id="stageNum">1</span> / 8</div>
+    </div>
+    <div class="xp-row">
+      <div class="xp-bar"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+      <div class="xp-text" id="xpText">0 / 3</div>
+    </div>
+  </div>
+  <div class="garden-section">
+    <h3>🌿 我的植物園</h3>
+    <div class="garden-area" id="gardenArea">
+      <div class="garden-empty">還沒有樹，繼續站起來培育吧！</div>
+    </div>
+    <div class="garden-count">共 <span id="gardenNum">0</span> 棵樹</div>
+  </div>
+</div>
+<div class="overlay" id="overlay">
+  <div class="overlay-card">
+    <div class="big-emoji">⏰</div>
+    <h2>時間到！站起來！</h2>
+    <div class="spinner-area" id="spinnerArea">
+      <div class="spinner-pointer-l"></div>
+      <div class="spinner-pointer"></div>
+      <div class="spinner-track" id="spinnerTrack"></div>
+    </div>
+    <div class="result-box" id="resultBox">
+      <div class="r-icon" id="rIcon"></div>
+      <div class="r-text" id="rText"></div>
+    </div>
+    <div class="reward-line" id="rewardLine"></div>
+    <button class="btn-done" id="doneBtn" onclick="finishStandup()">✅ 我做完了！</button>
+  </div>
+</div>
+<script>
+const ACTS=[
+  {icon:'🚶',text:'走去倒杯水，順便活動腿部'},
+  {icon:'🧘',text:'站著做 5 次深呼吸，肩膀畫大圈'},
+  {icon:'👀',text:'看向窗外遠方 30 秒，讓眼睛休息'},
+  {icon:'🦵',text:'扶著桌子做 10 個淺蹲'},
+  {icon:'🙆',text:'雙手交叉向上伸展，左右側彎各 5 次'},
+  {icon:'🚪',text:'走到門口再走回來'},
+  {icon:'☕',text:'去泡杯茶或咖啡犒賞自己'},
+  {icon:'🦶',text:'踮腳尖站 15 秒 × 3 組'},
+  {icon:'💆',text:'按摩太陽穴和後頸 30 秒'},
+  {icon:'🔄',text:'站起來轉轉腰，左右各轉 10 圈'},
+  {icon:'🤸',text:'原地踏步 30 秒'},
+  {icon:'✊',text:'握拳再張開，重複 15 次活動手指'},
+  {icon:'🦴',text:'站著把腳踝左右轉各 10 圈'},
+  {icon:'🪟',text:'到窗邊看看天空和風景'},
+  {icon:'💪',text:'扶牆做 10 個站姿伏地挺身'},
+  {icon:'🎵',text:'站起來隨便動一動，像沒人在看'},
+  {icon:'🍎',text:'去洗個水果吃'},
+  {icon:'🦿',text:'弓箭步左右各 5 下'},
+  {icon:'🧊',text:'去冰箱拿個小點心獎勵自己'},
+  {icon:'🙂',text:'站著伸個大懶腰，你很棒！'},
+];
+
+const STAGES=[
+  {emoji:'🌱',name:'種子',need:3},
+  {emoji:'🌿',name:'嫩芽',need:3},
+  {emoji:'☘️',name:'幼苗',need:4},
+  {emoji:'🪴',name:'小盆栽',need:4},
+  {emoji:'🎋',name:'竹苗',need:5},
+  {emoji:'🌴',name:'棕櫚',need:5},
+  {emoji:'🌳',name:'大樹',need:6},
+  {emoji:'🌸',name:'櫻花樹',need:0},
+];
+
+const TREE_POOL=['🌳','🌲','🎄','🌴','🎋','🌸','🍀','🌺','🌻','🪻','🌷','🪷','🍁','🎍'];
+
+let S=loadS();
+function defaultS(){return{intv:30,todayN:0,streak:0,lastDate:null,stageIdx:0,stageXP:0,garden:[],soundOn:true}}
+function loadS(){
+  try{
+    const d=JSON.parse(localStorage.getItem('standup2'));
+    if(d){
+      const today=new Date().toDateString();
+      if(d.lastDate&&d.lastDate!==today){
+        const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);
+        if(diff===1)d.streak=(d.streak||0)+1;
+        else if(diff>1)d.streak=0;
+        d.todayN=0; d.lastDate=today;
+      }
+      if(!Array.isArray(d.garden))d.garden=[];
+      if(d.stageIdx===undefined)d.stageIdx=0;
+      if(d.stageXP===undefined)d.stageXP=0;
+      return d;
+    }
+  }catch(e){}
+  return defaultS();
+}
+function saveS(){localStorage.setItem('standup2',JSON.stringify(S))}
+
+let tid=null,remaining=S.intv*60,total=S.intv*60,running=false;
+
+function pickInterval(m){
+  S.intv=m; remaining=m*60; total=m*60;
+  running=false; clearInterval(tid);
+  document.getElementById('goBtn').textContent='開始計時';
+  document.querySelectorAll('.iv-btn').forEach(b=>b.classList.toggle('on',+b.dataset.m===m));
+  updTimerUI(); saveS();
+}
+function toggleTimer(){
+  if(running){running=false;clearInterval(tid);document.getElementById('goBtn').textContent='繼續';}
+  else{running=true;document.getElementById('goBtn').textContent='暫停';tid=setInterval(tick,1000);}
+}
+function resetTimer(){
+  running=false;clearInterval(tid);
+  remaining=S.intv*60;total=S.intv*60;
+  document.getElementById('goBtn').textContent='開始計時';
+  updTimerUI();
+}
+function tick(){
+  remaining--;
+  if(remaining<=0){running=false;clearInterval(tid);triggerStandup();return;}
+  updTimerUI();
+}
+function updTimerUI(){
+  const m=Math.floor(remaining/60),s=remaining%60;
+  const d=document.getElementById('timerDisp');
+  d.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  d.className=remaining<60?'timer-disp warn':'timer-disp ok';
+  document.getElementById('timerSection').style.setProperty('--progress',1-remaining/total);
+}
+
+function triggerStandup(){
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('resultBox').classList.remove('show');
+  document.getElementById('rewardLine').classList.remove('show');
+  document.getElementById('doneBtn').style.display='none';
+  if(S.soundOn)playChime();
+  fireNotif('時間到！站起來動一動！');
+  runSpinner();
+}
+
+function runSpinner(){
+  const track=document.getElementById('spinnerTrack');
+  track.innerHTML='';
+  const pool=[];
+  for(let i=0;i<40;i++)pool.push(ACTS[Math.floor(Math.random()*ACTS.length)]);
+  const winner=ACTS[Math.floor(Math.random()*ACTS.length)];
+  pool.push(winner);
+  pool.forEach(a=>{
+    const div=document.createElement('div');
+    div.className='spinner-item';
+    div.innerHTML=`<span class="s-icon">${a.icon}</span><span class="s-text">${a.text}</span>`;
+    track.appendChild(div);
+  });
+  const itemH=70,finalPos=(pool.length-1)*itemH,duration=2800,start=performance.now();
+  function animate(now){
+    const t=Math.min((now-start)/duration,1);
+    const ease=1-Math.pow(1-t,3);
+    track.style.transform=`translateY(-${ease*finalPos}px)`;
+    if(t<1)requestAnimationFrame(animate);
+    else setTimeout(()=>{
+      document.getElementById('rIcon').textContent=winner.icon;
+      document.getElementById('rText').textContent=winner.text;
+      document.getElementById('resultBox').classList.add('show');
+      document.getElementById('doneBtn').style.display='block';
+    },300);
+  }
+  requestAnimationFrame(animate);
+}
+
+function finishStandup(){
+  S.todayN++;
+  S.lastDate=new Date().toDateString();
+  let treeGrown=false;
+  S.stageXP++;
+  const stage=STAGES[S.stageIdx];
+  if(S.stageIdx>=STAGES.length-1){
+    treeGrown=true;
+  } else if(S.stageXP>=stage.need){
+    S.stageIdx++;
+    S.stageXP=0;
+    if(S.stageIdx>=STAGES.length-1) treeGrown=true;
+  }
+  if(treeGrown){
+    const treeE=TREE_POOL[Math.floor(Math.random()*TREE_POOL.length)];
+    S.garden.push(treeE);
+    S.stageIdx=0; S.stageXP=0;
+    const rl=document.getElementById('rewardLine');
+    rl.textContent=`🎉 ${treeE} 長成大樹移入植物園了！新種子已播種 🌱`;
+    rl.classList.add('show');
+  }
+  saveS(); renderAll();
+  setTimeout(()=>{
+    document.getElementById('overlay').classList.remove('show');
+    resetTimer(); toggleTimer();
+  },treeGrown?2800:1800);
+}
+
+function renderAll(){
+  document.getElementById('todayCount').textContent=S.todayN;
+  document.getElementById('streakCount').textContent=S.streak;
+  document.getElementById('treeCount').textContent=S.garden.length;
+  const st=STAGES[S.stageIdx];
+  document.getElementById('plantE').textContent=st.emoji;
+  document.getElementById('plantE').style.fontSize=`${2.4+S.stageIdx*0.3}rem`;
+  document.getElementById('plantName').textContent=st.name;
+  document.getElementById('stageNum').textContent=S.stageIdx+1;
+  const need=st.need||1;
+  const pct=Math.min(100,(S.stageXP/need)*100);
+  document.getElementById('xpFill').style.width=pct+'%';
+  document.getElementById('xpText').textContent=`${S.stageXP} / ${need}`;
+  const ga=document.getElementById('gardenArea');
+  if(S.garden.length===0){
+    ga.innerHTML='<div class="garden-empty">還沒有樹，繼續站起來培育吧！</div>';
+  }else{
+    ga.innerHTML=S.garden.map((t,i)=>
+      `<span class="garden-tree" style="animation-delay:${(i*0.3)%4}s" title="第${i+1}棵">${t}</span>`
+    ).join('');
+  }
+  document.getElementById('gardenNum').textContent=S.garden.length;
+  document.getElementById('soundToggle').textContent=S.soundOn?'🔔':'🔕';
+}
+
+function playChime(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [523.25,659.25,783.99].forEach((f,i)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type='sine';o.frequency.value=f;
+      g.gain.setValueAtTime(.12,ctx.currentTime+i*.15);
+      g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+i*.15+.4);
+      o.connect(g).connect(ctx.destination);
+      o.start(ctx.currentTime+i*.15);o.stop(ctx.currentTime+i*.15+.4);
+    });
+  }catch(e){}
+}
+document.getElementById('soundToggle').onclick=()=>{S.soundOn=!S.soundOn;saveS();renderAll();};
+
+function fireNotif(text){
+  if('Notification'in window&&Notification.permission==='granted')
+    new Notification('🌱 起來動一動',{body:text});
+}
+function askNotif(){
+  if('Notification'in window)
+    Notification.requestPermission().then(p=>{if(p==='granted')document.getElementById('notifBar').style.display='none';});
+}
+if('Notification'in window&&Notification.permission!=='granted')
+  document.getElementById('notifBar').style.display='block';
+
+renderAll(); updTimerUI();
+</script>
+</body>
+</html>
