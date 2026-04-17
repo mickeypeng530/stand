@@ -379,7 +379,12 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
     <div class="pro-msg" id="proMsg"><div class="pm-text" id="pmText"></div></div>
     <div class="xp-earned" id="xpEarned" style="display:none"></div>
     <div class="reward-line" id="rewardLine"></div>
-    <button class="ov-done" onclick="closeOverlay()">👍 好的！</button>
+    <!-- Proactive extra buttons: shown only on proactive standup -->
+    <div id="proactiveBtns" style="display:none;flex-direction:column;gap:8px;margin-top:14px;">
+      <button class="ov-done" id="proYes" onclick="proactiveDoExercise()">✨ 順便做個小運動 <span style="background:#ffffff25;border-radius:6px;padding:1px 7px;margin-left:4px;font-size:.78rem;font-weight:400;">+1 XP</span></button>
+      <button class="ov-done" id="proNo" onclick="closeOverlay()" style="background:linear-gradient(135deg,var(--grey),var(--grey-dark));box-shadow:none;">🚪 不用，我有事要忙</button>
+    </div>
+    <button class="ov-done" id="doneBtn" onclick="closeOverlay()">👍 好的！</button>
   </div>
 </div>
 
@@ -727,20 +732,53 @@ function showStandOv(pro,xp,tree){
   const sp=document.getElementById('spinnerArea'),rb=document.getElementById('resultBox'),pm=document.getElementById('proMsg'),rl=document.getElementById('rewardLine'),xe=document.getElementById('xpEarned');
   sp.classList.remove('show');rb.classList.remove('show');pm.classList.remove('show');rl.classList.remove('show');
   xe.style.display='inline-block';xe.textContent=`+${xp} XP`;
+  const proBtns=document.getElementById('proactiveBtns'),doneBtn=document.getElementById('doneBtn');
   if(pro){
     document.getElementById('ovEmoji').textContent='💪';
     document.getElementById('ovTitle').textContent='主動站起來！';
     document.getElementById('pmText').textContent=PRO[Math.floor(Math.random()*PRO.length)];
     pm.classList.add('show');
+    // Show yes/no choice instead of single done button
+    proBtns.style.display='flex';
+    doneBtn.style.display='none';
   }else{
     document.getElementById('ovEmoji').textContent='⏰';
     document.getElementById('ovTitle').textContent='時間到！做個活動吧';
     sp.classList.add('show');
     runSpinner();
+    // Reminded zone: standard done button
+    proBtns.style.display='none';
+    doneBtn.style.display='block';
+    doneBtn.textContent='✅ 做完了！';
   }
   if(tree){rl.textContent=`🎉 ${tree.emoji} 移入植物園！新種子已播種 🌱`;rl.classList.add('show');}
   document.getElementById('overlay').classList.add('show');
 }
+
+// User chose to do an exercise after proactive standup
+window.proactiveDoExercise=function(){
+  const sp=document.getElementById('spinnerArea'),pm=document.getElementById('proMsg'),proBtns=document.getElementById('proactiveBtns'),doneBtn=document.getElementById('doneBtn');
+  pm.classList.remove('show');
+  sp.classList.add('show');
+  document.getElementById('ovTitle').textContent='抽個活動吧！';
+  document.getElementById('ovEmoji').textContent='🎰';
+  proBtns.style.display='none';
+  doneBtn.style.display='block';
+  doneBtn.textContent='✅ 做完了！+1 XP';
+  // Give extra XP and possibly grow a tree
+  const tree=applySitXP(1);
+  const xe=document.getElementById('xpEarned');
+  // Update displayed total XP badge
+  const current=parseInt(xe.textContent.match(/\d+/)?.[0]||'0');
+  xe.textContent=`+${current+1} XP`;
+  if(tree){
+    const rl=document.getElementById('rewardLine');
+    rl.textContent=`🎉 ${tree.emoji} 移入植物園！新種子已播種 🌱`;
+    rl.classList.add('show');
+  }
+  saveSync();renderAll();
+  runSpinner();
+};
 function showAway(){
   ['spinnerArea','resultBox','proMsg','rewardLine'].forEach(id=>document.getElementById(id).classList.remove('show'));
   document.getElementById('xpEarned').style.display='none';
@@ -748,6 +786,8 @@ function showAway(){
   document.getElementById('ovTitle').textContent='歡迎回來！';
   document.getElementById('pmText').textContent='看起來你離開了一陣子，計時器已重設。';
   document.getElementById('proMsg').classList.add('show');
+  document.getElementById('proactiveBtns').style.display='none';
+  const db=document.getElementById('doneBtn');db.style.display='block';db.textContent='👍 了解';
   document.getElementById('overlay').classList.add('show');
 }
 window.closeOverlay=function(){document.getElementById('overlay').classList.remove('show');resetSit();renderAll();tick();};
