@@ -48,10 +48,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .card-header .icon{font-size:1.1rem;}
 .card-header .label{font-size:.88rem;font-weight:700;}
 
-.session-idle{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;padding:20px 0;}
-.session-idle .idle-emoji{font-size:2.8rem;opacity:.6;}
+.session-idle{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:12px 0 0;}
+.session-idle .idle-emoji{font-size:2.8rem;opacity:.6;margin-top:8px;}
 .session-idle .idle-text{font-size:.85rem;color:var(--text-dim);line-height:1.5;}
-.start-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:14px;padding:16px;font-size:1.05rem;cursor:pointer;transition:.15s;background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;box-shadow:0 4px 20px #66bb6a30;}
+.start-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:14px;padding:14px;font-size:.95rem;cursor:pointer;transition:.15s;background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;box-shadow:0 4px 20px #66bb6a30;margin-top:auto;}
 .start-btn:active{transform:scale(.95);}
 
 .sit-card.z-silent{border-color:#ffffff15;}
@@ -86,7 +86,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .sit-status{font-size:.68rem;color:var(--text-dim);}
 
 .water-card{border-color:#42a5f520;}
-.water-body{flex:1;}
+.water-body{flex:1;display:flex;flex-direction:column;}
 .water-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .water-count{font-family:'Fredoka',sans-serif;font-size:1.05rem;font-weight:700;color:var(--blue-light);}
 .water-ml{font-size:.7rem;color:var(--text-dim);}
@@ -97,7 +97,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .cup.filled{border-color:var(--blue);}
 .cup.filled .water{height:85%;}
 .cup-num{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:.45rem;color:#fff;font-weight:700;opacity:.7;z-index:1;}
-.water-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:12px;padding:14px;font-size:.95rem;cursor:pointer;transition:.15s;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;box-shadow:0 4px 14px #42a5f520;}
+.water-btn{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:12px;padding:14px;font-size:.95rem;cursor:pointer;transition:.15s;background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;box-shadow:0 4px 14px #42a5f520;margin-top:auto;}
 .water-btn:active{transform:scale(.95);}
 .water-btn:disabled{opacity:.4;cursor:default;transform:none;}
 .water-btn .xp-badge{display:inline-block;background:#ffffff25;border-radius:8px;padding:2px 7px;margin-left:6px;font-size:.72rem;font-weight:400;}
