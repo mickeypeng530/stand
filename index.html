@@ -24,7 +24,7 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
 /* ========== MOBILE: TAB-BASED ========== */
 
 /* Top status bar */
-.m-top{position:fixed;top:0;left:0;right:0;z-index:50;background:#0c1810e8;backdrop-filter:blur(8px);padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #ffffff08;}
+.m-top{position:fixed;top:0;left:0;right:0;z-index:50;background:#0c1810e8;backdrop-filter:blur(8px);padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #ffffff08;height:52px;}
 .m-top .title{font-family:'Fredoka',sans-serif;font-size:1.05rem;font-weight:700;color:var(--green-light);margin-right:auto;}
 .m-chip{background:var(--card);border-radius:8px;padding:4px 8px;font-size:.72rem;color:var(--text-dim);display:flex;align-items:center;gap:3px;}
 .m-chip .v{font-family:'Fredoka',sans-serif;font-weight:700;font-size:.82rem;color:var(--gold);}
@@ -47,9 +47,10 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
 .m-tab .t-label{font-size:.62rem;font-weight:700;}
 .m-tab .t-badge{font-size:.55rem;color:var(--gold);min-height:.7em;}
 
-/* Views */
-.m-view{position:fixed;top:46px;left:0;right:0;bottom:var(--tab-h);overflow-y:auto;padding:16px;display:none;-webkit-overflow-scrolling:touch;}
-.m-view.active{display:block;}
+/* Views — normal flow, padded to avoid fixed bars */
+.views-container{padding-top:52px;padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom,0));min-height:100dvh;}
+.m-view{display:none;padding:16px;min-height:calc(100dvh - 52px - var(--tab-h));}
+.m-view.active{display:flex;flex-direction:column;}
 
 /* ========== SIT VIEW ========== */
 .sit-idle{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;gap:16px;}
@@ -179,16 +180,14 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
 @media(min-width:768px){
   body{font-size:17px;}
   .m-tabs{display:none;}
-  .m-top{position:sticky;padding:12px 20px;}
-  .m-view{position:static;display:block!important;overflow:visible;padding:0;}
-  .desktop-wrap{max-width:960px;margin:0 auto;padding:14px 20px 40px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-  .d-card{background:var(--card);border-radius:var(--radius);padding:22px;border:1px solid #ffffff08;display:flex;flex-direction:column;}
-  .d-card.full{grid-column:1/3;}
-  .d-card .d-title{font-size:1rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-  .d-card .d-title .subtitle{font-size:.72rem;color:var(--text-dim);font-weight:400;}
-  /* Override mobile view styles for desktop */
+  .m-top{position:sticky;top:0;padding:12px 20px;}
+  .views-container{padding-top:0;padding-bottom:0;min-height:auto;max-width:960px;margin:0 auto;padding:14px 20px 40px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .m-view{display:flex!important;flex-direction:column;background:var(--card);border-radius:var(--radius);padding:22px;border:1px solid #ffffff08;min-height:auto;}
+  .m-view:nth-child(3){grid-column:1/3;}
   .timer-num{font-size:3.5rem;}
   .cups-grid{max-width:100%;}
+  .sit-idle{height:auto;min-height:200px;}
+  .mini-strip{margin-top:16px;}
 }
 </style>
 </head>
@@ -204,7 +203,8 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
   <button class="snd-btn" id="soundToggle">🔔</button>
 </div>
 
-<!-- ===== MOBILE VIEWS ===== -->
+<!-- ===== VIEWS ===== -->
+<div class="views-container">
 
 <!-- SIT VIEW -->
 <div class="m-view active" id="viewSit">
@@ -213,7 +213,7 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
     <div class="desc">準備坐下工作了嗎？<br>按下開始，我幫你追蹤</div>
     <button class="big-btn green" onclick="startSession()" style="width:100%;max-width:320px">▶ 開始工作</button>
   </div>
-  <div id="sitActive2" style="display:none;height:100%;flex-direction:column;">
+  <div id="sitActive2" style="display:none;flex:1;flex-direction:column;">
     <div class="timer-block">
       <div class="timer-num c-dim" id="sitDisp">00:00</div>
       <div class="timer-sub" id="sitHint">剛坐下，還不用擔心 😌</div>
@@ -271,6 +271,8 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
   </div>
   <div class="rest-row"><button class="rest-link" onclick="restDay()">😴 今天休息（不中斷連續天數）</button></div>
 </div>
+
+</div><!-- end views-container -->
 
 <!-- ===== BOTTOM TABS ===== -->
 <div class="m-tabs" id="mTabs">
