@@ -4,10 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>🌱 起來動一動</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Fredoka:wght@400;500;600;700&family=Baloo+2:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
@@ -744,7 +742,7 @@ window.S=loadL();
 // ===== FIREBASE =====
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import{getDatabase,ref,set,get}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getDatabase,ref,set,get,onValue,off}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-scheduler-f752b.firebaseapp.com",databaseURL:"https://case-scheduler-f752b-default-rtdb.firebaseio.com",projectId:"case-scheduler-f752b",storageBucket:"case-scheduler-f752b.firebasestorage.app",messagingSenderId:"703006186929",appId:"1:703006186929:web:57ac5b059678005455f190"};
 const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),prov=new GoogleAuthProvider();
@@ -770,14 +768,39 @@ function updateLoginBtn(u){
   }
 }
 
+let cloudListenerUnsub=null;
+
 onAuthStateChanged(fbAuth,async u=>{
   fbUser=u;
+  // Detach previous listener if any
+  if(cloudListenerUnsub){cloudListenerUnsub();cloudListenerUnsub=null;}
   if(u){
     dbRef=ref(fbDb,`health-tracker/${u.uid}`);
     updateLoginBtn(u);
     setSyncChip('cloud','已同步');
     await cloudPull(true);
     renderAll();
+    // Set up realtime listener — triggers when cloud data changes from another device
+    cloudListenerUnsub=onValue(dbRef,snap=>{
+      if(!snap.exists())return;
+      const c=snap.val();
+      const today=new Date().toDateString();
+      if(c.lastDate&&c.lastDate!==today&&c.lastDate!==null)return;
+      if(!c.history||Array.isArray(c.history))c.history={};
+      if(!Array.isArray(c.garden))c.garden=[];
+      // Skip if this is our own recent write (prevent echo loops)
+      if(c.updatedAt&&S.updatedAt&&c.updatedAt<=S.updatedAt)return;
+      if(isCloudNewer(c)){
+        const wasInSession=S.inSession;
+        Object.assign(S,c);
+        saveLocal();
+        if(S.inSession!==wasInSession||S.inSession){
+          applySessionUI();
+          if(S.inSession)resumeSessionIfNeeded();
+        }
+        renderAll();
+      }
+    });
   }else{
     dbRef=null;
     updateLoginBtn(null);
@@ -846,7 +869,7 @@ async function cloudPull(firstPull){
   }catch(e){console.warn('cloudPull err',e);}
 }
 
-// Re-pull when tab becomes visible (debounced)
+// Re-pull when tab becomes visible (debounced) — fallback when realtime listener misses
 let lastPullAt=0;
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&dbRef){
