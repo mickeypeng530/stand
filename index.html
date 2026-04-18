@@ -375,7 +375,10 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
             <div class="stat"><div class="stat-v" id="longestSit">0m</div><div class="stat-l">最長久坐</div></div>
             <div class="stat"><div class="stat-v" id="totalStands">0</div><div class="stat-l">累計站起</div></div>
           </div>
-          <div class="rest-row"><button class="rest-btn" onclick="restDay()">😴 今天休息（不中斷連續天數）</button></div>
+          <div class="rest-row">
+            <button class="rest-btn" onclick="restDay()">😴 今天休息（不中斷連續天數）</button>
+            <button class="rest-btn" onclick="resetToday()" style="margin-left:6px">🔄 重設今日數值</button>
+          </div>
 
           <!-- History block -->
           <div class="hist-section">
@@ -456,7 +459,7 @@ onAuthStateChanged(fbAuth,async u=>{
   }
 });
 window.handleLogin=async()=>{if(fbUser){if(confirm('確定登出？'))await signOut(fbAuth);}else{try{await signInWithPopup(fbAuth,prov);}catch(e){}}};
-async function cloudSave(){if(!dbRef)return;try{await set(dbRef,{...S});}catch(e){}}
+async function cloudSave(){if(!dbRef)return;try{S.updatedAt=Date.now();await set(dbRef,{...S});}catch(e){}}
 
 // Pull from cloud — merge cloud state intelligently
 // firstPull=true means this is right after login; normal case is visibility/tab switch
@@ -467,7 +470,7 @@ async function cloudPull(firstPull){
     if(!snap.exists()){if(firstPull)await cloudSave();return;}
     const c=snap.val();
     const today=new Date().toDateString();
-    // If cloud data is from a previous day, don't use it
+    // If cloud data is from a previous day, don't use it — push our (newer) local data up
     if(c.lastDate&&c.lastDate!==today&&c.lastDate!==null){
       if(firstPull)await cloudSave();
       return;
@@ -476,40 +479,34 @@ async function cloudPull(firstPull){
     if(!Array.isArray(c.garden))c.garden=[];
     c.garden=c.garden.map(g=>typeof g==='string'?{type:'sit',emoji:g}:g);
 
-    // Decide whether to apply cloud data
-    // Rule: if cloud has a more recent sit/session activity, use cloud
-    // Otherwise, keep local
+    // Decide whether to apply cloud data based on updatedAt
     const cloudNewer=isCloudNewer(c);
-    if(cloudNewer||firstPull){
+    if(cloudNewer){
       const wasInSession=S.inSession;
       Object.assign(S,c);
       saveLocal();
-      // If session state changed, update UI
       if(S.inSession&&!wasInSession){
-        // Cloud says we're in session but local didn't know — resume it
         resumeSessionIfNeeded();
       }else if(!S.inSession&&wasInSession){
-        // Cloud ended session while we thought we were in — sync UI
         if(tid){clearInterval(tid);tid=null;}
         applySessionUI(false);
       }
       renderAll();
+    }else if(firstPull){
+      // On first pull, if local is newer, push local up to cloud
+      await cloudSave();
     }
   }catch(e){console.log('cloudPull err',e);}
 }
 
-// Heuristic: is cloud data newer than local?
-// Compare session start times, counters, and total activity
+// Is cloud data newer than local? Primary check: updatedAt timestamp.
 function isCloudNewer(c){
-  // If cloud has active session but local doesn't → cloud newer
+  const cloudT=c.updatedAt||0,localT=S.updatedAt||0;
+  if(cloudT&&localT)return cloudT>localT;
+  // Fallback (no updatedAt on one side, legacy): use session/activity heuristic
   if(c.inSession&&!S.inSession)return true;
-  // If local has active session but cloud doesn't → local newer
   if(S.inSession&&!c.inSession)return false;
-  // Both in session: compare sitStartAt (newer = more recent activity)
-  if(c.inSession&&S.inSession){
-    return (c.sitStartAt||0)>(S.sitStartAt||0);
-  }
-  // Neither in session: compare total activity (standUps + waterCount)
+  if(c.inSession&&S.inSession)return (c.sitStartAt||0)>(S.sitStartAt||0);
   const cloudTotal=(c.todayStand||0)+(c.todayWater||0)+(c.garden?.length||0);
   const localTotal=(S.todayStand||0)+(S.todayWater||0)+(S.garden?.length||0);
   return cloudTotal>localTotal;
@@ -591,6 +588,8 @@ function loadL(){
         else if(diff>1)d.streak=0;
         d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;
         d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
+        // Mark rollover time so cloud sync treats this as the newest data
+        d.updatedAt=Date.now();
       }
       if(!Array.isArray(d.garden))d.garden=[];
       if(!Array.isArray(d.history))d.history=[];
@@ -598,12 +597,13 @@ function loadL(){
       d.garden=d.garden.map(g=>typeof g==='string'?{type:'sit',emoji:g}:g);
       ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday'].forEach(k=>{if(!d[k])d[k]=0;});
       if(!d.thresh)d.thresh=30;
+      if(!d.updatedAt)d.updatedAt=Date.now();
       return d;
     }
   }catch(e){}
   return defS();
 }
-function saveLocal(){localStorage.setItem('health12',JSON.stringify(S));}
+function saveLocal(){S.updatedAt=Date.now();localStorage.setItem('health12',JSON.stringify(S));}
 function saveSync(){saveLocal();cloudSave();}
 
 // ===== TABS =====
@@ -789,6 +789,27 @@ function applyWaterXP(xp){
 }
 
 window.restDay=function(){S.restToday=true;saveSync();alert('已標記今天休息 😴');};
+window.resetToday=function(){
+  if(!confirm('確定要重設今日的所有數值？\n（喝水杯數、站起次數、工作時間、最長久坐都會歸零）'))return;
+  S.todayStand=0;
+  S.todayWater=0;
+  S.sessionSecTotal=0;
+  S.longestSit=0;
+  S.sessionsToday=0;
+  S.sessionAccum=0;
+  // If in session, also end it cleanly
+  if(S.inSession){
+    S.inSession=false;
+    S.sitStartAt=0;
+    S.sessionStartAt=0;
+    S.alerted=false;
+    if(tid){clearInterval(tid);tid=null;}
+    applySessionUI(false);
+  }
+  saveSync();
+  renderAll();
+  alert('已重設今日數值 ✅');
+};
 
 // ===== OVERLAY =====
 function showStandOv(pro,xp,tree){
