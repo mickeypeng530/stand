@@ -103,6 +103,9 @@ body{overflow-x:hidden;}
 .btn-full.green-alt{background:linear-gradient(135deg,#81c784,var(--green-dark));box-shadow:0 3px 12px #66bb6a22;}
 .btn-full.blue{background:linear-gradient(135deg,var(--blue),var(--blue-dark));box-shadow:0 3px 12px #42a5f522;}
 .btn-full .xp{display:inline-block;background:#ffffff22;border-radius:6px;padding:2px 7px;font-size:calc(11px * var(--fs));font-weight:400;margin-left:6px;}
+.btn-stop{background:var(--card-alt);border:1px solid var(--line);color:var(--text-dim);padding:0 18px;border-radius:12px;font-family:inherit;font-size:calc(18px * var(--fs));cursor:pointer;flex-shrink:0;}
+.btn-stop:hover{color:var(--red);border-color:var(--red);}
+.btn-stop:active{transform:scale(0.95);}
 
 /* Larger laptop padding */
 @media (min-width:900px){
@@ -375,7 +378,10 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
           </div>
           <div class="c-button-slot">
             <button class="btn-full blue" id="startWorkBtn" style="display:none;">▶️ 開始工作</button>
-            <button class="btn-full green-alt" id="standBtn">🧍 我站起來了<span class="xp" id="sitBadge">+1 XP</span></button>
+            <div class="session-buttons" id="sessionButtons" style="display:flex;gap:8px;">
+              <button class="btn-full green-alt" id="standBtn" style="flex:1;">🧍 我站起來了<span class="xp" id="sitBadge">+1 XP</span></button>
+              <button class="btn-stop" id="stopWorkBtn" title="結束工作">⏸</button>
+            </div>
           </div>
         </div>
       </div>
@@ -579,7 +585,7 @@ function defS(){return{
   soundOn:true,totalStands:0,totalWater:0,restToday:false,
   sessionSecTotal:0,longestSit:0,sessionsToday:0,
   inSession:false,sitStartAt:0,sessionStartAt:0,sessionAccum:0,lastWaterRemindAt:0,alerted:false,
-  theme:'default',fontScale:1.3,
+  theme:'default',
   // Seed system: per-type progression
   sitStageIdx:0,sitStageXP:0,
   waterStageIdx:0,waterStageXP:0,
@@ -624,9 +630,10 @@ function loadL(){
       if(!d.thresh)d.thresh=30;
       if(!d.theme||!THEMES.includes(d.theme))d.theme='default';
       if(typeof d.soundOn!=='boolean')d.soundOn=true;
-      if(typeof d.fontScale!=='number'||d.fontScale<0.5||d.fontScale>2)d.fontScale=1.3;
       if(typeof d.sitGoalMetToday!=='boolean')d.sitGoalMetToday=false;
       if(typeof d.waterGoalMetToday!=='boolean')d.waterGoalMetToday=false;
+      // Remove fontScale from cloud state (device-local only now)
+      delete d.fontScale;
       return d;
     }
   }catch(e){console.warn('loadL error',e);}
@@ -812,7 +819,18 @@ document.querySelectorAll('.sbtn[data-theme]').forEach(b=>{
   b.addEventListener('click',()=>window.setTheme(b.dataset.theme));
 });
 
-// ===== FONT SCALE =====
+// ===== FONT SCALE (device-local, not cloud-synced) =====
+function getDefaultFontScale(){
+  // Desktop ≥ 900px → 特大 (1.3), smaller → 中 (1.0)
+  return window.innerWidth>=900?1.3:1;
+}
+function getFontScale(){
+  try{
+    const saved=localStorage.getItem('qlyd_fs');
+    if(saved){const n=+saved;if(n>=0.5&&n<=2)return n;}
+  }catch(e){}
+  return getDefaultFontScale();
+}
 function applyFontScale(s){
   document.documentElement.style.setProperty('--fs',s);
   document.querySelectorAll('.sbtn[data-fs]').forEach(b=>b.classList.toggle('on',+b.dataset.fs===+s));
@@ -820,13 +838,14 @@ function applyFontScale(s){
 window.setFontScale=function(s){
   s=+s;
   if(!s||s<0.5||s>2)s=1;
-  S.fontScale=s;
+  try{localStorage.setItem('qlyd_fs',s);}catch(e){}
   applyFontScale(s);
-  saveSync();
 };
 document.querySelectorAll('.sbtn[data-fs]').forEach(b=>{
   b.addEventListener('click',()=>window.setFontScale(+b.dataset.fs));
 });
+// Initialize on load
+applyFontScale(getFontScale());
 
 // ===== THRESHOLD BUTTONS =====
 function applyThresh(m){
@@ -850,8 +869,6 @@ document.querySelectorAll('.sbtn[data-thresh]').forEach(b=>{
 function renderAll(){
   // Apply theme from state
   applyTheme(S.theme||'default');
-  // Apply font scale
-  applyFontScale(S.fontScale||1);
   // Apply threshold
   applyThresh(S.thresh||30);
   // Top bar counters
@@ -1130,6 +1147,21 @@ window.startWork=function(){
   saveSync();
 };
 
+window.stopWork=function(){
+  if(!S.inSession)return;
+  // Capture final time
+  S.sessionSecTotal=totalSS();
+  const sit=currentSitSec();
+  if(sit>(S.longestSit||0))S.longestSit=sit;
+  // End session
+  S.inSession=false;
+  S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
+  applySessionUI();
+  renderAll();
+  saveSync();
+  showToast('⏸ 已結束工作');
+};
+
 // Silent reset of sit timer (e.g. when stand-up happens)
 function resetSit(){
   S.sitStartAt=now();
@@ -1180,13 +1212,13 @@ function resumeSessionIfNeeded(){
 // Apply UI state based on inSession
 function applySessionUI(){
   const start=document.getElementById('startWorkBtn');
-  const stand=document.getElementById('standBtn');
+  const sessionBtns=document.getElementById('sessionButtons');
   if(S.inSession){
-    start.style.display='none';
-    stand.style.display='';
+    if(start)start.style.display='none';
+    if(sessionBtns)sessionBtns.style.display='flex';
   }else{
-    start.style.display='';
-    stand.style.display='none';
+    if(start)start.style.display='';
+    if(sessionBtns)sessionBtns.style.display='none';
     stopTick();
   }
 }
@@ -1406,6 +1438,9 @@ window.closeActivity=function(accepted){
 // ===== BUTTON HANDLERS =====
 document.getElementById('startWorkBtn').addEventListener('click',()=>window.startWork());
 document.getElementById('standBtn').addEventListener('click',()=>window.handleStandup());
+document.getElementById('stopWorkBtn').addEventListener('click',()=>{
+  if(confirm('結束本次工作？（計時會停止，本次累計的時間會保留到歷史）'))window.stopWork();
+});
 document.getElementById('waterBtn').addEventListener('click',doWater);
 document.getElementById('btnSound').addEventListener('click',()=>{
   S.soundOn=!S.soundOn;
