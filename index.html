@@ -5,434 +5,539 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>起來動一動</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<title>🌱 起來動一動</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Fredoka:wght@400;500;600;700&family=Baloo+2:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#0c1810; --card:#152319; --card-alt:#1d3226;
-  --accent:#ff7043; --accent2:#ffab91;
-  --green:#66bb6a; --green-light:#a5d6a7; --green-dark:#2e7d32;
-  --gold:#ffd54f; --yellow:#ffca28; --red:#ef5350;
-  --blue:#42a5f5; --blue-light:#90caf9; --blue-dark:#1565c0;
-  --pink:#f48fb1; --pink-light:#f8bbd0;
-  --grey:#78909c; --grey-dark:#455a64;
-  --text:#e8f5e9; --text-dim:#7da57d;
-  --radius:14px;
-  --top-h:50px;
-  --tab-h:56px;
-}
+:root{--bg:#0c1810;--card:#152319;--card-alt:#1d3226;--green:#66bb6a;--green-light:#a5d6a7;--green-dark:#2e7d32;--blue:#42a5f5;--blue-light:#90caf9;--blue-dark:#1565c0;--gold:#ffd54f;--red:#ef5350;--text:#e8f5e9;--text-dim:#7da57d;--line:#ffffff0c;}
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{height:100%;}
-body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:var(--text);font-size:16px;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent;}
+body{overflow-x:hidden;}
 
 /* ========== TOP BAR ========== */
-.topbar{position:fixed;top:0;left:0;right:0;z-index:50;height:var(--top-h);background:#0c1810ee;backdrop-filter:blur(8px);border-bottom:1px solid #ffffff08;display:flex;align-items:center;padding:0 10px;gap:6px;}
-.tb-title{font-family:'Fredoka',sans-serif;font-size:1rem;font-weight:700;color:var(--green-light);margin-right:auto;white-space:nowrap;}
-.tb-chip{background:var(--card);border-radius:8px;padding:4px 7px;font-size:.7rem;color:var(--text-dim);display:flex;align-items:center;gap:3px;white-space:nowrap;}
-.tb-chip .v{font-family:'Fredoka',sans-serif;font-weight:700;font-size:.8rem;color:var(--gold);}
-.tb-chip .v.on{color:var(--green-light);}
-.tb-chip .v.off{color:var(--grey);}
-.tb-chip .v.done{color:var(--green);}
-.tb-chip .v.warn{color:var(--red);}
-.tb-login{background:var(--card-alt);border:1px solid #ffffff20;color:var(--text-dim);padding:4px 8px;border-radius:8px;font-size:.65rem;font-family:inherit;cursor:pointer;white-space:nowrap;}
+.topbar{position:sticky;top:0;z-index:50;height:48px;background:#0c1810ee;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px;gap:8px;}
+.topbar .tb-title{font-family:'Fredoka',sans-serif;font-size:14px;color:var(--green-light);font-weight:700;white-space:nowrap;flex-shrink:0;}
+.tb-chips{display:flex;gap:6px;margin:0 auto;}
+.tb-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.topbar .tb-chip{background:var(--card);border-radius:6px;padding:3px 7px;font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.topbar .tb-chip .v{font-family:'Fredoka',monospace;font-weight:700;color:var(--gold);font-size:11px;}
+.topbar .tb-chip .v.on{color:var(--green-light);}
+.topbar .tb-icon{background:none;border:none;color:var(--text-dim);font-size:14px;cursor:pointer;padding:2px 4px;}
+.sync-chip{background:var(--card);border:1px solid #2e7d3244;border-radius:12px;padding:3px 8px;font-size:10px;color:var(--green-light);display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.sync-chip .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+.sync-chip.offline{border-color:#ff700344;color:var(--gold);}
+.sync-chip.offline .sync-dot{background:var(--gold);box-shadow:0 0 6px var(--gold);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.tb-login{background:var(--card-alt);border:1px solid #ffffff20;color:var(--text-dim);padding:4px 10px;border-radius:8px;font-size:11px;font-family:inherit;cursor:pointer;white-space:nowrap;}
 .tb-login.on{border-color:var(--green);color:var(--green-light);}
-.dot{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:3px;}
-.dot.on{background:var(--green);} .dot.off{background:var(--grey);}
-.tb-btn{background:none;border:none;font-size:1rem;cursor:pointer;padding:2px;position:relative;}
-.tb-btn .notif-dot{position:absolute;top:0;right:0;width:7px;height:7px;border-radius:50%;background:var(--red);}
-.tb-btn .notif-dot.hide{display:none;}
 
-@media(max-width:430px){
-  .tb-title{display:none;}
-  .tb-chip{font-size:.65rem;padding:3px 5px;}
-  .tb-chip .v{font-size:.72rem;}
-  .tb-login{font-size:.6rem;}
+@media (min-width:768px){
+  .topbar{height:52px;padding:0 20px;gap:12px;}
+  .topbar .tb-title{font-size:15px;}
+  .topbar .tb-chip{font-size:11px;padding:4px 9px;}
+  .topbar .tb-chip .v{font-size:12px;}
+}
+/* On small phones, hide sync chip and login text to save space */
+@media (max-width:500px){
+  .sync-chip span:last-child{display:none;}
+  .tb-login{padding:4px 7px;font-size:10px;}
+  .topbar{gap:4px;padding:0 6px;}
+  .tb-chips{gap:3px;}
+  .topbar .tb-chip{padding:2px 5px;font-size:9px;}
+  .topbar .tb-chip .v{font-size:10px;}
+}
+@media (max-width:380px){
+  .topbar .tb-title{display:none;}
 }
 
-/* ========== MAIN ========== */
-.main{padding-top:var(--top-h);padding-bottom:var(--tab-h);min-height:100dvh;}
+/* ========== MAIN LAYOUT ========== */
+.main{padding:12px;padding-bottom:60px;min-height:calc(100dvh - 48px);}
+@media (min-width:1000px){
+  .main{padding:18px 24px;padding-bottom:30px;}
+}
 
-/* ========== TABS (mobile) ========== */
-.tabs{position:fixed;bottom:0;left:0;right:0;z-index:50;height:var(--tab-h);background:#0c1810f2;backdrop-filter:blur(8px);border-top:1px solid #ffffff10;display:flex;padding-bottom:env(safe-area-inset-bottom,0);}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);cursor:pointer;transition:color .2s;gap:1px;}
-.tab.active{color:var(--green-light);}
-.tab .ti{font-size:1.25rem;line-height:1;}
-.tab .tl{font-size:.62rem;font-weight:700;}
-.tab .tb{font-size:.55rem;color:var(--gold);min-height:.7em;}
-
-/* ========== VIEWS ========== */
-.views{padding:10px;}
+/* Views are shown/hidden by tab on mobile, only viewHome shown on desktop */
 .view{display:none;}
 .view.active{display:block;}
-
-/* ========== CARD ========== */
-.card{
-  background:var(--card);
-  border-radius:var(--radius);
-  border:1px solid #ffffff08;
-  padding:16px;
-  transition:border-color .5s;
+@media (min-width:1000px){
+  .view{display:none;}
+  #viewHome{display:block;}
 }
-.card-title{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:.95rem;font-weight:700;}
-.card-title .ci{font-size:1.1rem;}
-.card-title .cs{font-size:.7rem;color:var(--text-dim);font-weight:400;margin-left:3px;}
 
-/* Content area — natural height, no forced min */
-.card-content{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;}
+/* Row with sit and water cards */
+.row-main{display:flex;flex-direction:column;gap:10px;}
+@media (min-width:768px){
+  .row-main{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+}
 
-/* Actions */
-.card-actions{margin-top:14px;display:flex;flex-direction:column;gap:6px;}
-.card-actions-sub{min-height:24px;display:flex;align-items:center;justify-content:center;}
+/* Bottom row (garden + history) — only on desktop */
+.bottom-row{display:none;}
+@media (min-width:1000px){
+  .bottom-row{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-top:14px;}
+}
 
-.btn-primary{width:100%;font-family:inherit;font-weight:700;border:none;border-radius:14px;padding:14px;font-size:1.02rem;cursor:pointer;transition:transform .15s;color:#fff;}
-.btn-primary:active{transform:scale(.96);}
-.btn-primary.green{background:linear-gradient(135deg,var(--green),var(--green-dark));box-shadow:0 4px 16px #66bb6a25;}
-.btn-primary.blue{background:linear-gradient(135deg,var(--blue),var(--blue-dark));box-shadow:0 4px 14px #42a5f525;}
-.btn-primary.grey{background:linear-gradient(135deg,var(--grey),var(--grey-dark));box-shadow:none;}
-.btn-primary:disabled{opacity:.4;cursor:default;transform:none;}
-.btn-primary .xp{display:inline-block;background:#ffffff25;border-radius:8px;padding:2px 7px;margin-left:6px;font-size:.72rem;font-weight:400;}
+/* ========== CARDS ========== */
+.c-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;position:relative;overflow:hidden;min-height:280px;}
+.c-card.sit{border-color:#66bb6a30;}
+.c-card.water{border-color:#42a5f530;}
+.c-head{display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:13px;font-weight:700;color:var(--text);}
+.c-head .ic{font-size:14px;}
+.c-head .sub{font-size:10px;color:var(--text-dim);font-weight:400;margin-left:auto;}
+.c-body{flex:1;display:flex;flex-direction:column;}
+.c-body-content{flex:1;display:flex;flex-direction:column;padding-right:90px;}
+.c-button-slot{margin-top:auto;padding-top:12px;}
+.btn-full{width:100%;padding:13px;border-radius:12px;border:none;color:#fff;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;transition:transform .1s;}
+.btn-full:active{transform:scale(0.97);}
+.btn-full.green-alt{background:linear-gradient(135deg,#81c784,var(--green-dark));box-shadow:0 3px 12px #66bb6a22;}
+.btn-full.blue{background:linear-gradient(135deg,var(--blue),var(--blue-dark));box-shadow:0 3px 12px #42a5f522;}
+.btn-full .xp{display:inline-block;background:#ffffff22;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:400;margin-left:6px;}
 
-.btn-sub{background:none;border:1px solid #ffffff20;color:var(--text-dim);padding:5px 14px;border-radius:8px;font-size:.72rem;font-family:inherit;cursor:pointer;}
-.btn-link{background:none;border:none;color:var(--text-dim);font-size:.7rem;font-family:inherit;cursor:pointer;text-decoration:underline;}
+/* Larger laptop padding */
+@media (min-width:1000px){
+  .c-card{padding:20px;}
+  .c-body-content{padding-right:130px;}
+}
 
-/* Mini plant footer */
-.mini-footer{margin-top:12px;padding-top:10px;border-top:1px solid #ffffff08;}
-.mini-row{display:flex;align-items:center;gap:8px;}
-.mini-plant{font-size:1.3rem;animation:sway 3s ease-in-out infinite;}
-@keyframes sway{0%,100%{transform:rotate(-2deg);}50%{transform:rotate(2deg);}}
-.mini-info{flex:1;min-width:0;}
-.mini-name{font-size:.7rem;color:var(--green-light);font-weight:700;}
-.mini-name.blue{color:var(--blue-light);}
-.mini-bar{height:4px;background:#ffffff10;border-radius:2px;margin-top:3px;overflow:hidden;}
-.mini-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
-.mini-bar-fill.green{background:linear-gradient(90deg,var(--green),var(--gold));}
-.mini-bar-fill.blue{background:linear-gradient(90deg,var(--blue),var(--pink-light));}
+/* ========== MASCOT ========== */
+/* Positioned at the top-right area, aligned with the timer number */
+.mascot-perch{position:absolute;right:14px;top:48px;width:80px;height:80px;display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;}
+.mascot-perch svg{width:72px;height:72px;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.3));}
+.mascot-perch.idle svg{animation:mascot-idle 3s ease-in-out infinite;}
+.mascot-perch.happy svg{animation:mascot-happy 0.6s ease-in-out 3;}
+@keyframes mascot-idle{0%,100%{transform:translateY(0) rotate(0);}50%{transform:translateY(-4px) rotate(-2deg);}}
+@keyframes mascot-happy{0%,100%{transform:translateY(0) scale(1);}30%{transform:translateY(-12px) scale(1.1);}60%{transform:translateY(0) scale(1);}}
+.mascot-speech{position:absolute;right:14px;top:28px;background:#fff;color:#333;padding:5px 10px;border-radius:12px;font-size:11px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.3);white-space:nowrap;z-index:3;opacity:0;transform:translateY(4px);transition:all .3s;}
+.mascot-speech.show{opacity:1;transform:translateY(0);}
+.mascot-speech::after{content:'';position:absolute;bottom:-4px;right:14px;width:8px;height:8px;background:#fff;transform:rotate(45deg);}
+.mascot-xp{position:absolute;right:10px;top:134px;display:flex;align-items:center;gap:4px;background:#000000aa;padding:3px 8px;border-radius:10px;font-size:10px;color:var(--gold);font-family:'Fredoka',monospace;z-index:2;}
+.mascot-xp .stg{color:var(--text-dim);}
+@media (min-width:1000px){
+  .mascot-perch{width:120px;height:120px;right:20px;top:56px;}
+  .mascot-perch svg{width:110px;height:110px;}
+  .mascot-xp{top:180px;font-size:11px;}
+}
 
-/* ========== SIT ========== */
-.sit-idle-icon{font-size:2.8rem;opacity:.55;}
-.sit-idle-text{font-size:.9rem;color:var(--text-dim);line-height:1.5;}
+/* ========== SIT SECTION ========== */
+.sit-se{text-align:center;}
+.sit-se .timer-num{font-family:'Fredoka',monospace;font-size:48px;font-weight:700;color:var(--green-light);letter-spacing:2px;line-height:1;margin:4px 0;}
+.sit-se .timer-sub{font-size:12px;color:var(--text-dim);line-height:1.4;}
+.sit-se .sit-bar{height:4px;background:#ffffff10;border-radius:2px;margin:10px 0 8px;overflow:hidden;}
+.sit-se .sit-bar-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));border-radius:2px;transition:width 1s linear,background .5s;}
+.sit-se .sit-thresh{display:flex;gap:5px;}
+.sit-se .sit-thresh .tp{flex:1;background:var(--card-alt);color:var(--text-dim);border:1px solid transparent;padding:5px 0;font-size:11px;border-radius:7px;text-align:center;cursor:pointer;font-family:inherit;}
+.sit-se .sit-thresh .tp.on{border-color:var(--green);color:var(--green-light);background:#66bb6a18;}
+@media (min-width:1000px){
+  .sit-se .timer-num{font-size:62px;}
+}
 
-.timer-num{font-family:'Fredoka',sans-serif;font-size:3.2rem;font-weight:700;letter-spacing:2px;line-height:1;transition:color .4s;}
-.timer-num.c-dim{color:var(--text-dim);}
-.timer-num.c-green{color:var(--green-light);}
-.timer-num.c-yellow{color:var(--yellow);}
-.timer-num.c-red{color:var(--red);animation:pulse 1s ease-in-out infinite;}
-.timer-num.c-grey{color:var(--grey);}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
-.timer-sub{font-size:.78rem;color:var(--text-dim);min-height:1.1em;}
-.timer-sub.urgent{color:var(--accent2);}
-.timer-sub.grey{color:var(--grey);}
-.timer-progress{width:85%;max-width:260px;height:4px;background:#ffffff10;border-radius:2px;overflow:hidden;}
-.timer-progress-fill{height:100%;border-radius:2px;transition:width 1s linear,background .5s;}
-
-.thresh-pills{display:flex;gap:6px;justify-content:center;margin-top:4px;}
-.tp{background:var(--card-alt);border:2px solid transparent;color:var(--text-dim);padding:4px 13px;border-radius:20px;font-size:.75rem;font-family:inherit;cursor:pointer;}
-.tp.on{border-color:var(--green);color:var(--green);background:#66bb6a18;}
-
-.card.sit-card.z-green{border-color:#66bb6a40;}
-.card.sit-card.z-yellow{border-color:#ffca2860;}
-.card.sit-card.z-red{border-color:#ef535060;}
-.card.sit-card.z-grey{border-color:#78909c40;}
-
-/* ========== WATER ========== */
-.water-big{font-family:'Fredoka',sans-serif;font-size:2rem;font-weight:700;color:var(--blue-light);}
-.water-ml{font-size:.75rem;color:var(--text-dim);}
-.cups-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:100%;max-width:300px;margin:6px auto 0;}
-.cup{aspect-ratio:.72;position:relative;border-radius:0 0 6px 6px;border:2px solid #ffffff20;border-top:none;background:var(--card-alt);overflow:hidden;transition:.3s;}
-.cup::before{content:'';position:absolute;top:0;left:-2px;right:-2px;height:3px;background:#ffffff20;border-radius:2px 2px 0 0;}
-.cup .water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,var(--blue-light),var(--blue));border-radius:0 0 5px 5px;transition:height .5s ease;}
+/* ========== WATER SECTION ========== */
+.water-se{text-align:center;}
+.water-se .big{display:flex;align-items:baseline;justify-content:center;gap:4px;margin:4px 0;}
+.water-se .big .n{font-family:'Fredoka',monospace;font-size:48px;font-weight:700;color:var(--blue-light);line-height:1;}
+.water-se .big .t{font-size:18px;color:var(--text-dim);}
+.water-se .ml{font-size:12px;color:var(--text-dim);}
+.cups-row{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:10px;}
+.cup{aspect-ratio:0.7;position:relative;border-radius:0 0 6px 6px;border:1.5px solid #ffffff20;border-top:none;background:var(--card-alt);overflow:hidden;cursor:pointer;}
+.cup::before{content:'';position:absolute;top:0;left:-1.5px;right:-1.5px;height:2px;background:#ffffff20;border-radius:2px 2px 0 0;}
+.cup .water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,var(--blue-light),var(--blue));border-radius:0 0 4px 4px;transition:height .5s ease;}
 .cup.filled{border-color:var(--blue);}
-.cup.filled .water-fill{height:82%;}
-.cup .cn{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:.55rem;color:#fff;font-weight:700;opacity:.6;z-index:1;}
-.card.water-card{border-color:#42a5f520;}
+.cup.filled .water-fill{height:70%;}
+@media (min-width:1000px){
+  .water-se .big .n{font-size:60px;}
+}
 
 /* ========== GARDEN ========== */
-.garden-card .card-content{text-align:left;display:block;}
-.dual-plants{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
-.plant-box{background:var(--card-alt);border-radius:12px;padding:14px 10px;text-align:center;}
-.plant-box .pb-emoji{font-size:2.6rem;animation:sway 3s ease-in-out infinite;filter:drop-shadow(0 0 10px #66bb6a30);}
-.plant-box .pb-ground{width:55%;height:10px;margin:-2px auto 0;background:linear-gradient(180deg,#3e2723,#5d4037);border-radius:50%;opacity:.5;}
-.plant-box .pb-name{font-size:.85rem;font-weight:700;margin-top:6px;}
-.plant-box.sit .pb-name{color:var(--green-light);}
-.plant-box.water .pb-name{color:var(--blue-light);}
-.plant-box .pb-stage{font-size:.68rem;color:var(--text-dim);margin-top:2px;}
-.plant-box .pb-label{font-size:.65rem;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;}
-.plant-box .pb-xp{display:flex;align-items:center;gap:6px;margin-top:6px;}
-.plant-box .pb-bar{flex:1;height:5px;background:#ffffff10;border-radius:3px;overflow:hidden;}
-.plant-box .pb-bar-fill{height:100%;border-radius:3px;transition:width .5s;}
-.plant-box.sit .pb-bar-fill{background:linear-gradient(90deg,var(--green),var(--gold));}
-.plant-box.water .pb-bar-fill{background:linear-gradient(90deg,var(--blue),var(--pink-light));}
-.plant-box .pb-xp-text{font-size:.6rem;color:var(--text-dim);min-width:30px;text-align:right;}
-
-.garden-grid-title{font-size:.82rem;color:var(--text-dim);margin-bottom:8px;text-align:center;}
-.garden-area{min-height:90px;background:linear-gradient(180deg,#1b2f1b 0%,#2a3f2a 60%,#3e2723 85%,#5d4037 100%);border-radius:12px;padding:12px;display:flex;flex-wrap:wrap;gap:5px;align-items:flex-end;justify-content:center;}
-.ga-tree{font-size:1.7rem;animation:gsway 4s ease-in-out infinite;transition:transform .2s;}
-.ga-tree.water{filter:drop-shadow(0 0 4px #42a5f540);}
-.ga-tree.sit{filter:drop-shadow(0 0 4px #66bb6a40);}
-@keyframes gsway{0%,100%{transform:rotate(-1deg);}50%{transform:rotate(1deg);}}
-.ga-empty{width:100%;text-align:center;font-size:.8rem;color:var(--text-dim);padding:14px 0;}
-.ga-count{text-align:center;font-size:.7rem;color:var(--text-dim);margin-top:6px;}
-.ga-count span{color:var(--gold);font-weight:700;}
-
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid #ffffff08;}
-.stat{text-align:center;}
-.stat-v{font-family:'Fredoka',sans-serif;font-size:1.15rem;font-weight:700;color:var(--gold);}
-.stat-l{font-size:.58rem;color:var(--text-dim);margin-top:1px;}
-
-.rest-row{margin-top:12px;text-align:center;}
-.rest-btn{background:var(--card-alt);border:1px solid #ffffff15;color:var(--text-dim);padding:6px 16px;border-radius:10px;font-size:.72rem;font-family:inherit;cursor:pointer;}
+.garden-scene-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;}
+.garden-head{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text);}
+.garden-head .gsub{margin-left:auto;font-size:10px;color:var(--text-dim);font-weight:400;}
+.garden-scene{width:100%;aspect-ratio:16/7;border-radius:10px;overflow:hidden;display:block;background:linear-gradient(180deg,#b8d9e8 0%,#d4e8c0 55%,#a8d582 100%);}
+.garden-caption{display:flex;gap:8px;font-size:11px;color:var(--text-dim);justify-content:space-between;padding:4px 2px;flex-wrap:wrap;}
 
 /* ========== HISTORY ========== */
-.hist-section{margin-top:18px;padding-top:14px;border-top:1px solid #ffffff08;}
-.hist-header{font-size:.85rem;color:var(--text-dim);margin-bottom:10px;text-align:center;}
-.hist-tabs{display:flex;background:var(--card-alt);border-radius:10px;padding:3px;gap:2px;margin-bottom:12px;}
-.htab{flex:1;padding:7px 0;text-align:center;font-size:.8rem;color:var(--text-dim);cursor:pointer;border-radius:8px;transition:all .2s;font-weight:700;}
+.hist-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+.hist-tabs{display:flex;background:var(--card-alt);border-radius:10px;padding:3px;gap:2px;}
+.htab{flex:1;padding:6px 0;text-align:center;font-size:11px;color:var(--text-dim);cursor:pointer;border-radius:8px;font-weight:700;font-family:inherit;}
 .htab.active{background:var(--green-dark);color:#fff;}
-.hist-body{font-size:.78rem;}
-.hist-summary{display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--card-alt);border-radius:10px;margin-bottom:12px;}
-.hs-row{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
-.hs-icon{font-size:.9rem;flex-shrink:0;}
-.hs-val{font-family:'Fredoka',sans-serif;font-weight:700;font-size:.95rem;color:var(--text);}
-.hs-sub{color:var(--text-dim);font-size:.72rem;}
-.hs-avg{color:var(--gold);font-size:.72rem;margin-left:auto;}
-.hs-val.ok{color:var(--green-light);}
-.hs-val.bad{color:var(--red);}
-.hs-val.info{color:var(--text);}
+.hist-body{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.hstat{background:var(--card-alt);border-radius:8px;padding:8px 10px;}
+.hstat .sv{font-family:'Fredoka',monospace;font-size:18px;font-weight:700;color:var(--gold);line-height:1.1;}
+.hstat .sl{font-size:10px;color:var(--text-dim);margin-top:2px;}
+.hstat.ok .sv{color:var(--green-light);}
+.hstat.bad .sv{color:var(--red);}
+.daily-quote{margin-top:8px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;}
+.daily-quote .dq-icon{font-size:22px;flex-shrink:0;animation:quote-sway 4s ease-in-out infinite;}
+@keyframes quote-sway{0%,100%{transform:rotate(-3deg);}50%{transform:rotate(3deg);}}
+.daily-quote .dq-content{flex:1;min-width:0;}
+.daily-quote .dq-status{font-size:13px;color:var(--green-light);font-weight:700;margin-bottom:4px;}
+.daily-quote .dq-quote{font-size:13px;color:var(--text-dim);line-height:1.5;font-style:italic;}
 
-.hist-list-title{font-size:.72rem;color:var(--text-dim);margin:6px 0 6px;text-align:center;}
-.hist-list{display:flex;flex-direction:column;gap:4px;}
-.hist-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card-alt);border-radius:8px;font-size:.72rem;}
-.hist-row .hr-date{color:var(--text-dim);min-width:48px;font-weight:700;}
-.hist-row .hr-item{display:flex;align-items:center;gap:2px;white-space:nowrap;}
-.hist-row .hr-item .hr-v{font-family:'Fredoka',sans-serif;font-weight:700;}
-.hist-row .hr-v.ok{color:var(--green-light);}
-.hist-row .hr-v.bad{color:var(--red);}
-.hist-row .hr-v.info{color:var(--text);}
-.hist-row .hr-v.over{color:var(--red);}
-.hist-row .hr-rest{color:var(--grey);font-style:italic;}
-.hist-empty{text-align:center;color:var(--text-dim);font-size:.78rem;padding:16px 0;}
+/* ========== SETTINGS VIEW ========== */
+.settings-group{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;}
+.settings-group h3{font-size:13px;font-weight:700;color:var(--green-light);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
+.settings-row:last-child{border-bottom:none;}
+.settings-row .label{color:var(--text);}
+.settings-row .ctrl{display:flex;gap:6px;}
+.sbtn{padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card-alt);color:var(--text-dim);font-family:inherit;font-size:11px;cursor:pointer;}
+.sbtn.on{background:var(--gold);color:#111;border-color:var(--gold);font-weight:700;}
 
-/* ========== OVERLAY ========== */
-.overlay{position:fixed;inset:0;background:#0c1810ee;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(10px);}
-.overlay.show{display:flex;}
-.ov-card{background:var(--card);border-radius:20px;padding:24px 20px;max-width:340px;width:100%;text-align:center;border:2px solid var(--green);animation:pop .4s cubic-bezier(.34,1.56,.64,1);}
-@keyframes pop{0%{transform:scale(.7);opacity:0;}100%{transform:scale(1);opacity:1;}}
-.ov-card h2{font-size:1.18rem;margin-bottom:3px;color:var(--accent2);}
-.ov-card .big-emoji{font-size:2.6rem;margin-bottom:6px;animation:bounce .6s ease infinite alternate;}
-@keyframes bounce{0%{transform:translateY(0);}100%{transform:translateY(-8px);}}
-.spinner-area{margin:12px 0;position:relative;height:62px;overflow:hidden;background:var(--card-alt);border-radius:12px;border:2px solid var(--green-dark);display:none;}
-.spinner-area.show{display:block;}
-.spinner-track{display:flex;flex-direction:column;}
-.spinner-item{height:62px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;}
-.spinner-item .s-icon{font-size:1.5rem;flex-shrink:0;}
-.spinner-item .s-text{font-size:.85rem;text-align:left;line-height:1.3;}
-.sp-ptr{position:absolute;top:50%;transform:translateY(-50%);border-top:9px solid transparent;border-bottom:9px solid transparent;}
-.sp-ptr.l{left:-2px;border-left:10px solid var(--gold);}
-.sp-ptr.r{right:-2px;border-right:10px solid var(--gold);}
-.result-box{margin-top:8px;padding:12px;background:var(--card-alt);border-radius:12px;display:none;animation:pop .3s ease;}
-.result-box.show{display:block;}
-.result-box .r-icon{font-size:1.6rem;}
-.result-box .r-text{font-size:.9rem;margin-top:4px;line-height:1.4;}
-.pro-msg{margin:10px 0;padding:10px;background:#66bb6a18;border-radius:10px;border:1px solid #66bb6a30;display:none;animation:pop .3s ease;}
-.pro-msg.show{display:block;}
-.pro-msg .pm-text{font-size:.88rem;line-height:1.5;color:var(--green-light);}
-.reward-line{margin-top:6px;font-size:.75rem;color:var(--gold);display:none;}
-.reward-line.show{display:block;}
-.xp-earned{display:inline-block;background:var(--gold);color:#333;border-radius:8px;padding:2px 10px;font-weight:700;font-size:.8rem;margin-top:6px;}
-.ov-done{margin-top:12px;width:100%;background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;font-family:inherit;font-weight:700;border:none;border-radius:14px;padding:11px;font-size:.93rem;cursor:pointer;}
-.ov-done:active{transform:scale(.96);}
-
-/* ========== DESKTOP ========== */
-@media(min-width:768px){
-  body{font-size:17px;}
-  .tabs{display:none;}
+/* ========== TAB BAR (mobile only) ========== */
+.tabbar{position:fixed;bottom:0;left:0;right:0;z-index:50;height:54px;background:#0c1810f2;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0);}
+.tabbar .t{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--text-dim);font-size:10px;cursor:pointer;}
+.tabbar .t.active{color:var(--green-light);}
+.tabbar .t .ti{font-size:18px;}
+@media (min-width:1000px){
+  .tabbar{display:none;}
   .main{padding-bottom:30px;}
-  .views{max-width:1000px;margin:0 auto;padding:16px 20px 40px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;}
-  .view{display:flex!important;}
-  .view.garden-view{grid-column:1/3;}
-  .view>.card{width:100%;display:flex;flex-direction:column;}
-  .timer-num{font-size:3rem;}
-  /* Make sit and water card content natural height — actions push to bottom in same cards */
-  .card-actions{margin-top:auto;padding-top:14px;}
-  .sit-card,.water-card{display:flex;flex-direction:column;}
 }
+
+/* ========== MENU DROPDOWN ========== */
+.menu-overlay{position:fixed;inset:0;background:#00000080;z-index:99;display:none;}
+.menu-overlay.show{display:block;}
+.menu-dropdown{position:fixed;top:54px;right:8px;z-index:100;width:300px;max-width:calc(100vw - 16px);max-height:calc(100vh - 70px);overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 8px 32px rgba(0,0,0,0.6);display:none;}
+.menu-dropdown.show{display:block;}
+@media (min-width:768px){
+  .menu-dropdown{top:60px;right:16px;width:340px;}
+}
+.menu-section{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line);}
+.menu-section:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none;}
+.menu-label{font-size:12px;font-weight:700;color:var(--green-light);margin-bottom:8px;}
+.menu-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}
+.menu-text{font-size:13px;color:var(--text);}
+.menu-inline{display:flex;gap:4px;}
+.menu-themes{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.menu-themes .sbtn{padding:7px 10px;font-size:11px;text-align:center;}
+
+/* ========== THEMES ========== */
+body.theme-kawaii{--bg:#fff0f5;--card:#ffffff;--card-alt:#fdf2f8;--green:#86efac;--green-light:#16a34a;--green-dark:#16a34a;--blue:#7dd3fc;--blue-light:#0284c7;--blue-dark:#0284c7;--gold:#fbbf24;--text:#4a2d3a;--text-dim:#9a7a88;--line:#f5d0e0;}
+body.theme-kawaii .c-card{box-shadow:0 2px 0 #fbcfe8;border-radius:20px;}
+body.theme-kawaii .c-card.sit{border:2px solid #86efac;background:#ecfdf5;}
+body.theme-kawaii .c-card.water{border:2px solid #7dd3fc;background:#f0f9ff;}
+body.theme-kawaii .btn-full.green-alt{background:linear-gradient(135deg,#86efac,#4ade80);box-shadow:0 3px 0 #16a34a;color:#fff;border-radius:16px;}
+body.theme-kawaii .btn-full.blue{background:linear-gradient(135deg,#7dd3fc,#38bdf8);box-shadow:0 3px 0 #0284c7;color:#fff;border-radius:16px;}
+
+body.theme-pixel{--bg:#1a1c2c;--card:#29366f;--card-alt:#3b5dc9;--green:#a7f070;--green-light:#c8ff8a;--green-dark:#38b764;--blue:#73eff7;--blue-light:#a8f0ff;--blue-dark:#41a6f6;--gold:#ffcd75;--text:#f4f4f4;--text-dim:#94b0c2;--line:#566c8640;}
+body.theme-pixel .c-card{border-radius:0!important;border:3px solid #fff;box-shadow:4px 4px 0 #000;}
+body.theme-pixel .sit-se .timer-num,body.theme-pixel .water-se .big .n{font-family:'Press Start 2P',monospace!important;font-size:28px!important;text-shadow:2px 2px 0 #000;}
+body.theme-pixel .btn-full{border-radius:0!important;border:3px solid #fff;box-shadow:3px 3px 0 #000;font-family:'Press Start 2P',monospace;font-size:10px!important;}
+body.theme-pixel .btn-full.green-alt{background:#a7f070;color:#1a1c2c;}
+body.theme-pixel .btn-full.blue{background:#73eff7;color:#1a1c2c;}
+body.theme-pixel .mascot-perch svg{image-rendering:pixelated;}
+
+body.theme-tama{--bg:#c8e6c9;--card:#e8f5e9;--card-alt:#a5d6a7;--green:#388e3c;--green-light:#2e7d32;--green-dark:#1b5e20;--blue:#1565c0;--blue-light:#0d47a1;--blue-dark:#01579b;--gold:#f57f17;--text:#1a3a1a;--text-dim:#4a6a4a;--line:#388e3c40;}
+body.theme-tama .c-card{background:#e8f5e9;border:2px dashed #2e7d32;border-radius:8px;}
+
+body.theme-neon{--bg:#0a0a1f;--card:#1a0a2e;--card-alt:#2a0a4a;--green:#39ff14;--green-light:#7fff6a;--blue:#00ffff;--blue-light:#7ffffd;--gold:#ff0080;--text:#e0e0ff;--text-dim:#8080bb;--line:#ff00ff30;}
+body.theme-neon .c-card.sit{border:1px solid #39ff14;box-shadow:0 0 20px rgba(57,255,20,0.3);}
+body.theme-neon .c-card.water{border:1px solid #00ffff;box-shadow:0 0 20px rgba(0,255,255,0.3);}
+body.theme-neon .sit-se .timer-num{color:#39ff14;text-shadow:0 0 12px #39ff14;}
+body.theme-neon .water-se .big .n{color:#00ffff;text-shadow:0 0 12px #00ffff;}
+
+body.theme-paper{--bg:#faf3e0;--card:#fffef7;--card-alt:#f0e8d0;--green:#4caf50;--green-light:#2e7d32;--green-dark:#2e7d32;--blue:#2196f3;--blue-light:#1565c0;--blue-dark:#1565c0;--gold:#ff9800;--text:#333;--text-dim:#666;--line:#8d6e6330;}
+body.theme-paper{font-family:'Baloo 2',sans-serif;}
+body.theme-paper .c-card{border:2px solid #333;box-shadow:3px 3px 0 #333;border-radius:6px;background:repeating-linear-gradient(0deg,#fffef7 0 20px,#f5efd8 20px 21px);}
+body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2px 2px 0 #333;}
 </style>
 </head>
 <body>
 
+<!-- Inline SVG sprite (will be replaced by external sprite.svg in production) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs id="spriteDefs">
+    <!-- sprite.svg symbols injected here at runtime -->
+  </defs>
+</svg>
+
 <!-- TOP BAR -->
 <div class="topbar">
   <div class="tb-title">🌱 起來動一動</div>
-  <div class="tb-chip"><span>🪑</span><span class="v off" id="tbTimer">--:--</span></div>
-  <div class="tb-chip"><span>站</span><span class="v" id="tbStand">0/5</span></div>
-  <div class="tb-chip"><span>💧</span><span class="v" id="tbWater">0/8</span></div>
-  <button class="tb-btn" id="notifBtn" onclick="askNotif()" title="開啟通知">🔔<span class="notif-dot" id="notifDot"></span></button>
-  <button class="tb-btn" id="soundToggle">🔊</button>
-  <button class="tb-login" id="loginBtn" onclick="handleLogin()"><span class="dot off"></span>登入</button>
+  <div class="tb-chips">
+    <div class="tb-chip"><span>🪑</span><span class="v on" id="tbTimer">12:34</span></div>
+    <div class="tb-chip"><span>站</span><span class="v" id="tbStand">3/5</span></div>
+    <div class="tb-chip"><span>💧</span><span class="v" id="tbWater">3/12</span></div>
+  </div>
+  <div class="tb-right">
+    <div class="sync-chip" id="syncChip"><span class="sync-dot"></span><span id="syncText">本地</span></div>
+    <button class="tb-icon" id="notifBtn" title="通知">🔔</button>
+    <button class="tb-login" id="loginBtn">👤 登入</button>
+    <button class="tb-icon" id="menuBtn" title="選單" style="font-size:16px;">⚙️</button>
+  </div>
+</div>
+
+<!-- SETTINGS DROPDOWN (attached to top bar) -->
+<div class="menu-overlay" id="menuOverlay"></div>
+<div class="menu-dropdown" id="menuDropdown">
+  <div class="menu-section">
+    <div class="menu-label">🎨 風格</div>
+    <div class="menu-themes">
+      <button class="sbtn on" data-theme="default">預設</button>
+      <button class="sbtn" data-theme="kawaii">🍓 萌系</button>
+      <button class="sbtn" data-theme="pixel">👾 像素</button>
+      <button class="sbtn" data-theme="tama">🥚 電子寵物</button>
+      <button class="sbtn" data-theme="neon">💫 霓虹</button>
+      <button class="sbtn" data-theme="paper">📒 紙本</button>
+    </div>
+  </div>
+
+  <div class="menu-section">
+    <div class="menu-label">⚙️ 追蹤設定</div>
+    <div class="menu-row">
+      <span class="menu-text">久坐門檻</span>
+      <div class="menu-inline">
+        <button class="sbtn" data-thresh="20">20</button>
+        <button class="sbtn on" data-thresh="30">30</button>
+        <button class="sbtn" data-thresh="45">45</button>
+      </div>
+    </div>
+    <div class="menu-row">
+      <span class="menu-text">🔊 音效</span>
+      <button class="sbtn on" id="btnSound">開啟</button>
+    </div>
+    <div class="menu-row">
+      <span class="menu-text">🔔 通知</span>
+      <button class="sbtn" id="btnNotif">請求</button>
+    </div>
+    <div class="menu-row">
+      <span class="menu-text">😴 今天休息</span>
+      <button class="sbtn" id="btnRest">標記</button>
+    </div>
+  </div>
 </div>
 
 <!-- MAIN -->
 <div class="main">
-  <div class="views">
 
-    <!-- SIT VIEW -->
-    <div class="view active" id="viewSit">
-      <div class="card sit-card" id="sitCard">
-        <div class="card-title">
-          <span class="ci">🪑</span>
+  <!-- HOME VIEW (sit + water cards) -->
+  <div class="view active" id="viewHome">
+    <div class="row-main">
+      <!-- SIT CARD -->
+      <div class="c-card sit" id="sitCard">
+        <div class="c-head">
+          <span class="ic">🪑</span>
           <span>久坐追蹤</span>
-          <span class="cs" id="sitSubtitle"></span>
+          <span class="sub" id="sitSubtitle">工作中 · 30 分門檻</span>
         </div>
-        <div class="card-content">
-          <div id="sitIdle" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0;">
-            <div class="sit-idle-icon">💺</div>
-            <div class="sit-idle-text">準備坐下工作了嗎？<br>按下開始，我幫你追蹤</div>
-          </div>
-          <div id="sitActive" style="display:none;flex-direction:column;align-items:center;gap:10px;width:100%;">
-            <div class="timer-num c-dim" id="sitDisp">00:00</div>
-            <div class="timer-sub" id="sitHint">剛坐下，還不用擔心 😌</div>
-            <div class="timer-progress"><div class="timer-progress-fill" id="sitBarFill"></div></div>
-            <div class="thresh-pills">
-              <button class="tp" data-m="20" onclick="pickThresh(20)">20分</button>
-              <button class="tp on" data-m="30" onclick="pickThresh(30)">30分</button>
-              <button class="tp" data-m="45" onclick="pickThresh(45)">45分</button>
+        <div class="mascot-perch idle" id="sitMascot">
+          <svg viewBox="0 0 64 64"><use href="#m-sprout-baby" id="sitMascotUse"/></svg>
+        </div>
+        <div class="mascot-speech" id="sitSpeech">加油！再 17 分鐘站起來～</div>
+        <div class="mascot-xp"><span class="stg" id="sitStage">幼體</span><span id="sitXp">8 / 15</span></div>
+        <div class="c-body">
+          <div class="c-body-content sit-se">
+            <div class="timer-num" id="sitDisp">12:34</div>
+            <div class="timer-sub" id="sitHint">離 30 分還有 17:26 · 再撐一下 😌</div>
+            <div class="sit-bar"><div class="sit-bar-fill" id="sitBarFill" style="width:42%"></div></div>
+            <div class="sit-thresh">
+              <div class="tp" data-m="20">20分</div>
+              <div class="tp on" data-m="30">30分</div>
+              <div class="tp" data-m="45">45分</div>
             </div>
           </div>
-        </div>
-        <div class="card-actions">
-          <button class="btn-primary green" id="sitIdleBtn" onclick="startSession()">▶ 開始工作</button>
-          <button class="btn-primary green" id="standBtn" onclick="handleStandup()" style="display:none">🧍 我站起來了<span class="xp" id="sitBadge"></span></button>
-          <div class="card-actions-sub">
-            <button class="btn-sub" id="sitEndBtn" onclick="endSession()" style="display:none">⏹ 結束工作</button>
+          <div class="c-button-slot">
+            <button class="btn-full green-alt" id="standBtn">🧍 我站起來了<span class="xp" id="sitBadge">+1 XP</span></button>
           </div>
         </div>
-        <div class="mini-footer" id="mini1"></div>
       </div>
-    </div>
 
-    <!-- WATER VIEW -->
-    <div class="view" id="viewWater">
-      <div class="card water-card">
-        <div class="card-title">
-          <span class="ci">💧</span>
+      <!-- WATER CARD -->
+      <div class="c-card water" id="waterCard">
+        <div class="c-head">
+          <span class="ic">💧</span>
           <span>喝水追蹤</span>
-          <span class="cs">（每 2 小時提醒）</span>
+          <span class="sub">每 2h 提醒</span>
         </div>
-        <div class="card-content">
-          <div class="water-big"><span id="wNum">0</span> / 12 杯</div>
-          <div class="water-ml" id="wMl">≈ 0 ml</div>
-          <div class="cups-grid" id="cupsGrid"></div>
+        <div class="mascot-perch idle" id="waterMascot">
+          <svg viewBox="0 0 64 64"><use href="#m-drop-egg" id="waterMascotUse"/></svg>
         </div>
-        <div class="card-actions">
-          <button class="btn-primary blue" id="waterBtn" onclick="drinkWater()">💧 喝了一杯<span class="xp">+0.5 XP</span></button>
-          <div class="card-actions-sub">
-            <button class="btn-link" id="undoBtn" onclick="undoWater()" style="display:none">↩ 按錯了</button>
+        <div class="mascot-speech" id="waterSpeech">口渴了～喝一杯吧！</div>
+        <div class="mascot-xp"><span class="stg" id="waterStage">蛋</span><span id="waterXp">1.5 / 5</span></div>
+        <div class="c-body">
+          <div class="c-body-content water-se">
+            <div class="big"><span class="n" id="wNum">3</span><span class="t">/ 12 杯</span></div>
+            <div class="ml" id="wMl">≈ 450 ml · 下次提醒 1h 24m</div>
+            <div class="cups-row" id="cupsRow"></div>
           </div>
-        </div>
-        <div class="mini-footer" id="mini2"></div>
-      </div>
-    </div>
-
-    <!-- GARDEN VIEW -->
-    <div class="view garden-view" id="viewGarden">
-      <div class="card garden-card">
-        <div class="card-title">
-          <span class="ci">🌱</span>
-          <span>植物 & 植物園</span>
-        </div>
-        <div class="card-content">
-          <!-- Two growing plants -->
-          <div class="dual-plants" style="width:100%">
-            <div class="plant-box sit">
-              <div class="pb-label">🪑 久坐</div>
-              <div class="pb-emoji" id="sitPlantE">🌱</div>
-              <div class="pb-ground"></div>
-              <div class="pb-name" id="sitPlantName">種子</div>
-              <div class="pb-stage">階段 <span id="sitStageN">1</span>/8</div>
-              <div class="pb-xp">
-                <div class="pb-bar"><div class="pb-bar-fill" id="sitBarF" style="width:0%"></div></div>
-                <div class="pb-xp-text" id="sitXPT">0/3</div>
-              </div>
-            </div>
-            <div class="plant-box water">
-              <div class="pb-label">💧 喝水</div>
-              <div class="pb-emoji" id="waterPlantE">🌱</div>
-              <div class="pb-ground"></div>
-              <div class="pb-name" id="waterPlantName">種子</div>
-              <div class="pb-stage">階段 <span id="waterStageN">1</span>/8</div>
-              <div class="pb-xp">
-                <div class="pb-bar"><div class="pb-bar-fill" id="waterBarF" style="width:0%"></div></div>
-                <div class="pb-xp-text" id="waterXPT">0/4</div>
-              </div>
-            </div>
-          </div>
-          <div class="garden-grid-title">🌿 我的植物園</div>
-          <div class="garden-area" id="gfArea"><div class="ga-empty">還沒有植物，繼續努力吧！</div></div>
-          <div class="ga-count">共 <span id="gfNum">0</span> 棵 · 🪑 <span id="gfSit">0</span> · 💧 <span id="gfWater">0</span></div>
-          <div class="stats-grid">
-            <div class="stat"><div class="stat-v" id="streakVal">0</div><div class="stat-l">連續天數</div></div>
-            <div class="stat"><div class="stat-v" id="sessionTime">0m</div><div class="stat-l">今日在位</div></div>
-            <div class="stat"><div class="stat-v" id="longestSit">0m</div><div class="stat-l">最長久坐</div></div>
-            <div class="stat"><div class="stat-v" id="totalStands">0</div><div class="stat-l">累計站起</div></div>
-          </div>
-          <div class="rest-row">
-            <button class="rest-btn" onclick="restDay()">😴 今天休息（不中斷連續天數）</button>
-          </div>
-
-          <!-- History block -->
-          <div class="hist-section">
-            <div class="hist-header">📊 歷史紀錄</div>
-            <div class="hist-tabs">
-              <div class="htab active" data-range="day" onclick="switchHist('day')">日</div>
-              <div class="htab" data-range="week" onclick="switchHist('week')">週</div>
-              <div class="htab" data-range="month" onclick="switchHist('month')">月</div>
-              <div class="htab" data-range="all" onclick="switchHist('all')">總</div>
-            </div>
-            <div class="hist-body" id="histBody"></div>
+          <div class="c-button-slot">
+            <button class="btn-full blue" id="waterBtn">💧 喝了一杯<span class="xp">+0.5 XP</span></button>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- BOTTOM ROW (Desktop only: Garden + History) -->
+    <div class="bottom-row">
+      <div class="garden-scene-wrap" id="gardenWrap">
+        <div class="garden-head">
+          <span>🏡</span>我的花園
+          <span class="gsub" id="gardenSub">還沒有植物</span>
+        </div>
+        <svg viewBox="0 0 800 350" class="garden-scene" preserveAspectRatio="none" id="gardenScene">
+          <rect x="0" y="0" width="800" height="230" fill="#cfe8f5"/>
+          <rect x="0" y="230" width="800" height="120" fill="#a8d582"/>
+          <ellipse cx="400" cy="232" rx="800" ry="8" fill="#8ec46e" opacity="0.5"/>
+          <!-- Plants will be rendered here dynamically -->
+        </svg>
+        <div class="garden-caption" id="gardenCaption">
+          <span>繼續努力，花園會慢慢長滿 🌿</span>
+        </div>
+      </div>
+
+      <div class="hist-card">
+        <div class="hist-tabs">
+          <div class="htab active" data-range="day">今日</div>
+          <div class="htab" data-range="week">週</div>
+          <div class="htab" data-range="month">月</div>
+          <div class="htab" data-range="all">總</div>
+        </div>
+        <div class="hist-body" id="histBody">
+          <div class="hstat ok"><div class="sv">0</div><div class="sl">連續天數</div></div>
+          <div class="hstat"><div class="sv">0m</div><div class="sl">在位時間</div></div>
+          <div class="hstat"><div class="sv">0m</div><div class="sl">最長久坐</div></div>
+          <div class="hstat"><div class="sv">0</div><div class="sl">今日站起</div></div>
+        </div>
+        <div class="daily-quote">
+          <div class="dq-icon">🌿</div>
+          <div class="dq-content">
+            <div class="dq-status" id="gardenStatus">花園裡有 0 位住客</div>
+            <div class="dq-quote" id="dailyQuote">慢慢來，每一次起身都在長成更好的你 🌱</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GARDEN VIEW (mobile only) -->
+  <div class="view" id="viewGarden">
+    <div class="garden-scene-wrap">
+      <div class="garden-head">
+        <span>🏡</span>我的花園
+        <span class="gsub" id="gardenSubMobile">還沒有植物</span>
+      </div>
+      <svg viewBox="0 0 800 350" class="garden-scene" preserveAspectRatio="none" id="gardenSceneMobile">
+        <rect x="0" y="0" width="800" height="230" fill="#cfe8f5"/>
+        <rect x="0" y="230" width="800" height="120" fill="#a8d582"/>
+        <ellipse cx="400" cy="232" rx="800" ry="8" fill="#8ec46e" opacity="0.5"/>
+      </svg>
+      <div class="garden-caption" id="gardenCaptionMobile">
+        <span>繼續努力，花園會慢慢長滿 🌿</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY VIEW (mobile only) -->
+  <div class="view" id="viewHistory">
+    <div class="hist-card">
+      <div class="hist-tabs">
+        <div class="htab active" data-range="day">今日</div>
+        <div class="htab" data-range="week">週</div>
+        <div class="htab" data-range="month">月</div>
+        <div class="htab" data-range="all">總</div>
+      </div>
+      <div class="hist-body" id="histBodyMobile">
+        <div class="hstat ok"><div class="sv">0</div><div class="sl">連續天數</div></div>
+        <div class="hstat"><div class="sv">0m</div><div class="sl">在位時間</div></div>
+        <div class="hstat"><div class="sv">0m</div><div class="sl">最長久坐</div></div>
+        <div class="hstat"><div class="sv">0</div><div class="sl">今日站起</div></div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- BOTTOM TABS -->
-<div class="tabs">
-  <div class="tab active" onclick="switchTab(0)">
-    <span class="ti">🪑</span><span class="tl">久坐</span><span class="tb" id="tabSitBadge"></span>
-  </div>
-  <div class="tab" onclick="switchTab(1)">
-    <span class="ti">💧</span><span class="tl">喝水</span><span class="tb" id="tabWaterBadge"></span>
-  </div>
-  <div class="tab" onclick="switchTab(2)">
-    <span class="ti">🌱</span><span class="tl">植物園</span><span class="tb" id="tabGardenBadge"></span>
-  </div>
-</div>
-
-<!-- OVERLAY -->
-<div class="overlay" id="overlay">
-  <div class="ov-card">
-    <div class="big-emoji" id="ovEmoji">⏰</div>
-    <h2 id="ovTitle">時間到！</h2>
-    <div class="spinner-area" id="spinnerArea">
-      <div class="sp-ptr l"></div><div class="sp-ptr r"></div>
-      <div class="spinner-track" id="spinnerTrack"></div>
-    </div>
-    <div class="result-box" id="resultBox"><div class="r-icon" id="rIcon"></div><div class="r-text" id="rText"></div></div>
-    <div class="pro-msg" id="proMsg"><div class="pm-text" id="pmText"></div></div>
-    <div class="xp-earned" id="xpEarned" style="display:none"></div>
-    <div class="reward-line" id="rewardLine"></div>
-    <!-- Proactive extra buttons: shown only on proactive standup -->
-    <div id="proactiveBtns" style="display:none;flex-direction:column;gap:8px;margin-top:14px;">
-      <button class="ov-done" id="proYes" onclick="proactiveDoExercise()">✨ 順便做個小運動 <span style="background:#ffffff25;border-radius:6px;padding:1px 7px;margin-left:4px;font-size:.78rem;font-weight:400;">+1 XP</span></button>
-      <button class="ov-done" id="proNo" onclick="closeOverlay()" style="background:linear-gradient(135deg,var(--grey),var(--grey-dark));box-shadow:none;">🚪 不用，我有事要忙</button>
-    </div>
-    <button class="ov-done" id="doneBtn" onclick="closeOverlay()">👍 好的！</button>
-  </div>
+<!-- TAB BAR (mobile only) -->
+<div class="tabbar" id="tabbar">
+  <div class="t active" data-view="Home"><span class="ti">🏠</span>今天</div>
+  <div class="t" data-view="Garden"><span class="ti">🏡</span>花園</div>
+  <div class="t" data-view="History"><span class="ti">📊</span>歷史</div>
 </div>
 
 <script type="module">
+// ===== DAILY LUCKY QUOTES =====
+const QUOTES=[
+  '慢慢來，每一次起身都在長成更好的你 🌱',
+  '今天的你，比昨天多動一點點就已經很棒了 ✨',
+  '你的身體會記得你對它好 💚',
+  '不是完美，是持續；不是爆發，是堅持 🌿',
+  '喝水的人運氣都不會太差 💧',
+  '每一杯水都在愛護你的身體 🌊',
+  '站起來的那一秒，就贏了昨天的自己 🧍',
+  '今天也要好好照顧這具軀殼 🌸',
+  '累了就休息，不累就再撐一下 ☕',
+  '健康不是偶爾努力，是日常習慣 🌻',
+  '你的椎間盤會謝謝你 🦴',
+  '走動一下，血液循環的你最美 🫀',
+  '深呼吸，世界會因此安靜一點 🌬️',
+  '小小的動，累積成大大的改變 🌳',
+  '照顧自己，是一種負責任的浪漫 💕',
+  '一天十分鐘的活動，勝過週末狂練 🏃',
+  '你是自己最長期的室友，對自己好一點 🏡',
+  '休息不是偷懶，是充電 🔋',
+  '微笑一下吧，今天值得 😊',
+  '腰痠了嗎？那是它在提醒你愛它 💆',
+];
+function getDailyQuote(){
+  const today=new Date();
+  const seed=today.getFullYear()*10000+(today.getMonth()+1)*100+today.getDate();
+  return QUOTES[seed%QUOTES.length];
+}
+
+// ===== CONSTANTS =====
+const SILENT=600,AWAY=3600,W_INT=7200,W_GOAL=12,ML=150,S_GOAL=5,W_STREAK=8;
+const THEMES=['default','kawaii','pixel','tama','neon','paper'];
+
+// ===== STATE =====
+function defS(){return{
+  thresh:30,todayStand:0,todayWater:0,streak:0,lastDate:null,
+  garden:[],history:{},
+  soundOn:true,totalStands:0,totalWater:0,restToday:false,
+  sessionSecTotal:0,longestSit:0,sessionsToday:0,
+  inSession:false,sitStartAt:0,sessionStartAt:0,sessionAccum:0,lastWaterRemindAt:0,alerted:false,
+  theme:'default',
+};}
+
+function loadL(){
+  try{
+    const d=JSON.parse(localStorage.getItem('health_v6'));
+    if(d){
+      const today=new Date().toDateString();
+      if(d.lastDate&&d.lastDate!==today){
+        // Snapshot yesterday into history
+        if(!d.history||Array.isArray(d.history))d.history={};
+        if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday){
+          const LONGEST_WARN=45*60;
+          d.history[d.lastDate]={
+            water:d.todayWater||0,
+            waterMl:(d.todayWater||0)*ML,
+            stands:d.todayStand||0,
+            sessions:d.sessionsToday||0,
+            workTimeSec:d.sessionSecTotal||0,
+            longestSitSec:d.longestSit||0,
+            rested:d.restToday||false,
+            overLongSit:(d.longestSit||0)>=LONGEST_WARN
+          };
+        }
+        const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);
+        if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
+        else if(diff>1)d.streak=0;
+        d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;
+        d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;
+        d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
+      }
+      if(!d.history||Array.isArray(d.history))d.history={};
+      if(!Array.isArray(d.garden))d.garden=[];
+      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday'].forEach(k=>{if(!d[k])d[k]=0;});
+      if(!d.thresh)d.thresh=30;
+      if(!d.theme||!THEMES.includes(d.theme))d.theme='default';
+      if(typeof d.soundOn!=='boolean')d.soundOn=true;
+      return d;
+    }
+  }catch(e){console.warn('loadL error',e);}
+  return defS();
+}
+function saveLocal(){localStorage.setItem('health_v6',JSON.stringify(S));}
+function saveSync(){saveLocal();cloudSave();}
+
+window.S=loadL();
+
+// ===== FIREBASE =====
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import{getDatabase,ref,set,get}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
@@ -441,27 +546,70 @@ const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-s
 const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),prov=new GoogleAuthProvider();
 let fbUser=null,dbRef=null;
 
+function setSyncChip(mode,text){
+  const chip=document.getElementById('syncChip');
+  const t=document.getElementById('syncText');
+  if(!chip||!t)return;
+  if(mode==='cloud'){chip.classList.remove('offline');t.textContent=text||'已同步';}
+  else{chip.classList.add('offline');t.textContent=text||'本地';}
+}
+
+function updateLoginBtn(u){
+  const btn=document.getElementById('loginBtn');
+  if(!btn)return;
+  if(u){
+    btn.textContent='👤 '+(u.displayName?.split(' ')[0]||'已登入');
+    btn.classList.add('on');
+  }else{
+    btn.textContent='👤 登入';
+    btn.classList.remove('on');
+  }
+}
+
 onAuthStateChanged(fbAuth,async u=>{
   fbUser=u;
-  const btn=document.getElementById('loginBtn');
   if(u){
     dbRef=ref(fbDb,`health-tracker/${u.uid}`);
-    btn.innerHTML=`<span class="dot on"></span>${u.displayName?.split(' ')[0]||'已登入'}`;
-    btn.classList.add('on');
-    await cloudPull(true); // true = first-pull after login
-    resumeSessionIfNeeded();
+    updateLoginBtn(u);
+    setSyncChip('cloud','已同步');
+    await cloudPull(true);
     renderAll();
   }else{
     dbRef=null;
-    btn.innerHTML='<span class="dot off"></span>登入';
-    btn.classList.remove('on');
+    updateLoginBtn(null);
+    setSyncChip('local','本地');
   }
 });
-window.handleLogin=async()=>{if(fbUser){if(confirm('確定登出？'))await signOut(fbAuth);}else{try{await signInWithPopup(fbAuth,prov);}catch(e){}}};
-async function cloudSave(){if(!dbRef)return;try{S.updatedAt=Date.now();await set(dbRef,{...S});}catch(e){}}
 
-// Pull from cloud — merge cloud state intelligently
-// firstPull=true means this is right after login; normal case is visibility/tab switch
+window.handleLogin=async()=>{
+  if(fbUser){if(confirm('確定登出？'))await signOut(fbAuth);}
+  else{try{await signInWithPopup(fbAuth,prov);}catch(e){console.warn('login failed',e);}}
+};
+
+async function cloudSave(){
+  if(!dbRef)return;
+  try{
+    S.updatedAt=Date.now();
+    await set(dbRef,{...S});
+    setSyncChip('cloud','已同步');
+  }catch(e){
+    console.warn('cloudSave err',e);
+    setSyncChip('local','儲存失敗');
+  }
+}
+
+// updatedAt-based conflict resolution
+function isCloudNewer(c){
+  const cloudT=c.updatedAt,localT=S.updatedAt;
+  if(cloudT&&localT)return cloudT>localT;
+  if(cloudT&&!localT)return true;
+  if(!cloudT&&localT)return false;
+  // Fallback: compare activity totals
+  const cloudTotal=(c.todayStand||0)+(c.todayWater||0)+(c.garden?.length||0);
+  const localTotal=(S.todayStand||0)+(S.todayWater||0)+(S.garden?.length||0);
+  return cloudTotal>localTotal;
+}
+
 async function cloudPull(firstPull){
   if(!dbRef)return;
   try{
@@ -474,696 +622,177 @@ async function cloudPull(firstPull){
       if(firstPull)await cloudSave();
       return;
     }
-    // Migrate garden format
+    // Migrate history format if old (array)
+    if(!c.history||Array.isArray(c.history))c.history={};
     if(!Array.isArray(c.garden))c.garden=[];
-    c.garden=c.garden.map(g=>typeof g==='string'?{type:'sit',emoji:g}:g);
 
-    // Decide whether to apply cloud data based on updatedAt
-    const cloudNewer=isCloudNewer(c);
-    if(cloudNewer){
-      const wasInSession=S.inSession;
+    if(isCloudNewer(c)){
       Object.assign(S,c);
       saveLocal();
-      if(S.inSession&&!wasInSession){
-        resumeSessionIfNeeded();
-      }else if(!S.inSession&&wasInSession){
-        if(tid){clearInterval(tid);tid=null;}
-        applySessionUI(false);
-      }
       renderAll();
     }else if(firstPull){
-      // On first pull, if local is newer, push local up to cloud
       await cloudSave();
     }
-  }catch(e){console.log('cloudPull err',e);}
+  }catch(e){console.warn('cloudPull err',e);}
 }
 
-// Is cloud data newer than local? Primary check: updatedAt timestamp.
-function isCloudNewer(c){
-  const cloudT=c.updatedAt||0,localT=S.updatedAt||0;
-  if(cloudT&&localT)return cloudT>localT;
-  // Fallback (no updatedAt on one side, legacy): use session/activity heuristic
-  if(c.inSession&&!S.inSession)return true;
-  if(S.inSession&&!c.inSession)return false;
-  if(c.inSession&&S.inSession)return (c.sitStartAt||0)>(S.sitStartAt||0);
-  const cloudTotal=(c.todayStand||0)+(c.todayWater||0)+(c.garden?.length||0);
-  const localTotal=(S.todayStand||0)+(S.todayWater||0)+(S.garden?.length||0);
-  return cloudTotal>localTotal;
-}
-
-// ===== CONFIG =====
-const SILENT=600,AWAY=3600,W_INT=7200,W_GOAL=12,ML=150,S_GOAL=5,W_STREAK=8;
-const ACTS=[
-  // 運動類（有根據）
-  {i:'🙇',t:'下巴內收 × 10 下 · 改善前傾頭姿'},
-  {i:'🤲',t:'頸部左右側彎，各停 20 秒 · 紓緩頸肩'},
-  {i:'💪',t:'肩胛骨後收夾緊 × 10 下 · 改善圓肩'},
-  {i:'🙆',t:'雙手交握向後擴胸 + 抬頭 20 秒'},
-  {i:'🦴',t:'站姿後仰伸展 × 10 下 · 腰椎減壓'},
-  {i:'🔄',t:'坐姿脊椎扭轉，左右各停 15 秒'},
-  {i:'🦵',t:'站姿弓箭步拉髖屈肌，左右各 20 秒'},
-  {i:'🦶',t:'踮腳尖 × 20 下 · 幫下肢循環'},
-  {i:'🔁',t:'腳踝繞圈，左右各 10 圈 · 防靜脈滯留'},
-  {i:'🏋️',t:'扶桌淺蹲 × 10 下 · 下肢肌力'},
-  {i:'🤸',t:'扶牆站姿伏地挺身 × 10 下 · 胸臂'},
-  {i:'👀',t:'看 6 公尺外 20 秒 · 20-20-20 護眼'},
-  {i:'✊',t:'握拳-張開 × 15 次 · 活化手指'},
-  {i:'🙏',t:'手腕向上/向下伸展各 20 秒 · 防腕隧道'},
-  {i:'🚶',t:'走到走廊底再走回來 · 代謝重啟'},
-  // 放鬆類
-  {i:'☕',t:'去泡杯茶或咖啡犒賞自己'},
-  {i:'🪟',t:'站到窗邊看看天空和風景'},
-  {i:'🧘',t:'深呼吸 × 5 次，放鬆自律神經'},
-  {i:'💆',t:'按摩太陽穴和後頸 30 秒'},
-  {i:'🙂',t:'站著伸個大懶腰，你很棒！'},
-];
-const PRO=['主動站起來，太棒了！💚','還沒到提醒就站起來，自律滿分！','好習慣養成中 🌟','雙倍經驗，聰明！','腰椎和屁股都在微笑 😊','MVP 就是你！'];
-
-// Two plant series
-const SIT_STG=[
-  {e:'🌱',n:'種子',x:3},{e:'🌿',n:'嫩芽',x:4},{e:'☘️',n:'幼苗',x:5},{e:'🪴',n:'盆栽',x:5},
-  {e:'🎋',n:'竹苗',x:6},{e:'🌴',n:'棕櫚',x:6},{e:'🌳',n:'大樹',x:7},{e:'🌸',n:'完成',x:0}
-];
-const WATER_STG=[
-  {e:'🌱',n:'種子',x:4},{e:'🌿',n:'嫩葉',x:5},{e:'🌾',n:'小草',x:6},{e:'🪴',n:'小花盆',x:6},
-  {e:'🌱',n:'花苗',x:7},{e:'🌷',n:'花苞',x:8},{e:'🌺',n:'盛開',x:8},{e:'🌸',n:'完成',x:0}
-];
-// Final forms when tree moves to garden
-const SIT_TREES=['🌳','🌲','🎄','🌴','🎋','🍀','🍁','🎍'];
-const WATER_PLANTS=['🌸','🌻','🌺','🪷','🌷','🌹','🌼','🪻'];
-
-// ===== STATE =====
-window.S=loadL();
-function defS(){return{thresh:30,todayStand:0,todayWater:0,streak:0,lastDate:null,
-  sitStageIdx:0,sitStageXP:0,waterStageIdx:0,waterStageXP:0,
-  garden:[],soundOn:true,totalStands:0,totalWater:0,restToday:false,
-  sessionSecTotal:0,longestSit:0,sessionsToday:0,history:[],
-  inSession:false,sitStartAt:0,sessionStartAt:0,sessionAccum:0,lastWaterRemindAt:0,alerted:false}}
-function loadL(){
-  try{
-    const d=JSON.parse(localStorage.getItem('health12'));
-    if(d){
-      const today=new Date().toDateString();
-      if(d.lastDate&&d.lastDate!==today){
-        // Snapshot yesterday's data into history before reset
-        if(!Array.isArray(d.history))d.history=[];
-        // Only snapshot if there was any meaningful activity (or it was a rest day)
-        if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday){
-          const LONGEST_THRESHOLD=45*60; // 45 min in seconds
-          d.history.push({
-            date:d.lastDate,
-            water:d.todayWater||0,
-            waterMl:(d.todayWater||0)*ML,
-            stands:d.todayStand||0,
-            sessions:d.sessionsToday||0,
-            workTimeSec:d.sessionSecTotal||0,
-            longestSitSec:d.longestSit||0,
-            rested:d.restToday||false,
-            overLongSit:(d.longestSit||0)>=LONGEST_THRESHOLD
-          });
-        }
-        const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);
-        if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
-        else if(diff>1)d.streak=0;
-        d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;
-        d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
-        // Mark rollover time so cloud sync treats this as the newest data
-        d.updatedAt=Date.now();
-      }
-      if(!Array.isArray(d.garden))d.garden=[];
-      if(!Array.isArray(d.history))d.history=[];
-      // Migrate old garden items (strings → objects)
-      d.garden=d.garden.map(g=>typeof g==='string'?{type:'sit',emoji:g}:g);
-      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday'].forEach(k=>{if(!d[k])d[k]=0;});
-      if(!d.thresh)d.thresh=30;
-      if(!d.updatedAt)d.updatedAt=Date.now();
-      return d;
-    }
-  }catch(e){}
-  return defS();
-}
-function saveLocal(){S.updatedAt=Date.now();localStorage.setItem('health12',JSON.stringify(S));}
-function saveSync(){saveLocal();cloudSave();}
-
-// ===== TABS =====
-const views=document.querySelectorAll('.view');
-const tabs=document.querySelectorAll('.tab');
-window.switchTab=function(i){
-  views.forEach((v,j)=>v.classList.toggle('active',i===j));
-  tabs.forEach((t,j)=>t.classList.toggle('active',i===j));
-};
-
-// ===== TIMING (session state now stored in S for cross-device sync) =====
-// S.inSession, S.sitStartAt, S.sessionStartAt, S.sessionAccum, S.lastWaterRemindAt, S.alerted
-let tid=null;
-const now=()=>Date.now();
-const sitE=()=>S.inSession&&S.sitStartAt?Math.floor((now()-S.sitStartAt)/1000):0;
-const sessE=()=>S.inSession&&S.sessionStartAt?Math.floor((now()-S.sessionStartAt)/1000):0;
-const totalSS=()=>(S.sessionAccum||0)+sessE();
-function zone(s){const t=S.thresh*60;return s<SILENT?'silent':s<t?'active':s<AWAY?'reminded':'away';}
-
-function tick(){
-  if(!S.inSession)return;
-  const e=sitE(),t=S.thresh*60;
-  if(e>S.longestSit)S.longestSit=e;
-  S.sessionSecTotal=(S.sessionAccum||0)+sessE();
-  if(!S.alerted&&e>=t){S.alerted=true;if(S.soundOn)playChime();fireNotif('坐太久了！站起來！');}
-  if(S.lastWaterRemindAt&&(now()-S.lastWaterRemindAt)>=W_INT*1000){S.lastWaterRemindAt=now();if(S.soundOn)playDrop();fireNotif('💧 該喝水了！');}
-  updSit(e);updTop(e);
-  if(e%30===0)saveLocal();
-}
-
-window.startSession=function(){
-  const n=now();
-  S.inSession=true;S.sitStartAt=n;S.sessionStartAt=n;S.sessionAccum=S.sessionSecTotal||0;
-  S.lastWaterRemindAt=n;S.alerted=false;
-  S.sessionsToday=(S.sessionsToday||0)+1;
-  applySessionUI(true);
-  if(tid)clearInterval(tid);tid=setInterval(tick,1000);tick();saveSync();
-};
-window.endSession=function(){
-  if(!S.inSession)return;
-  S.sessionSecTotal=(S.sessionAccum||0)+sessE();
-  S.inSession=false;
-  S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
-  if(tid){clearInterval(tid);tid=null;}
-  applySessionUI(false);
-  saveSync();updTop(0);renderAll();
-};
-function resetSit(){S.sitStartAt=now();S.alerted=false;}
-
-// Apply session UI (used by start, end, and sync-from-cloud recovery)
-function applySessionUI(active){
-  document.getElementById('sitIdle').style.display=active?'none':'flex';
-  document.getElementById('sitActive').style.display=active?'flex':'none';
-  document.getElementById('sitIdleBtn').style.display=active?'none':'block';
-  document.getElementById('standBtn').style.display=active?'block':'none';
-  document.getElementById('sitEndBtn').style.display=active?'inline-block':'none';
-  document.getElementById('sitSubtitle').textContent=active?'（工作中）':'';
-  document.getElementById('tabSitBadge').textContent=active?'工作中':'';
-}
-
-// Resume session from loaded state (after login pulls cloud, or on page load with local data)
-function resumeSessionIfNeeded(){
-  if(S.inSession&&S.sitStartAt){
-    // Session still active — check if sitStartAt is too old (> 6 hours means stale)
-    const ageMin=(now()-S.sitStartAt)/60000;
-    if(ageMin>360){
-      // Too old, treat as stale — end session silently
-      S.inSession=false;S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
-      applySessionUI(false);
-      saveLocal();
-      return;
-    }
-    applySessionUI(true);
-    if(tid)clearInterval(tid);
-    tid=setInterval(tick,1000);
-    tick();
-  }else{
-    applySessionUI(false);
-  }
-}
+// Re-pull when tab becomes visible (debounced)
 let lastPullAt=0;
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'){
-    if(S.inSession)tick();
-    // Pull cloud only if it's been > 10s since last pull (avoid spamming)
-    if(now()-lastPullAt>10000){
-      lastPullAt=now();
-      cloudPull();
-    }
+  if(document.visibilityState==='visible'&&dbRef){
+    const n=Date.now();
+    if(n-lastPullAt>10000){lastPullAt=n;cloudPull(false);}
   }
 });
 
-function updSit(e){
-  const m=Math.floor(e/60),s=e%60,d=document.getElementById('sitDisp');
-  d.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  const z=zone(e),card=document.getElementById('sitCard'),hint=document.getElementById('sitHint'),fill=document.getElementById('sitBarFill'),badge=document.getElementById('sitBadge'),btn=document.getElementById('standBtn');
-  const t=S.thresh*60,r=Math.min(e/t,1);
-  fill.style.width=(r*100)+'%';
-  btn.className='btn-primary green';
-  card.className='card sit-card';
-  if(z==='silent'){d.className='timer-num c-dim';fill.style.background='var(--text-dim)';hint.textContent='剛坐下，還不用擔心 😌';hint.className='timer-sub';badge.textContent='';}
-  else if(z==='active'){const a=(e-SILENT)/(t-SILENT);if(a<.7){d.className='timer-num c-green';card.className='card sit-card z-green';fill.style.background='var(--green)';hint.textContent='狀態良好 🟢';}else{d.className='timer-num c-yellow';card.className='card sit-card z-yellow';fill.style.background='var(--yellow)';hint.textContent='快到了，考慮站起來？🟡';}hint.className='timer-sub';badge.textContent='+2 XP';}
-  else if(z==='reminded'){d.className='timer-num c-red';card.className='card sit-card z-red';fill.style.background='var(--red)';hint.textContent='坐太久了！站起來吧！🔴';hint.className='timer-sub urgent';badge.textContent='+1 XP';}
-  else{d.className='timer-num c-grey';card.className='card sit-card z-grey';fill.style.background='var(--grey)';hint.textContent='超過 60 分鐘，你可能已經離開了 🫥';hint.className='timer-sub grey';badge.textContent='重設';btn.className='btn-primary grey';}
-}
-window.pickThresh=function(m){S.thresh=m;saveSync();document.querySelectorAll('.tp').forEach(b=>b.classList.toggle('on',+b.dataset.m===m));if(S.inSession){S.alerted=false;tick();}};
-
-window.handleStandup=function(){
-  if(!S.inSession)return;
-  const e=sitE(),z=zone(e);
-  if(z==='silent'||z==='away'){resetSit();if(z==='away')showAway();else tick();saveSync();return;}
-  const xp=z==='active'?2:1,tree=applySitXP(xp);
-  S.todayStand++;S.totalStands++;S.lastDate=new Date().toDateString();
-  // Reset sit timer immediately so cloud reflects the reset state for cross-device sync
-  resetSit();
-  saveSync();showStandOv(z==='active',xp,tree);renderAll();
-};
-window.drinkWater=function(){
-  if(S.todayWater>=W_GOAL)return;
-  S.todayWater++;S.totalWater++;
-  applyWaterXP(0.5);
-  S.lastDate=new Date().toDateString();
-  if(S.inSession)S.lastWaterRemindAt=now();
-  saveSync();renderAll();
-  const u=document.getElementById('undoBtn');u.style.display='inline';setTimeout(()=>u.style.display='none',5000);
-};
-window.undoWater=function(){
-  if(S.todayWater<=0)return;
-  S.todayWater--;S.totalWater=Math.max(0,S.totalWater-1);
-  S.waterStageXP=Math.max(0,S.waterStageXP-0.5);
-  saveSync();renderAll();document.getElementById('undoBtn').style.display='none';
-};
-
-// Apply XP for sit plant series
-function applySitXP(xp){
-  S.sitStageXP+=xp;let treeObj=null;
-  while(true){
-    const st=SIT_STG[S.sitStageIdx];
-    if(st.x===0){
-      const emoji=SIT_TREES[Math.floor(Math.random()*SIT_TREES.length)];
-      treeObj={type:'sit',emoji};
-      S.garden.push(treeObj);
-      S.sitStageIdx=0;S.sitStageXP=0;
-      break;
-    }
-    if(S.sitStageXP>=st.x){
-      S.sitStageXP-=st.x;S.sitStageIdx++;
-      if(S.sitStageIdx>=SIT_STG.length-1){
-        const emoji=SIT_TREES[Math.floor(Math.random()*SIT_TREES.length)];
-        treeObj={type:'sit',emoji};
-        S.garden.push(treeObj);
-        S.sitStageIdx=0;S.sitStageXP=0;
-        break;
-      }
-    }else break;
+// ===== SPRITE LOADER =====
+(async function loadSprite(){
+  try{
+    const r=await fetch('sprite.svg');
+    if(!r.ok)throw new Error('sprite fetch failed: '+r.status);
+    const text=await r.text();
+    const m=text.match(/<symbol[\s\S]*?<\/symbol>/g);
+    if(!m||m.length===0)throw new Error('no symbols found');
+    document.getElementById('spriteDefs').innerHTML=m.join('\n');
+    document.querySelectorAll('use[href]').forEach(u=>{
+      const h=u.getAttribute('href');
+      u.removeAttribute('href');
+      u.setAttribute('href',h);
+    });
+    console.log('[sprite] loaded '+m.length+' symbols');
+  }catch(e){
+    console.warn('[sprite] could not load sprite.svg:',e.message);
+    document.querySelectorAll('.mascot-perch svg').forEach(svg=>{
+      svg.outerHTML='<div style="font-size:40px">🌱</div>';
+    });
   }
-  return treeObj;
-}
-// Apply XP for water plant series
-function applyWaterXP(xp){
-  S.waterStageXP+=xp;let plantObj=null;
-  while(true){
-    const st=WATER_STG[S.waterStageIdx];
-    if(st.x===0){
-      const emoji=WATER_PLANTS[Math.floor(Math.random()*WATER_PLANTS.length)];
-      plantObj={type:'water',emoji};
-      S.garden.push(plantObj);
-      S.waterStageIdx=0;S.waterStageXP=0;
-      break;
-    }
-    if(S.waterStageXP>=st.x){
-      S.waterStageXP-=st.x;S.waterStageIdx++;
-      if(S.waterStageIdx>=WATER_STG.length-1){
-        const emoji=WATER_PLANTS[Math.floor(Math.random()*WATER_PLANTS.length)];
-        plantObj={type:'water',emoji};
-        S.garden.push(plantObj);
-        S.waterStageIdx=0;S.waterStageXP=0;
-        break;
-      }
-    }else break;
-  }
-  return plantObj;
-}
+})();
 
-window.restDay=function(){S.restToday=true;saveSync();alert('已標記今天休息 😴');};
-window.resetToday=function(){
-  if(!confirm('確定要重設今日的所有數值？\n（喝水杯數、站起次數、工作時間、最長久坐都會歸零）'))return;
-  S.todayStand=0;
-  S.todayWater=0;
-  S.sessionSecTotal=0;
-  S.longestSit=0;
-  S.sessionsToday=0;
-  S.sessionAccum=0;
-  // If in session, also end it cleanly
-  if(S.inSession){
-    S.inSession=false;
-    S.sitStartAt=0;
-    S.sessionStartAt=0;
-    S.alerted=false;
-    if(tid){clearInterval(tid);tid=null;}
-    applySessionUI(false);
-  }
+// ===== TAB SWITCHING (mobile) =====
+const views={Home:'viewHome',Garden:'viewGarden',History:'viewHistory'};
+document.querySelectorAll('.tabbar .t').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    const name=tab.dataset.view;
+    document.querySelectorAll('.tabbar .t').forEach(t=>t.classList.toggle('active',t===tab));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById(views[name]).classList.add('active');
+  });
+});
+
+// ===== MENU DROPDOWN =====
+const menuBtn=document.getElementById('menuBtn');
+const menuDropdown=document.getElementById('menuDropdown');
+const menuOverlay=document.getElementById('menuOverlay');
+function closeMenu(){menuDropdown.classList.remove('show');menuOverlay.classList.remove('show');}
+function openMenu(){menuDropdown.classList.add('show');menuOverlay.classList.add('show');}
+menuBtn.addEventListener('click',(e)=>{e.stopPropagation();if(menuDropdown.classList.contains('show'))closeMenu();else openMenu();});
+menuOverlay.addEventListener('click',closeMenu);
+
+// ===== LOGIN BUTTON =====
+document.getElementById('loginBtn').addEventListener('click',()=>window.handleLogin());
+
+// ===== THEME SWITCHING (with cloud sync) =====
+function applyTheme(name){
+  document.body.className=name==='default'?'':'theme-'+name;
+  document.querySelectorAll('.sbtn[data-theme]').forEach(b=>b.classList.toggle('on',b.dataset.theme===name));
+}
+window.setTheme=function(name){
+  if(!THEMES.includes(name))name='default';
+  S.theme=name;
+  applyTheme(name);
   saveSync();
-  renderAll();
-  alert('已重設今日數值 ✅');
 };
+document.querySelectorAll('.sbtn[data-theme]').forEach(b=>{
+  b.addEventListener('click',()=>window.setTheme(b.dataset.theme));
+});
 
-// ===== OVERLAY =====
-function showStandOv(pro,xp,tree){
-  const sp=document.getElementById('spinnerArea'),rb=document.getElementById('resultBox'),pm=document.getElementById('proMsg'),rl=document.getElementById('rewardLine'),xe=document.getElementById('xpEarned');
-  sp.classList.remove('show');rb.classList.remove('show');pm.classList.remove('show');rl.classList.remove('show');
-  xe.style.display='inline-block';xe.textContent=`+${xp} XP`;
-  const proBtns=document.getElementById('proactiveBtns'),doneBtn=document.getElementById('doneBtn');
-  if(pro){
-    document.getElementById('ovEmoji').textContent='💪';
-    document.getElementById('ovTitle').textContent='主動站起來！';
-    document.getElementById('pmText').textContent=PRO[Math.floor(Math.random()*PRO.length)];
-    pm.classList.add('show');
-    // Show yes/no choice instead of single done button
-    proBtns.style.display='flex';
-    doneBtn.style.display='none';
-  }else{
-    document.getElementById('ovEmoji').textContent='⏰';
-    document.getElementById('ovTitle').textContent='時間到！做個活動吧';
-    sp.classList.add('show');
-    runSpinner();
-    // Reminded zone: standard done button
-    proBtns.style.display='none';
-    doneBtn.style.display='block';
-    doneBtn.textContent='✅ 做完了！';
-  }
-  if(tree){rl.textContent=`🎉 ${tree.emoji} 移入植物園！新種子已播種 🌱`;rl.classList.add('show');}
-  document.getElementById('overlay').classList.add('show');
+// ===== THRESHOLD BUTTONS =====
+function applyThresh(m){
+  document.querySelectorAll('.sit-thresh .tp').forEach(x=>x.classList.toggle('on',+x.dataset.m===m));
+  document.querySelectorAll('.sbtn[data-thresh]').forEach(x=>x.classList.toggle('on',+x.dataset.thresh===m));
 }
-
-// User chose to do an exercise after proactive standup
-window.proactiveDoExercise=function(){
-  const sp=document.getElementById('spinnerArea'),pm=document.getElementById('proMsg'),proBtns=document.getElementById('proactiveBtns'),doneBtn=document.getElementById('doneBtn');
-  pm.classList.remove('show');
-  sp.classList.add('show');
-  document.getElementById('ovTitle').textContent='抽個活動吧！';
-  document.getElementById('ovEmoji').textContent='🎰';
-  proBtns.style.display='none';
-  doneBtn.style.display='block';
-  doneBtn.textContent='✅ 做完了！+1 XP';
-  // Give extra XP and possibly grow a tree
-  const tree=applySitXP(1);
-  const xe=document.getElementById('xpEarned');
-  // Update displayed total XP badge
-  const current=parseInt(xe.textContent.match(/\d+/)?.[0]||'0');
-  xe.textContent=`+${current+1} XP`;
-  if(tree){
-    const rl=document.getElementById('rewardLine');
-    rl.textContent=`🎉 ${tree.emoji} 移入植物園！新種子已播種 🌱`;
-    rl.classList.add('show');
-  }
-  saveSync();renderAll();
-  runSpinner();
+window.setThresh=function(m){
+  m=+m;
+  S.thresh=m;
+  applyThresh(m);
+  saveSync();
 };
-function showAway(){
-  ['spinnerArea','resultBox','proMsg','rewardLine'].forEach(id=>document.getElementById(id).classList.remove('show'));
-  document.getElementById('xpEarned').style.display='none';
-  document.getElementById('ovEmoji').textContent='👋';
-  document.getElementById('ovTitle').textContent='歡迎回來！';
-  document.getElementById('pmText').textContent='看起來你離開了一陣子，計時器已重設。';
-  document.getElementById('proMsg').classList.add('show');
-  document.getElementById('proactiveBtns').style.display='none';
-  const db=document.getElementById('doneBtn');db.style.display='block';db.textContent='👍 了解';
-  document.getElementById('overlay').classList.add('show');
-}
-window.closeOverlay=function(){document.getElementById('overlay').classList.remove('show');resetSit();renderAll();tick();};
-
-function runSpinner(){
-  const track=document.getElementById('spinnerTrack');track.innerHTML='';
-  const pool=[];for(let i=0;i<40;i++)pool.push(ACTS[Math.floor(Math.random()*ACTS.length)]);
-  const w=ACTS[Math.floor(Math.random()*ACTS.length)];pool.push(w);
-  pool.forEach(a=>{const d=document.createElement('div');d.className='spinner-item';d.innerHTML=`<span class="s-icon">${a.i}</span><span class="s-text">${a.t}</span>`;track.appendChild(d);});
-  const h=62,fp=(pool.length-1)*h,dur=2800,st=performance.now();
-  (function anim(t){const p=Math.min((t-st)/dur,1);track.style.transform=`translateY(-${(1-Math.pow(1-p,3))*fp}px)`;if(p<1)requestAnimationFrame(anim);else setTimeout(()=>{document.getElementById('rIcon').textContent=w.i;document.getElementById('rText').textContent=w.t;document.getElementById('resultBox').classList.add('show');},300);})(performance.now());
-}
+document.querySelectorAll('.sit-thresh .tp').forEach(b=>{
+  b.addEventListener('click',()=>window.setThresh(+b.dataset.m));
+});
+document.querySelectorAll('.sbtn[data-thresh]').forEach(b=>{
+  b.addEventListener('click',()=>window.setThresh(+b.dataset.thresh));
+});
 
 // ===== RENDER =====
-function fmtM(s){const m=Math.floor(s/60);if(m<60)return m+'m';const h=Math.floor(m/60),r=m%60;return r?h+'h'+r+'m':h+'h';}
-
-function renderMini(el,type){
-  const stg=type==='sit'?SIT_STG:WATER_STG;
-  const idx=type==='sit'?S.sitStageIdx:S.waterStageIdx;
-  const xp=type==='sit'?S.sitStageXP:S.waterStageXP;
-  const st=stg[idx],need=st.x||1;
-  const nameCls=type==='sit'?'':'blue';
-  const barCls=type==='sit'?'green':'blue';
-  const typeTrees=S.garden.filter(g=>g.type===type);
-  el.innerHTML=`<div class="mini-row"><div class="mini-plant">${st.e}</div><div class="mini-info"><div class="mini-name ${nameCls}">${st.n} (${idx+1}/8)</div><div class="mini-bar"><div class="mini-bar-fill ${barCls}" style="width:${Math.min(100,xp/need*100)}%"></div></div></div></div><div class="mini-trees">${typeTrees.length?typeTrees.map(g=>`<span class="mini-tree">${g.emoji}</span>`).join(''):'<span class="mini-empty">還沒種出來呢</span>'}</div>`;
-}
-
-// ===== HISTORY =====
-const LONGEST_WARN_SEC=45*60; // 45min threshold for "over long sit"
-let currentHist='day';
-
-window.switchHist=function(range){
-  currentHist=range;
-  document.querySelectorAll('.htab').forEach(t=>t.classList.toggle('active',t.dataset.range===range));
-  renderHistory();
-};
-
-// Build "today" synthetic record from current state (for comparisons / week / month totals)
-function todaySnapshot(){
-  return {
-    date:S.lastDate||new Date().toDateString(),
-    water:S.todayWater||0,
-    waterMl:(S.todayWater||0)*ML,
-    stands:S.todayStand||0,
-    sessions:S.sessionsToday||0,
-    workTimeSec:(S.sessionAccum||0)+(S.inSession?Math.floor((Date.now()-(S.sessionStartAt||Date.now()))/1000):0),
-    longestSitSec:S.longestSit||0,
-    rested:S.restToday||false,
-    overLongSit:(S.longestSit||0)>=LONGEST_WARN_SEC
-  };
-}
-
-// Calculate aggregate stats over a set of day records. Excludes rest days from workday count.
-function aggregate(records){
-  const workdays=records.filter(r=>!r.rested);
-  const n=workdays.length||1;
-  const sum=(k)=>workdays.reduce((a,r)=>a+(r[k]||0),0);
-  const overLongCount=workdays.filter(r=>r.overLongSit).length;
-  return {
-    count:workdays.length,
-    totalWater:sum('water'),
-    totalWaterMl:sum('waterMl'),
-    totalStands:sum('stands'),
-    totalWorkSec:sum('workTimeSec'),
-    totalSessions:sum('sessions'),
-    avgWater:sum('water')/n,
-    avgWaterMl:sum('waterMl')/n,
-    avgStands:sum('stands')/n,
-    avgWorkSec:sum('workTimeSec')/n,
-    avgLongestSec:sum('longestSitSec')/n,
-    overLongCount
-  };
-}
-
-// Filter history records within last N days (based on date string comparison)
-function recentNDays(n){
-  const all=[...(S.history||[])];
-  // Add today if it has any activity
-  const today=todaySnapshot();
-  if(today.water>0||today.stands>0||today.workTimeSec>0||today.rested)all.push(today);
-  // Sort newest first
-  all.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  // Filter by age
-  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-n);
-  return all.filter(r=>new Date(r.date)>=cutoff);
-}
-
-function allDays(){
-  const all=[...(S.history||[])];
-  const today=todaySnapshot();
-  if(today.water>0||today.stands>0||today.workTimeSec>0||today.rested)all.push(today);
-  all.sort((a,b)=>new Date(b.date)-new Date(a.date));
-  return all;
-}
-
-function fmtDate(s){
-  const d=new Date(s);
-  return `${d.getMonth()+1}/${d.getDate()}`;
-}
-
-function fmtHr(sec){
-  if(sec<60)return sec+'s';
-  const m=Math.round(sec/60);
-  if(m<60)return m+'m';
-  const h=Math.floor(m/60),r=m%60;
-  return r?`${h}h${r}m`:`${h}h`;
-}
-
-// Color class helper for water/stand/longestSit
-function colorCls(type,val){
-  if(type==='water')return val>=W_STREAK?'ok':'bad';
-  if(type==='stand')return val>=S_GOAL?'ok':'bad';
-  if(type==='longest')return val>=LONGEST_WARN_SEC?'over':'ok';
-  return 'info';
-}
-
-function renderHistory(){
-  const body=document.getElementById('histBody');
-  if(!body)return;
-  if(currentHist==='day')body.innerHTML=renderDayView();
-  else if(currentHist==='week')body.innerHTML=renderRangeView(7,'最近 7 天');
-  else if(currentHist==='month')body.innerHTML=renderRangeView(30,'最近 30 天');
-  else body.innerHTML=renderAllView();
-}
-
-function renderDayView(){
-  const today=todaySnapshot();
-  // Use all history (workdays) for the "平均" comparison
-  const allData=aggregate(allDays());
-  const wCls=colorCls('water',today.water);
-  const sCls=colorCls('stand',today.stands);
-  const lCls=colorCls('longest',today.longestSitSec);
-  if(today.water===0&&today.stands===0&&today.workTimeSec===0&&!today.rested){
-    return `<div class="hist-empty">今天還沒開始記錄</div>`;
-  }
-  if(today.rested){
-    return `<div class="hist-summary">
-      <div class="hs-row"><span class="hs-icon">😴</span><span class="hs-val">休息日</span></div>
-    </div>`;
-  }
-  const avgLine=allData.count>0?`(歷史平均 ${allData.avgWater.toFixed(1)} 杯 / ${Math.round(allData.avgWaterMl)} ml)`:'';
-  const avgLineS=allData.count>0?`(歷史平均 ${allData.avgStands.toFixed(1)} 次)`:'';
-  const avgLineW=allData.count>0?`(歷史平均 ${fmtHr(Math.round(allData.avgWorkSec))})`:'';
-  const avgLineL=allData.count>0?`(歷史平均 ${fmtHr(Math.round(allData.avgLongestSec))})`:'';
-  return `<div class="hist-summary">
-    <div class="hs-row"><span class="hs-icon">💧</span><span class="hs-val ${wCls}">${today.water} 杯 (${today.waterMl} ml)</span><span class="hs-avg">${avgLine}</span></div>
-    <div class="hs-row"><span class="hs-icon">🪑</span><span class="hs-val ${sCls}">${today.stands} 次</span><span class="hs-avg">${avgLineS}</span></div>
-    <div class="hs-row"><span class="hs-icon">⏱️</span><span class="hs-val info">${fmtHr(today.workTimeSec)}</span><span class="hs-sub">${today.sessions} session</span><span class="hs-avg">${avgLineW}</span></div>
-    <div class="hs-row"><span class="hs-icon">📌</span><span class="hs-val ${lCls}">最長 ${fmtHr(today.longestSitSec)}</span>${today.overLongSit?'<span class="hs-sub">⚠️ 超標</span>':''}<span class="hs-avg">${avgLineL}</span></div>
-  </div>`;
-}
-
-function renderRangeView(days,label){
-  const records=recentNDays(days);
-  if(records.length===0){
-    return `<div class="hist-empty">${label}還沒有紀錄</div>`;
-  }
-  const agg=aggregate(records);
-  const gardenAdd=(S.garden||[]).length; // Total — we don't store garden per day; show total
-  const summary=`<div class="hist-summary">
-    <div class="hs-row"><span class="hs-icon">💧</span><span class="hs-val">${agg.totalWater} 杯 (${agg.totalWaterMl} ml)</span><span class="hs-avg">(平均 ${agg.avgWater.toFixed(1)} 杯 / ${Math.round(agg.avgWaterMl)} ml)</span></div>
-    <div class="hs-row"><span class="hs-icon">🪑</span><span class="hs-val">${agg.totalStands} 次</span><span class="hs-avg">(平均 ${agg.avgStands.toFixed(1)} 次)</span></div>
-    <div class="hs-row"><span class="hs-icon">⏱️</span><span class="hs-val">${fmtHr(agg.totalWorkSec)}</span><span class="hs-sub">${agg.totalSessions} sessions</span><span class="hs-avg">(平均 ${fmtHr(Math.round(agg.avgWorkSec))})</span></div>
-    <div class="hs-row"><span class="hs-icon">📌</span><span class="hs-val ${agg.overLongCount>0?'bad':'ok'}">超標 ${agg.overLongCount} 次</span><span class="hs-sub">(≥ 45 min)</span><span class="hs-avg">(平均 ${fmtHr(Math.round(agg.avgLongestSec))})</span></div>
-    <div class="hs-row"><span class="hs-icon">📅</span><span class="hs-val">${agg.count} 個工作日</span></div>
-  </div>`;
-  const list=renderDailyList(records);
-  return `<div class="hist-list-title">📅 ${label}累計</div>${summary}<div class="hist-list-title">每日明細</div>${list}`;
-}
-
-function renderAllView(){
-  const records=allDays();
-  if(records.length===0){
-    return `<div class="hist-empty">還沒有紀錄</div>`;
-  }
-  const agg=aggregate(records);
-  const gardenTotal=(S.garden||[]).length;
-  const summary=`<div class="hist-summary">
-    <div class="hs-row"><span class="hs-icon">💧</span><span class="hs-val">${agg.totalWater} 杯 (${agg.totalWaterMl} ml)</span><span class="hs-avg">(平均 ${agg.avgWater.toFixed(1)} 杯 / ${Math.round(agg.avgWaterMl)} ml)</span></div>
-    <div class="hs-row"><span class="hs-icon">🪑</span><span class="hs-val">${agg.totalStands} 次</span><span class="hs-avg">(平均 ${agg.avgStands.toFixed(1)} 次)</span></div>
-    <div class="hs-row"><span class="hs-icon">⏱️</span><span class="hs-val">${fmtHr(agg.totalWorkSec)}</span><span class="hs-sub">${agg.totalSessions} sessions</span><span class="hs-avg">(平均 ${fmtHr(Math.round(agg.avgWorkSec))})</span></div>
-    <div class="hs-row"><span class="hs-icon">📌</span><span class="hs-val ${agg.overLongCount>0?'bad':'ok'}">超標 ${agg.overLongCount} 次</span><span class="hs-sub">(≥ 45 min)</span><span class="hs-avg">(平均 ${fmtHr(Math.round(agg.avgLongestSec))})</span></div>
-    <div class="hs-row"><span class="hs-icon">🌳</span><span class="hs-val">植物園 ${gardenTotal} 棵</span></div>
-    <div class="hs-row"><span class="hs-icon">📅</span><span class="hs-val">${agg.count} 個工作日</span></div>
-  </div>`;
-  return `<div class="hist-list-title">📊 總累計</div>${summary}`;
-}
-
-function renderDailyList(records){
-  if(records.length===0)return '<div class="hist-empty">沒有資料</div>';
-  return `<div class="hist-list">${records.map(r=>{
-    if(r.rested){
-      return `<div class="hist-row"><span class="hr-date">${fmtDate(r.date)}</span><span class="hr-rest">😴 休息日</span></div>`;
-    }
-    const wCls=colorCls('water',r.water);
-    const sCls=colorCls('stand',r.stands);
-    const lCls=colorCls('longest',r.longestSitSec);
-    return `<div class="hist-row">
-      <span class="hr-date">${fmtDate(r.date)}</span>
-      <span class="hr-item">💧<span class="hr-v ${wCls}">${r.water}</span><span class="hs-sub">(${r.waterMl})</span></span>
-      <span class="hr-item">🪑<span class="hr-v ${sCls}">${r.stands}</span></span>
-      <span class="hr-item">⏱️<span class="hr-v info">${fmtHr(r.workTimeSec)}</span></span>
-      <span class="hr-item">📌<span class="hr-v ${lCls}">${fmtHr(r.longestSitSec)}</span>${r.overLongSit?'⚠️':''}</span>
-    </div>`;
-  }).join('')}</div>`;
-}
-
 function renderAll(){
-  updTop(S.inSession?sitE():0);
-  // Cups
-  const cg=document.getElementById('cupsGrid');
-  let ch='';
-  for(let i=0;i<W_GOAL;i++){
-    const f=i<S.todayWater;
-    ch+=`<div class="cup${f?' filled':''}"><div class="water-fill"></div><div class="cn">${i+1}</div></div>`;
+  // Apply theme from state
+  applyTheme(S.theme||'default');
+  // Apply threshold
+  applyThresh(S.thresh||30);
+  // Top bar counters
+  document.getElementById('tbStand').textContent=(S.todayStand||0)+'/'+S_GOAL;
+  document.getElementById('tbWater').textContent=(S.todayWater||0)+'/'+W_GOAL;
+  // Water number + cups
+  document.getElementById('wNum').textContent=(S.todayWater||0);
+  renderCups();
+  // Quote + garden status
+  const q=document.getElementById('dailyQuote');if(q)q.textContent=getDailyQuote();
+  const gs=document.getElementById('gardenStatus');
+  if(gs){
+    const total=(S.garden||[]).length;
+    const sitN=(S.garden||[]).filter(g=>g.type==='sit').length;
+    const wN=total-sitN;
+    gs.innerHTML=`共 ${total} 棵 · 🪑 ${sitN} · 💧 ${wN}`;
   }
-  cg.innerHTML=ch;
-  document.getElementById('wNum').textContent=S.todayWater;
-  document.getElementById('wMl').textContent=`≈ ${S.todayWater*ML} ml`;
-  document.getElementById('waterBtn').disabled=S.todayWater>=W_GOAL;
-  // Mini gardens (each shows its own type)
-  renderMini(document.getElementById('mini1'),'sit');
-  renderMini(document.getElementById('mini2'),'water');
-  // Dual plants on garden view
-  const sitSt=SIT_STG[S.sitStageIdx],waterSt=WATER_STG[S.waterStageIdx];
-  document.getElementById('sitPlantE').textContent=sitSt.e;
-  document.getElementById('sitPlantName').textContent=sitSt.n;
-  document.getElementById('sitStageN').textContent=S.sitStageIdx+1;
-  const sitNeed=sitSt.x||1;
-  document.getElementById('sitBarF').style.width=Math.min(100,S.sitStageXP/sitNeed*100)+'%';
-  document.getElementById('sitXPT').textContent=`${S.sitStageXP}/${sitNeed}`;
-  document.getElementById('waterPlantE').textContent=waterSt.e;
-  document.getElementById('waterPlantName').textContent=waterSt.n;
-  document.getElementById('waterStageN').textContent=S.waterStageIdx+1;
-  const waterNeed=waterSt.x||1;
-  document.getElementById('waterBarF').style.width=Math.min(100,S.waterStageXP/waterNeed*100)+'%';
-  document.getElementById('waterXPT').textContent=`${S.waterStageXP}/${waterNeed}`;
-  // Garden area — show all trees/plants with type-based filter
-  const ga=document.getElementById('gfArea');
-  ga.innerHTML=S.garden.length?S.garden.map((g,i)=>`<span class="ga-tree ${g.type}" style="animation-delay:${(i*.3)%4}s">${g.emoji}</span>`).join(''):'<div class="ga-empty">還沒有植物，繼續努力吧！</div>';
-  const sitCount=S.garden.filter(g=>g.type==='sit').length;
-  const waterCount=S.garden.filter(g=>g.type==='water').length;
-  document.getElementById('gfNum').textContent=S.garden.length;
-  document.getElementById('gfSit').textContent=sitCount;
-  document.getElementById('gfWater').textContent=waterCount;
-  // Stats
-  document.getElementById('streakVal').textContent=S.streak;
-  document.getElementById('sessionTime').textContent=fmtM(totalSS());
-  document.getElementById('longestSit').textContent=fmtM(S.longestSit);
-  document.getElementById('totalStands').textContent=S.totalStands;
-  document.getElementById('soundToggle').textContent=S.soundOn?'🔊':'🔇';
-  document.querySelectorAll('.tp').forEach(b=>b.classList.toggle('on',+b.dataset.m===S.thresh));
-  // Tab badges
-  document.getElementById('tabWaterBadge').textContent=S.todayWater>=W_STREAK?'✓':(S.todayWater?`${S.todayWater}杯`:'');
-  document.getElementById('tabGardenBadge').textContent=S.garden.length?`${S.garden.length}棵`:'';
-  // History
-  renderHistory();
 }
 
-function updTop(e){
-  const tb=document.getElementById('tbTimer');
-  if(!S.inSession){tb.textContent='--:--';tb.className='v off';}
-  else{const m=Math.floor(e/60),s=e%60;tb.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;const z=zone(e);tb.className='v '+(z==='silent'?'off':z==='active'?'on':z==='reminded'?'warn':'off');}
-  const ts=document.getElementById('tbStand');ts.textContent=`${S.todayStand}/${S_GOAL}`;ts.className='v'+(S.todayStand>=S_GOAL?' done':'');
-  const tw=document.getElementById('tbWater');tw.textContent=`${S.todayWater}/${W_STREAK}`;tw.className='v'+(S.todayWater>=W_STREAK?' done':'');
-}
-
-// ===== SOUNDS =====
-function playChime(){try{const c=new(window.AudioContext||window.webkitAudioContext)();[523.25,659.25,783.99].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(.1,c.currentTime+i*.15);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+i*.15+.4);o.connect(g).connect(c.destination);o.start(c.currentTime+i*.15);o.stop(c.currentTime+i*.15+.4);});}catch(e){}}
-function playDrop(){try{const c=new(window.AudioContext||window.webkitAudioContext)();const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(1200,c.currentTime);o.frequency.exponentialRampToValueAtTime(400,c.currentTime+.15);g.gain.setValueAtTime(.08,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.3);o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+.3);}catch(e){}}
-document.getElementById('soundToggle').onclick=()=>{S.soundOn=!S.soundOn;saveSync();renderAll();};
-
-// ===== NOTIF =====
-function fireNotif(t){if('Notification'in window&&Notification.permission==='granted')new Notification('🌱 起來動一動',{body:t});}
-window.askNotif=function(){
-  if(!('Notification'in window))return alert('你的瀏覽器不支援通知');
-  if(Notification.permission==='granted')return alert('通知已開啟 ✅');
-  if(Notification.permission==='denied')return alert('通知已被封鎖，請到瀏覽器設定開啟');
-  Notification.requestPermission().then(p=>{
-    if(p==='granted'){
-      document.getElementById('notifDot').classList.add('hide');
-      new Notification('🌱 通知已開啟',{body:'之後會在這裡提醒你 👍'});
-    }
+// ===== CUPS (water tracker) =====
+const cupsRow=document.getElementById('cupsRow');
+function renderCups(){
+  if(!cupsRow)return;
+  const n=S.todayWater||0;
+  cupsRow.innerHTML=Array.from({length:12},(_,i)=>`<div class="cup ${i<n?'filled':''}" data-idx="${i}"><div class="water-fill"></div></div>`).join('');
+  document.querySelectorAll('.cup').forEach(c=>{
+    c.addEventListener('click',()=>{if((S.todayWater||0)<12){S.todayWater++;triggerAction('water');renderAll();saveSync();}});
   });
-};
-function updNotifDot(){
-  const dot=document.getElementById('notifDot');
-  if(!('Notification'in window)||Notification.permission==='granted')dot.classList.add('hide');
-  else dot.classList.remove('hide');
 }
-updNotifDot();
 
-resumeSessionIfNeeded();
+// ===== MASCOT INTERACTION (demo — real logic in stage 3) =====
+const MSGS={
+  sit:['做得好！ 🌟','再幾分鐘就長大了～','感覺到成長了 😊','好棒！ '],
+  water:['咕嚕咕嚕～好清涼 💧','謝謝你照顧我！','水滴滴最愛水了～','健康！']
+};
+function stageOf(xp){if(xp>=15)return['成體','adult'];if(xp>=5)return['幼體','baby'];return['蛋','egg'];}
+function triggerAction(kind){
+  // Placeholder XP tracking until stage 3; uses S values
+  const s={sit:{type:'sprout',use:'sitMascotUse',xpEl:'sitXp',stageEl:'sitStage',el:'sitMascot',speech:'sitSpeech'},
+          water:{type:'drop',use:'waterMascotUse',xpEl:'waterXp',stageEl:'waterStage',el:'waterMascot',speech:'waterSpeech'}}[kind];
+  const useEl=document.getElementById(s.use);
+  const xpVal=kind==='sit'?(S.todayStand||0):(S.todayWater||0);
+  const[name,suffix]=stageOf(xpVal);
+  if(useEl)useEl.setAttribute('href','#m-'+s.type+'-'+suffix);
+  document.getElementById(s.xpEl).textContent=xpVal+' / 15';
+  document.getElementById(s.stageEl).textContent=name;
+  const m=document.getElementById(s.el);
+  m.classList.remove('idle');m.classList.add('happy');
+  setTimeout(()=>{m.classList.remove('happy');m.classList.add('idle');},1800);
+  const sp=document.getElementById(s.speech);
+  sp.textContent=MSGS[kind][Math.floor(Math.random()*MSGS[kind].length)];
+  sp.classList.add('show');
+  setTimeout(()=>sp.classList.remove('show'),2200);
+}
+document.getElementById('standBtn').addEventListener('click',()=>{
+  S.todayStand=(S.todayStand||0)+1;
+  triggerAction('sit');
+  renderAll();
+  saveSync();
+});
+document.getElementById('waterBtn').addEventListener('click',()=>{
+  if((S.todayWater||0)<12){S.todayWater++;triggerAction('water');renderAll();saveSync();}
+});
+
+// ===== INIT =====
 renderAll();
 </script>
 </body>
