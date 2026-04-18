@@ -336,6 +336,12 @@ body.theme-paper{--bg:#faf3e0;--card:#fffef7;--card-alt:#f0e8d0;--green:#4caf50;
 body.theme-paper{font-family:'Baloo 2',sans-serif;}
 body.theme-paper .c-card{border:2px solid #333;box-shadow:3px 3px 0 #333;border-radius:6px;background:repeating-linear-gradient(0deg,#fffef7 0 20px,#f5efd8 20px 21px);}
 body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2px 2px 0 #333;}
+
+/* Paper & neon themes: buttons have thicker borders/shadows, nudge badge up so it doesn't overlap */
+@media (min-width:900px){
+  body.theme-paper .mascot-meta,
+  body.theme-neon .mascot-meta{bottom:98px;}
+}
 </style>
 </head>
 <body>
