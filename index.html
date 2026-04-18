@@ -1385,21 +1385,41 @@ window.handleStandup=function(){
     return;
   }
   const sat=currentSitSec();
-  // Reward: +1 base XP; if stood up before threshold, +1 extra for being proactive
-  let xpGain=1;
-  if(sat<(S.thresh||30)*60)xpGain=2;
-  // Base stand count
-  S.todayStand=(S.todayStand||0)+1;
-  S.totalStands=(S.totalStands||0)+1;
-  addSeedXP('sit',xpGain);
+  const threshSec=(S.thresh||30)*60;
+  // Zone-based XP rules
+  // 0-SILENT (0-10min): too soon, no meaningful break — no XP, no count
+  // SILENT-threshold (10-30min): active zone — +2 XP (proactive)
+  // threshold-AWAY (30-60min): reminded zone — +1 XP (took the break)
+  // AWAY+ (60min+): away too long, this session is "lost" — no XP, reset session
+  let xpGain=0, countsAsStand=true, showCard=true;
+  if(sat<SILENT){
+    // Too soon — don't count at all. Just reset sit timer so next try counts.
+    countsAsStand=false;
+    showCard=false;
+    showToast('才剛坐下呢～再工作一會兒吧 🌱');
+  }else if(sat<threshSec){
+    xpGain=2; // Active zone — proactive bonus
+  }else if(sat<AWAY){
+    xpGain=1; // Reminded zone — at least took the break
+  }else{
+    // Away too long — count as stand but no XP (session was basically gone)
+    xpGain=0;
+    showToast('離開好久～重新開始吧 😌');
+  }
+  if(countsAsStand){
+    S.todayStand=(S.todayStand||0)+1;
+    S.totalStands=(S.totalStands||0)+1;
+    if(xpGain>0)addSeedXP('sit',xpGain);
+    checkPetGoals();
+  }
   resetSit();
-  // Check goal met for pet (daily, each type independent)
-  checkPetGoals();
-  // Show activity suggestion
-  showActivity();
+  // Mascot animation first; delay activity card so user can see the "great job" bounce
   triggerMascot('sit');
   renderAll();
   saveSync();
+  if(showCard){
+    setTimeout(()=>showActivity(),1600); // wait for mascot happy animation to finish
+  }
 };
 
 // Called by tick when pages closed mid-session — resume correctly
