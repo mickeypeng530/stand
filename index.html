@@ -443,7 +443,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
         <div class="c-body">
           <div class="c-body-content sit-se">
             <div class="timer-num" id="sitDisp">12:34</div>
-            <div class="timer-sub" id="sitHint">離 30 分還有 17:26 · 再撐一下 😌</div>
+            <div class="timer-sub" id="sitHint">按「開始工作」開始計時</div>
             <div class="sit-bar"><div class="sit-bar-fill" id="sitBarFill" style="width:42%"></div></div>
             <div class="sit-thresh">
               <div class="tp" data-m="20">20分</div>
@@ -1653,8 +1653,19 @@ function renderTimer(){
     if(disp)disp.textContent=fmtTimer(sit);
     const remain=threshSec-sit;
     if(hint){
-      if(remain>0)hint.textContent=`離 ${S.thresh} 分還有 ${fmtTimer(remain)} · 再撐一下 😌`;
-      else hint.textContent=`⏰ 已超過 ${fmtTimer(-remain)} · 該站起來了！`;
+      if(sit<SILENT){
+        // 0-10 min: just sat down, don't nag yet
+        hint.textContent=`剛開始 · 專心工作吧 💻`;
+      }else if(sit<15*60){
+        // 10-15 min: encouraging
+        hint.textContent=`繼續加油 💪`;
+      }else if(remain>0){
+        // 15 min - threshold: alert them threshold is approaching
+        hint.textContent=`還有 ${fmtTimer(remain)} 就久坐太久了 · 準備站起來 ⚠️`;
+      }else{
+        // Past threshold: time to stand
+        hint.textContent=`⏰ 坐太久了 · 起來動一動吧！已超過 ${fmtTimer(-remain)}`;
+      }
     }
     if(sub)sub.textContent=`工作中 · ${S.thresh} 分門檻`;
   }else{
