@@ -46,12 +46,13 @@ body{padding-top:48px;}
 /* On mobile, hide sync chip entirely and make everything compact */
 @media (max-width:768px){
   .sync-chip{display:none;}
-  .tb-login{padding:3px 8px;font-size:calc(11px * var(--fs));}
-  .topbar{gap:4px;padding:0 8px;}
+  .tb-login{padding:3px 7px;font-size:calc(11px * var(--fs));}
+  .topbar{gap:3px;padding:0 4px 0 8px;}
   .tb-chips{gap:3px;}
   .topbar .tb-chip{padding:2px 6px;font-size:calc(10px * var(--fs));}
   .topbar .tb-chip .v{font-size:calc(11px * var(--fs));}
-  .topbar .tb-icon{padding:2px 3px;}
+  .topbar .tb-icon{padding:2px 3px;font-size:calc(12px * var(--fs));}
+  #menuBtn{font-size:14px !important;padding-right:8px !important;}
 }
 @media (max-width:380px){
   .topbar .tb-title{display:none;}
@@ -396,7 +397,6 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
   <div class="tb-right">
     <div class="sync-chip" id="syncChip"><span class="sync-dot"></span><span id="syncText">本地</span></div>
     <button class="tb-icon" id="musicBtn" title="背景音樂">🎵</button>
-    <button class="tb-icon" id="notifBtn" title="通知">🔔</button>
     <button class="tb-login" id="loginBtn">👤 登入</button>
     <button class="tb-icon" id="menuBtn" title="選單" style="font-size:16px;">⚙️</button>
   </div>
@@ -1839,16 +1839,20 @@ function renderGarden(){
     const items=[...(S.garden||[])].sort((a,b)=>a.y-b.y);
     items.forEach(g=>{
       let w,h;
+      // On mobile, trees use a smaller scale (1.2) to avoid being too tall / overlap moon
+      // Flowers and pets keep the full mobile scale (1.8)
+      let itemScale=scale;
       if(g.source==='pet'){
         w=56;h=68;
       }else if(g.type==='sit'){
-        // Trees — bigger
+        // Trees — bigger base size, but smaller mobile multiplier
         w=72;h=96;
+        if(isMobile)itemScale=1.2;
       }else{
         // Flowers — smaller
         w=54;h=70;
       }
-      const sw=w*scale,sh=h*scale;
+      const sw=w*itemScale,sh=h*itemScale;
       // g.x, g.y = center of base (feet touching ground)
       scene.insertAdjacentHTML('beforeend',
         `<g transform="translate(${Math.round(g.x-sw/2)} ${Math.round(g.y-sh)})"><use href="#${g.svg}" width="${sw}" height="${sh}"/></g>`);
