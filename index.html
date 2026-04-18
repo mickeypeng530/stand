@@ -8,33 +8,35 @@
 <title>🌱 起來動一動</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Fredoka:wght@400;500;600;700&family=Baloo+2:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0c1810;--card:#152319;--card-alt:#1d3226;--green:#66bb6a;--green-light:#a5d6a7;--green-dark:#2e7d32;--blue:#42a5f5;--blue-light:#90caf9;--blue-dark:#1565c0;--gold:#ffd54f;--red:#ef5350;--text:#e8f5e9;--text-dim:#7da57d;--line:#ffffff0c;}
+:root{--bg:#0c1810;--card:#152319;--card-alt:#1d3226;--green:#66bb6a;--green-light:#a5d6a7;--green-dark:#2e7d32;--blue:#42a5f5;--blue-light:#90caf9;--blue-dark:#1565c0;--gold:#ffd54f;--red:#ef5350;--text:#e8f5e9;--text-dim:#7da57d;--line:#ffffff0c;--fs:1;}
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{height:100%;font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent;}
 body{overflow-x:hidden;}
 
 /* ========== TOP BAR ========== */
 .topbar{position:sticky;top:0;z-index:50;height:48px;background:#0c1810ee;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px;gap:8px;}
-.topbar .tb-title{font-family:'Fredoka',sans-serif;font-size:14px;color:var(--green-light);font-weight:700;white-space:nowrap;flex-shrink:0;}
+.topbar .tb-title{font-family:'Fredoka',sans-serif;font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;white-space:nowrap;flex-shrink:0;}
 .tb-chips{display:flex;gap:6px;margin:0 auto;}
 .tb-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
-.topbar .tb-chip{background:var(--card);border-radius:6px;padding:3px 7px;font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:3px;white-space:nowrap;}
-.topbar .tb-chip .v{font-family:'Fredoka',monospace;font-weight:700;color:var(--gold);font-size:11px;}
+.topbar .tb-chip{background:var(--card);border-radius:6px;padding:3px 7px;font-size:calc(11px * var(--fs));color:var(--text-dim);display:flex;align-items:center;gap:3px;white-space:nowrap;}
+.topbar .tb-chip .v{font-family:'Fredoka',monospace;font-weight:700;color:var(--gold);font-size:calc(12px * var(--fs));}
 .topbar .tb-chip .v.on{color:var(--green-light);}
-.topbar .tb-icon{background:none;border:none;color:var(--text-dim);font-size:14px;cursor:pointer;padding:2px 4px;}
-.sync-chip{background:var(--card);border:1px solid #2e7d3244;border-radius:12px;padding:3px 8px;font-size:10px;color:var(--green-light);display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.topbar .tb-icon{background:none;border:none;color:var(--text-dim);font-size:calc(14px * var(--fs));cursor:pointer;padding:2px 4px;}
+.sync-chip{background:var(--card);border:1px solid #2e7d3244;border-radius:12px;padding:3px 8px;font-size:calc(11px * var(--fs));color:var(--green-light);display:flex;align-items:center;gap:4px;white-space:nowrap;}
 .sync-chip .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
 .sync-chip.offline{border-color:#ff700344;color:var(--gold);}
 .sync-chip.offline .sync-dot{background:var(--gold);box-shadow:0 0 6px var(--gold);}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-.tb-login{background:var(--card-alt);border:1px solid #ffffff20;color:var(--text-dim);padding:4px 10px;border-radius:8px;font-size:11px;font-family:inherit;cursor:pointer;white-space:nowrap;}
+.tb-login{background:var(--card-alt);border:1px solid #ffffff20;color:var(--text-dim);padding:4px 10px;border-radius:8px;font-size:calc(12px * var(--fs));font-family:inherit;cursor:pointer;white-space:nowrap;}
 .tb-login.on{border-color:var(--green);color:var(--green-light);}
 
 @media (min-width:768px){
   .topbar{height:52px;padding:0 20px;gap:12px;}
-  .topbar .tb-title{font-size:15px;}
-  .topbar .tb-chip{font-size:11px;padding:4px 9px;}
-  .topbar .tb-chip .v{font-size:12px;}
+  .topbar .tb-title{font-size:calc(16px * var(--fs));}
+  .topbar .tb-chip{font-size:calc(12px * var(--fs));padding:4px 9px;}
+  .topbar .tb-chip .v{font-size:calc(13px * var(--fs));}
+  .sync-chip{font-size:calc(12px * var(--fs));}
+  .tb-login{font-size:calc(13px * var(--fs));}
 }
 /* On small phones, hide sync chip and login text to save space */
 @media (max-width:500px){
@@ -52,7 +54,9 @@ body{overflow-x:hidden;}
 /* ========== MAIN LAYOUT ========== */
 .main{padding:12px;padding-bottom:60px;min-height:calc(100dvh - 48px);}
 @media (min-width:900px){
-  .main{padding:18px 24px;padding-bottom:30px;}
+  .main{padding:16px 20px;padding-bottom:16px;min-height:0;}
+  html,body{height:100%;overflow:hidden;}
+  body{overflow-x:hidden;}
 }
 
 /* Views are shown/hidden by tab on mobile, only viewHome shown on desktop */
@@ -159,16 +163,19 @@ body{overflow-x:hidden;}
 .htab.active{background:var(--green-dark);color:#fff;}
 .hist-body{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
 .hstat{background:var(--card-alt);border-radius:8px;padding:8px 10px;}
-.hstat .sv{font-family:'Fredoka',monospace;font-size:18px;font-weight:700;color:var(--gold);line-height:1.1;}
-.hstat .sl{font-size:10px;color:var(--text-dim);margin-top:2px;}
+.hstat .sv{font-family:'Fredoka',monospace;font-size:calc(20px * var(--fs));font-weight:700;color:var(--gold);line-height:1.1;}
+.hstat .sl{font-size:calc(11px * var(--fs));color:var(--text-dim);margin-top:2px;}
 .hstat.ok .sv{color:var(--green-light);}
 .hstat.bad .sv{color:var(--red);}
 .daily-quote{margin-top:8px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;}
-.daily-quote .dq-icon{font-size:26px;flex-shrink:0;animation:quote-sway 4s ease-in-out infinite;}
+.daily-quote .dq-icon{font-size:calc(26px * var(--fs));flex-shrink:0;animation:quote-sway 4s ease-in-out infinite;}
 @keyframes quote-sway{0%,100%{transform:rotate(-3deg);}50%{transform:rotate(3deg);}}
 .daily-quote .dq-content{flex:1;min-width:0;}
-.daily-quote .dq-status{font-size:14px;color:var(--green-light);font-weight:700;margin-bottom:4px;font-family:'Fredoka',monospace;}
-.daily-quote .dq-quote{font-size:13px;color:var(--text-dim);line-height:1.5;font-style:italic;}
+.daily-quote .dq-status{font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;margin-bottom:4px;font-family:'Fredoka',monospace;}
+.daily-quote .dq-quote{font-size:calc(13px * var(--fs));color:var(--text-dim);line-height:1.5;font-style:italic;}
+
+/* hist-tabs also scaled */
+.hist-card .htab{font-size:calc(12px * var(--fs));}
 
 /* ========== SETTINGS VIEW ========== */
 .settings-group{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;}
@@ -286,6 +293,15 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
         <button class="sbtn" data-thresh="20">20</button>
         <button class="sbtn on" data-thresh="30">30</button>
         <button class="sbtn" data-thresh="45">45</button>
+      </div>
+    </div>
+    <div class="menu-row">
+      <span class="menu-text">🔤 字體大小</span>
+      <div class="menu-inline">
+        <button class="sbtn" data-fs="0.85">小</button>
+        <button class="sbtn on" data-fs="1">中</button>
+        <button class="sbtn" data-fs="1.15">大</button>
+        <button class="sbtn" data-fs="1.3">特大</button>
       </div>
     </div>
     <div class="menu-row">
@@ -490,7 +506,7 @@ function defS(){return{
   soundOn:true,totalStands:0,totalWater:0,restToday:false,
   sessionSecTotal:0,longestSit:0,sessionsToday:0,
   inSession:false,sitStartAt:0,sessionStartAt:0,sessionAccum:0,lastWaterRemindAt:0,alerted:false,
-  theme:'default',
+  theme:'default',fontScale:1,
 };}
 
 function loadL(){
@@ -527,6 +543,7 @@ function loadL(){
       if(!d.thresh)d.thresh=30;
       if(!d.theme||!THEMES.includes(d.theme))d.theme='default';
       if(typeof d.soundOn!=='boolean')d.soundOn=true;
+      if(typeof d.fontScale!=='number'||d.fontScale<0.5||d.fontScale>2)d.fontScale=1;
       return d;
     }
   }catch(e){console.warn('loadL error',e);}
@@ -706,6 +723,22 @@ document.querySelectorAll('.sbtn[data-theme]').forEach(b=>{
   b.addEventListener('click',()=>window.setTheme(b.dataset.theme));
 });
 
+// ===== FONT SCALE =====
+function applyFontScale(s){
+  document.documentElement.style.setProperty('--fs',s);
+  document.querySelectorAll('.sbtn[data-fs]').forEach(b=>b.classList.toggle('on',+b.dataset.fs===+s));
+}
+window.setFontScale=function(s){
+  s=+s;
+  if(!s||s<0.5||s>2)s=1;
+  S.fontScale=s;
+  applyFontScale(s);
+  saveSync();
+};
+document.querySelectorAll('.sbtn[data-fs]').forEach(b=>{
+  b.addEventListener('click',()=>window.setFontScale(+b.dataset.fs));
+});
+
 // ===== THRESHOLD BUTTONS =====
 function applyThresh(m){
   document.querySelectorAll('.sit-thresh .tp').forEach(x=>x.classList.toggle('on',+x.dataset.m===m));
@@ -728,6 +761,8 @@ document.querySelectorAll('.sbtn[data-thresh]').forEach(b=>{
 function renderAll(){
   // Apply theme from state
   applyTheme(S.theme||'default');
+  // Apply font scale
+  applyFontScale(S.fontScale||1);
   // Apply threshold
   applyThresh(S.thresh||30);
   // Top bar counters
@@ -745,6 +780,127 @@ function renderAll(){
     const wN=total-sitN;
     gs.innerHTML=`共 ${total} 棵 · 🪑 ${sitN} · 💧 ${wN}`;
   }
+  // History
+  renderHistory();
+}
+
+// ===== HISTORY =====
+const LONGEST_WARN_SEC=45*60;
+let currentHistRange='day';
+
+// Create today's live snapshot (for comparisons / week / month totals)
+function todaySnapshot(){
+  return {
+    water:S.todayWater||0,
+    waterMl:(S.todayWater||0)*ML,
+    stands:S.todayStand||0,
+    sessions:S.sessionsToday||0,
+    workTimeSec:S.sessionSecTotal||0,
+    longestSitSec:S.longestSit||0,
+    rested:S.restToday||false,
+    overLongSit:(S.longestSit||0)>=LONGEST_WARN_SEC
+  };
+}
+
+// Get all historical records (includes today's live data if activity exists)
+function getAllRecords(){
+  const hist=S.history||{};
+  const records=[];
+  Object.keys(hist).forEach(dateStr=>{
+    records.push({date:dateStr,...hist[dateStr]});
+  });
+  // Add today if has any activity
+  const today=todaySnapshot();
+  if(today.water>0||today.stands>0||today.workTimeSec>0||today.rested){
+    records.push({date:S.lastDate||new Date().toDateString(),...today});
+  }
+  records.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  return records;
+}
+
+function recordsInLastNDays(n){
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-n);
+  return getAllRecords().filter(r=>new Date(r.date)>=cutoff);
+}
+
+function aggregateRecords(records){
+  const workdays=records.filter(r=>!r.rested);
+  const n=Math.max(workdays.length,1);
+  const sum=(k)=>workdays.reduce((a,r)=>a+(r[k]||0),0);
+  return {
+    count:workdays.length,
+    totalWater:sum('water'),
+    totalWaterMl:sum('waterMl'),
+    totalStands:sum('stands'),
+    totalWorkSec:sum('workTimeSec'),
+    totalSessions:sum('sessions'),
+    avgWater:sum('water')/n,
+    avgWaterMl:sum('waterMl')/n,
+    avgStands:sum('stands')/n,
+    avgWorkSec:sum('workTimeSec')/n,
+    avgLongestSec:sum('longestSitSec')/n,
+    overLongCount:workdays.filter(r=>r.overLongSit).length
+  };
+}
+
+function fmtHr(sec){
+  if(!sec||sec<60)return (sec||0)+'s';
+  const m=Math.round(sec/60);
+  if(m<60)return m+'m';
+  const h=Math.floor(m/60),r=m%60;
+  return r?`${h}h${r}m`:`${h}h`;
+}
+
+function colorCls(type,val){
+  if(type==='water')return val>=W_STREAK?'ok':'bad';
+  if(type==='stand')return val>=S_GOAL?'ok':'bad';
+  if(type==='longest')return val>=LONGEST_WARN_SEC?'bad':'ok';
+  return '';
+}
+
+// Switch history range on tab click
+window.switchHistRange=function(range){
+  currentHistRange=range;
+  document.querySelectorAll('.hist-card .htab').forEach(t=>t.classList.toggle('active',t.dataset.range===range));
+  renderHistory();
+};
+
+// Attach click handlers to hist tabs (both desktop and mobile instances)
+document.querySelectorAll('.hist-card .htab,.hist-tabs .htab').forEach(t=>{
+  t.addEventListener('click',()=>window.switchHistRange(t.dataset.range));
+});
+
+function renderHistory(){
+  // Build content for current range
+  let html='';
+  if(currentHistRange==='day'){
+    const t=todaySnapshot();
+    const all=aggregateRecords(getAllRecords());
+    const sCls=colorCls('stand',t.stands);
+    const wCls=colorCls('water',t.water);
+    const lCls=colorCls('longest',t.longestSitSec);
+    html=`
+      <div class="hstat ${sCls}"><div class="sv">${t.stands}</div><div class="sl">今日站起 ${all.count>0?'(均 '+all.avgStands.toFixed(1)+')':''}</div></div>
+      <div class="hstat ${wCls}"><div class="sv">${t.water}</div><div class="sl">今日喝水 ${all.count>0?'(均 '+all.avgWater.toFixed(1)+')':''}</div></div>
+      <div class="hstat"><div class="sv">${fmtHr(t.workTimeSec)}</div><div class="sl">工作時間 ${all.count>0?'(均 '+fmtHr(Math.round(all.avgWorkSec))+')':''}</div></div>
+      <div class="hstat ${lCls}"><div class="sv">${fmtHr(t.longestSitSec)}</div><div class="sl">最長久坐 ${t.overLongSit?'⚠️':''}</div></div>
+    `;
+  }else{
+    const days=currentHistRange==='week'?7:(currentHistRange==='month'?30:null);
+    const records=days?recordsInLastNDays(days):getAllRecords();
+    const agg=aggregateRecords(records);
+    const overCls=agg.overLongCount>0?'bad':'ok';
+    html=`
+      <div class="hstat"><div class="sv">${agg.totalStands}</div><div class="sl">站起 (均 ${agg.avgStands.toFixed(1)})</div></div>
+      <div class="hstat"><div class="sv">${agg.totalWater}</div><div class="sl">喝水 (均 ${agg.avgWater.toFixed(1)})</div></div>
+      <div class="hstat"><div class="sv">${fmtHr(agg.totalWorkSec)}</div><div class="sl">工作 (均 ${fmtHr(Math.round(agg.avgWorkSec))})</div></div>
+      <div class="hstat ${overCls}"><div class="sv">${agg.overLongCount}</div><div class="sl">超標次數 (≥45m)</div></div>
+    `;
+  }
+  const body=document.getElementById('histBody');
+  if(body)body.innerHTML=html;
+  const bodyM=document.getElementById('histBodyMobile');
+  if(bodyM)bodyM.innerHTML=html;
 }
 
 // ===== CUPS (water tracker) =====
