@@ -358,7 +358,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
 <div class="topbar">
   <div class="tb-title">🌱 起來動一動</div>
   <div class="tb-chips">
-    <div class="tb-chip"><span>🪑</span><span class="v on" id="tbTimer">12:34</span></div>
+    <div class="tb-chip"><span>🪑</span><span class="v on" id="tbTimer">0m</span></div>
     <div class="tb-chip"><span>站</span><span class="v" id="tbStand">3/5</span></div>
     <div class="tb-chip"><span>💧</span><span class="v" id="tbWater">3/12</span></div>
   </div>
@@ -1001,6 +1001,9 @@ function renderAll(){
   // Top bar counters
   document.getElementById('tbStand').textContent=(S.todayStand||0)+'/'+S_GOAL;
   document.getElementById('tbWater').textContent=(S.todayWater||0)+'/'+W_GOAL;
+  // Top bar timer: today's total work time (accumulated across sessions)
+  const tbT=document.getElementById('tbTimer');
+  if(tbT)tbT.textContent=fmtHr(totalSS()||0);
   // Water number + cups
   document.getElementById('wNum').textContent=(S.todayWater||0);
   const wMl=document.getElementById('wMl');
@@ -1359,6 +1362,9 @@ function tick(){
     beep();
   }
   renderTimer();
+  // Update top bar total work time (updates every second during session)
+  const tbT=document.getElementById('tbTimer');
+  if(tbT)tbT.textContent=fmtHr(S.sessionSecTotal||0);
   // Save locally every 30s (cloud save only on manual actions to avoid too many writes)
   if(sit%30===0)saveLocal();
 }
