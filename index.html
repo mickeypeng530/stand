@@ -99,14 +99,15 @@ body{overflow-x:hidden;}
 .c-body{flex:1;display:flex;flex-direction:column;}
 .c-body-content{flex:1;display:flex;flex-direction:column;justify-content:center;padding-right:96px;}
 .c-button-slot{margin-top:auto;padding-top:16px;}
-.btn-full{width:100%;padding:16px;border-radius:12px;border:none;color:#fff;font-family:inherit;font-weight:700;font-size:calc(15px * var(–fs));cursor:pointer;transition:transform .1s;}
+.btn-full{width:100%;padding:16px;border-radius:12px;border:none;color:#fff !important;font-family:inherit;font-weight:700;font-size:calc(15px * var(–fs));cursor:pointer;transition:transform .1s;-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent;}
 .btn-full:active{transform:scale(0.97);}
-.btn-full.green-alt{background:linear-gradient(135deg,#81c784,var(–green-dark));box-shadow:0 3px 12px #66bb6a22;}
-.btn-full.blue{background:linear-gradient(135deg,var(–blue),var(–blue-dark));box-shadow:0 3px 12px #42a5f522;}
+.btn-full.green-alt{background:linear-gradient(135deg,#81c784,var(–green-dark)) !important;box-shadow:0 3px 12px #66bb6a22;}
+.btn-full.blue{background:linear-gradient(135deg,var(–blue),var(–blue-dark)) !important;box-shadow:0 3px 12px #42a5f522;}
 .btn-full .xp{display:inline-block;background:#ffffff22;border-radius:6px;padding:2px 7px;font-size:calc(11px * var(–fs));font-weight:400;margin-left:6px;}
-.btn-stop{background:var(–card-alt);border:1px solid var(–line);color:var(–text-dim);padding:0 18px;border-radius:12px;font-family:inherit;font-size:calc(18px * var(–fs));cursor:pointer;flex-shrink:0;}
-.btn-stop:hover{color:var(–red);border-color:var(–red);}
+.btn-stop{background:var(–card-alt) !important;border:1px solid var(–line);color:var(–text-dim) !important;padding:0 18px;border-radius:12px;font-family:inherit;font-size:calc(18px * var(–fs));cursor:pointer;flex-shrink:0;-webkit-appearance:none;appearance:none;}
+.btn-stop:hover{color:var(–red) !important;border-color:var(–red);}
 .btn-stop:active{transform:scale(0.95);}
+.sbtn{-webkit-appearance:none;appearance:none;}
 
 /* Larger laptop padding */
 @media (min-width:900px){
@@ -116,7 +117,7 @@ body{overflow-x:hidden;}
 
 /* ========== MASCOT ========== */
 /* Positioned at the top-right area, aligned with the timer number */
-.mascot-perch{position:absolute;right:8px;top:40px;width:72px;height:72px;display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;}
+.mascot-perch{position:absolute;right:8px;top:40px;width:72px;height:72px;display:flex;align-items:center;justify-content:center;z-index:4;pointer-events:none;}
 .mascot-perch svg{width:66px;height:66px;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.3));}
 .mascot-perch.idle svg{animation:mascot-idle 3s ease-in-out infinite;}
 .mascot-perch.happy svg{animation:mascot-happy 0.6s ease-in-out 3;}
@@ -979,6 +980,8 @@ function renderAll(){
   }
   // History
   renderHistory();
+  // Timer display (so stopWork resets "--:--" immediately)
+  if(typeof renderTimer==='function')renderTimer();
   // Pet mascots & garden (if functions are defined — they appear later in script)
   if(typeof updatePetMascots==='function')updatePetMascots();
   if(typeof renderGarden==='function')renderGarden();
@@ -1544,14 +1547,19 @@ function updatePetMascots(){
 function renderTimer(){
   const sit=currentSitSec();
   const threshSec=(S.thresh||30)*60;
-  const pct=Math.min(100,sit/threshSec*100);
+  const pct=S.inSession?Math.min(100,sit/threshSec*100):0;
   const bar=document.getElementById('sitBarFill');
   if(bar){
     bar.style.width=pct+'%';
     // Color shift: green → gold → red
-    if(sit>=threshSec){bar.style.background='linear-gradient(90deg,var(--red),var(--gold))';bar.classList.add('warn');}
-    else if(sit>=threshSec*0.8){bar.style.background='linear-gradient(90deg,var(--gold),var(--red))';bar.classList.add('warn');}
-    else{bar.style.background='linear-gradient(90deg,var(--green),var(--gold))';bar.classList.remove('warn');}
+    if(S.inSession){
+      if(sit>=threshSec){bar.style.background='linear-gradient(90deg,var(--red),var(--gold))';bar.classList.add('warn');}
+      else if(sit>=threshSec*0.8){bar.style.background='linear-gradient(90deg,var(--gold),var(--red))';bar.classList.add('warn');}
+      else{bar.style.background='linear-gradient(90deg,var(--green),var(--gold))';bar.classList.remove('warn');}
+    }else{
+      bar.classList.remove('warn');
+      bar.style.background='linear-gradient(90deg,var(--green),var(--gold))';
+    }
   }
   const disp=document.getElementById('sitDisp');
   const hint=document.getElementById('sitHint');
