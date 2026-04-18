@@ -181,7 +181,7 @@ body{overflow-x:hidden;}
 .garden-scene-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;}
 .garden-head{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text);}
 .garden-head .gsub{margin-left:auto;font-size:10px;color:var(--text-dim);font-weight:400;}
-.garden-scene{width:100%;aspect-ratio:16/7;border-radius:10px;overflow:hidden;display:block;background:linear-gradient(180deg,#b8d9e8 0%,#d4e8c0 55%,#a8d582 100%);}
+.garden-scene{width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;display:block;background:linear-gradient(180deg,#b8d9e8 0%,#d4e8c0 55%,#a8d582 100%);}
 .garden-caption{display:flex;gap:8px;font-size:calc(13px * var(--fs));color:var(--text-dim);justify-content:space-between;padding:6px 4px;flex-wrap:wrap;}
 
 /* ========== HISTORY ========== */
@@ -1340,7 +1340,14 @@ function fireNotif(text){
 }
 function randPos(zoneName){
   const z=GARDEN_ZONES[zoneName];
-  return {x:50+Math.random()*700,y:z.yMin+Math.random()*(z.yMax-z.yMin)};
+  // Avoid left edge (x<140) where sun/moon sit (y=25-90 at x=30-140)
+  // Trees reach up to ~170px tall, so their top could overlap if planted at x<140 in back zone
+  // Skip the range 40-140 for all zones to be safe
+  const pickX=()=>{
+    const x=50+Math.random()*700;
+    return (x>40&&x<140)?(160+Math.random()*580):x;
+  };
+  return {x:pickX(),y:z.yMin+Math.random()*(z.yMax-z.yMin)};
 }
 
 // ===== SESSION TIMING =====
@@ -1769,9 +1776,10 @@ function renderGarden(){
     // Static sky decoration: sun during day, moon+stars at night
     if(isNight){
       // Moon — narrow (viewBox 40x64) so it looks round after horizontal stretch
+      // Placed on LEFT side to avoid overlap with trees planted at right
       const mw=40*scale,mh=64*scale;
       scene.insertAdjacentHTML('beforeend',
-        `<g transform="translate(${720-mw} 30)"><use href="#d-moon" width="${mw}" height="${mh}"/></g>`);
+        `<g transform="translate(30 25)"><use href="#d-moon" width="${mw}" height="${mh}"/></g>`);
       // Scatter stars across the sky (y < 220 only)
       let starsHtml='';
       STARS.forEach(s=>{
@@ -1782,9 +1790,10 @@ function renderGarden(){
       });
       scene.insertAdjacentHTML('beforeend',starsHtml);
     }else{
+      // Sun — LEFT side, same reason
       const sw=70*scale,sh=70*scale;
       scene.insertAdjacentHTML('beforeend',
-        `<g transform="translate(${720-sw} 25)"><use href="#d-sun" width="${sw}" height="${sh}"/></g>`);
+        `<g transform="translate(30 25)"><use href="#d-sun" width="${sw}" height="${sh}"/></g>`);
     }
     // Static ground decorations: rocks + pond + sign + swing (scaled on mobile)
     // The y positions are the BASE (bottom edge), so pre-compute: top = base - height*scale
