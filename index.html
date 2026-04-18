@@ -168,6 +168,8 @@ body{overflow-x:hidden;}
 .cup .water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,var(--blue-light),var(--blue));border-radius:0 0 4px 4px;transition:height .5s ease;}
 .cup.filled{border-color:var(--blue);background:#42a5f533;}
 .cup.filled .water-fill{height:75%;}
+.cup.half{border-color:var(--blue-light);background:#42a5f518;}
+.cup.half .water-fill{height:37%;}
 @media (min-width:900px){
   .water-se .big .n{font-size:60px;}
   /* Desktop: cups stay within the padding (plenty of space) */
@@ -489,7 +491,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
             <div class="cups-row" id="cupsRow"></div>
           </div>
           <div class="c-button-slot">
-            <button class="btn-full blue" id="waterBtn">💧 喝了一杯<span class="xp">+0.5 XP</span></button>
+            <button class="btn-full blue" id="waterBtn">💧 喝了一次<span class="xp">+0.5 XP</span></button>
           </div>
         </div>
       </div>
@@ -1006,15 +1008,17 @@ function renderAll(){
   // Apply threshold
   applyThresh(S.thresh||30);
   // Top bar counters
+  const wVal=S.todayWater||0;
+  const wStr=Number.isInteger(wVal)?String(wVal):wVal.toFixed(1);
   document.getElementById('tbStand').textContent=(S.todayStand||0)+'/'+S_GOAL;
-  document.getElementById('tbWater').textContent=(S.todayWater||0)+'/'+W_GOAL;
+  document.getElementById('tbWater').textContent=wStr+'/'+W_GOAL;
   // Top bar timer: today's total work time (accumulated across sessions)
   const tbT=document.getElementById('tbTimer');
   if(tbT)tbT.textContent=fmtHr(totalSS()||0);
   // Water number + cups
-  document.getElementById('wNum').textContent=(S.todayWater||0);
+  document.getElementById('wNum').textContent=wStr;
   const wMl=document.getElementById('wMl');
-  if(wMl)wMl.textContent=`≈ ${(S.todayWater||0)*ML} ml · ${S.todayWater>=W_GOAL?'今日已完成 ✅':'目標 '+W_GOAL+' 杯'}`;
+  if(wMl)wMl.textContent=`≈ ${Math.round(wVal*ML)} ml · ${wVal>=W_GOAL?'今日已完成 ✅':'目標 '+W_GOAL+' 杯'}`;
   renderCups();
   // Quote + garden status (both desktop and mobile duplicates)
   const quote=getDailyQuote();
@@ -1203,9 +1207,13 @@ const cupsRow=document.getElementById('cupsRow');
 function renderCups(){
   if(!cupsRow)return;
   const n=S.todayWater||0;
+  // Each cup can be empty (0), half-filled (1), or full (2)
+  // todayWater=2.5 means: cups[0]=full, cups[1]=full, cups[2]=half, cups[3-11]=empty
   cupsRow.innerHTML=Array.from({length:12},(_,i)=>{
-    const filled=i<n;
-    return `<div class="cup ${filled?'filled':''}" data-idx="${i}"><div class="water-fill" style="height:${filled?70:0}%"></div></div>`;
+    let state='empty',height=0,cls='';
+    if(n>=i+1){state='full';height=75;cls='filled';}
+    else if(n>=i+0.5){state='half';height=37;cls='half';}
+    return `<div class="cup ${cls}" data-idx="${i}"><div class="water-fill" style="height:${height}%"></div></div>`;
   }).join('');
   document.querySelectorAll('.cup').forEach(c=>{
     c.addEventListener('click',()=>doWater());
@@ -1503,11 +1511,11 @@ function applySessionUI(){
   }
 }
 
-// Water action
+// Water action — each click = half a cup (75ml)
 function doWater(){
   if((S.todayWater||0)>=12){showToast('今天已經喝滿 12 杯了 🌊');return;}
-  S.todayWater++;
-  S.totalWater=(S.totalWater||0)+1;
+  S.todayWater=Math.min(12,(S.todayWater||0)+0.5);
+  S.totalWater=(S.totalWater||0)+0.5;
   addSeedXP('water',0.5);
   checkPetGoals();
   triggerMascot('water');
