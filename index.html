@@ -460,7 +460,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
           <div class="c-button-slot">
             <button class="btn-full green-alt" id="startWorkBtn" style="display:none;">▶️ 開始工作</button>
             <div class="session-buttons" id="sessionButtons" style="display:flex;gap:8px;">
-              <button class="btn-full green-alt" id="standBtn" style="flex:1;">🧍 我站起來了<span class="xp" id="sitBadge">+1 XP</span></button>
+              <button class="btn-full green-alt" id="standBtn" style="flex:1;">🧍 我站起來了<span class="xp" id="sitBadge" style="display:none;"></span></button>
               <button class="btn-stop" id="stopWorkBtn" title="結束工作">⏸</button>
             </div>
           </div>
@@ -1424,26 +1424,30 @@ window.handleStandup=function(){
   const sat=currentSitSec();
   const threshSec=(S.thresh||30)*60;
   // Zone-based XP rules
-  // 0-SILENT (0-10min): too soon, no meaningful break — no XP, no count
-  // SILENT-threshold (10-30min): active zone — +2 XP (proactive)
-  // threshold-AWAY (30-60min): reminded zone — +1 XP (took the break)
-  // AWAY+ (60min+): away too long, this session is "lost" — no XP, reset session
+  // 0-10min (silent): too soon, no break needed — reset only, no XP, no count
+  // 10-15min: encouragement zone — still no XP, but counts as light break
+  // 15min-threshold: active — +2 XP (healthy break)
+  // threshold-60min: reminded — +1 XP (took the break after alert)
+  // 60min+ (away): session was lost — no XP
   let xpGain=0, countsAsStand=true, showCard=true;
   if(sat<SILENT){
-    // Too soon — don't count at all. Just reset sit timer so next try counts.
+    // 0-10 min — just reset, don't end session
     countsAsStand=false;
     showCard=false;
     showToast('才剛坐下呢～再工作一會兒吧 🌱');
-    // Don't end session in silent zone — just reset sit timer
     resetSit();
     saveSync();
     return;
+  }else if(sat<15*60){
+    // 10-15 min — counts as light break but no XP
+    xpGain=0;
+    showToast('動一下也好 · 繼續加油 💪');
   }else if(sat<threshSec){
-    xpGain=2; // Active zone — proactive bonus
+    xpGain=2; // 15min - threshold (active zone) — proactive bonus
   }else if(sat<AWAY){
-    xpGain=1; // Reminded zone — at least took the break
+    xpGain=1; // threshold - 60min (reminded) — at least took the break
   }else{
-    // Away too long — count as stand but no XP (session was basically gone)
+    // 60+ min (away) — count as stand but no XP
     xpGain=0;
     showToast('離開好久～重新開始吧 😌');
   }
@@ -1685,6 +1689,30 @@ function renderTimer(){
     if(disp)disp.textContent='--:--';
     if(hint)hint.textContent='按「開始工作」開始計時';
     if(sub)sub.textContent='待機 · '+S.thresh+' 分門檻';
+  }
+  // Dynamic XP badge on stand button — shows the reward based on current zone
+  const badge=document.getElementById('sitBadge');
+  if(badge){
+    if(!S.inSession){
+      badge.textContent='';
+      badge.style.display='none';
+    }else if(sit<15*60){
+      // Silent (0-10) + encouragement (10-15): no XP yet
+      badge.textContent='';
+      badge.style.display='none';
+    }else if(sit<threshSec){
+      // Active zone (15min - threshold): +2 XP
+      badge.textContent='+2 XP';
+      badge.style.display='';
+    }else if(sit<AWAY){
+      // Reminded zone (threshold - 60min): +1 XP
+      badge.textContent='+1 XP';
+      badge.style.display='';
+    }else{
+      // Away zone: no XP
+      badge.textContent='';
+      badge.style.display='none';
+    }
   }
 }
 
