@@ -58,10 +58,35 @@ body{padding-top:48px;}
 }
 
 /* ========== MAIN LAYOUT ========== */
-.main{padding:8px;padding-bottom:56px;min-height:calc(100dvh - 48px);}
+/* Mobile: lock full-screen layout, no body scroll. Each tab fills available height. */
+html,body{height:100%;}
+@media (max-width:899px){
+  html,body{overflow:hidden;}
+  .main{padding:8px;padding-bottom:62px;height:calc(100dvh - 48px);box-sizing:border-box;overflow:hidden;}
+  /* Today view: two cards stacked, fill available height */
+  #viewHome{height:100%;display:flex !important;flex-direction:column;}
+  #viewHome.active{display:flex !important;}
+  #viewHome:not(.active){display:none !important;}
+  #viewHome .row-main{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0;}
+  #viewHome .c-card{flex:1;min-height:0;}
+  #viewHome .bottom-row{display:none;}
+  /* Garden view: full screen, no scroll */
+  #viewGarden{height:100%;display:flex;flex-direction:column;gap:10px;overflow:hidden;}
+  #viewGarden.active{display:flex !important;}
+  #viewGarden:not(.active){display:none !important;}
+  #viewGarden .garden-scene-wrap{flex-shrink:0;}
+  /* History view: card fixed, only internal daily list scrolls */
+  #viewHistory{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+  #viewHistory.active{display:flex !important;}
+  #viewHistory:not(.active){display:none !important;}
+  #viewHistory .hist-card{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+  #viewHistory .hist-body{flex:1;min-height:0;display:flex;flex-direction:column;}
+  /* The per-day list (shown in week/month/all) is the only scrollable area */
+  #viewHistory .hist-list{flex:1;overflow-y:auto;min-height:0;}
+}
 @media (min-width:900px){
   .main{padding:16px 20px;padding-bottom:16px;min-height:0;height:calc(100vh - 52px);}
-  html,body{height:100%;overflow:hidden;}
+  html,body{overflow:hidden;}
   body{overflow-x:hidden;}
 }
 
@@ -184,7 +209,7 @@ body{padding-top:48px;}
 .garden-scene-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;}
 .garden-head{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text);}
 .garden-head .gsub{margin-left:auto;font-size:10px;color:var(--text-dim);font-weight:400;}
-.garden-scene{width:100%;aspect-ratio:16/8;border-radius:10px;overflow:hidden;display:block;background:linear-gradient(180deg,#b8d9e8 0%,#d4e8c0 55%,#a8d582 100%);}
+.garden-scene{width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;display:block;background:linear-gradient(180deg,#b8d9e8 0%,#d4e8c0 55%,#a8d582 100%);}
 .garden-caption{display:flex;gap:8px;font-size:calc(13px * var(--fs));color:var(--text-dim);justify-content:space-between;padding:6px 4px;flex-wrap:wrap;}
 
 /* ========== HISTORY ========== */
