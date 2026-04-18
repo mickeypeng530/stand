@@ -135,7 +135,8 @@ body{overflow-x:hidden;}
   .mascot-perch{width:120px;height:120px;right:20px;top:56px;}
   .mascot-perch svg{width:110px;height:110px;}
   /* Align with bottom of threshold buttons (20/30/45) and cups row */
-  .mascot-meta{top:auto;bottom:86px;right:18px;padding:8px 14px;max-width:170px;gap:3px;}
+  /* Right edge aligned with button right edge (= card padding-right = 28px) */
+  .mascot-meta{top:auto;bottom:86px;right:28px;padding:8px 14px;max-width:170px;gap:3px;}
   .mascot-meta .mm-row{font-size:calc(14px * var(--fs));}
   .mascot-meta .mm-pet{font-size:calc(13px * var(--fs));}
 }
@@ -1240,13 +1241,30 @@ function fmtTimer(sec){
   const m=Math.floor(sec/60),s=sec%60;
   return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
 }
-function showToast(text,celebrate){
+// Toast queue — prevents overlapping messages. Queued toasts show sequentially.
+const _toastQueue=[];
+let _toastActive=false;
+function _nextToast(){
+  if(_toastActive)return;
+  const item=_toastQueue.shift();
+  if(!item)return;
+  _toastActive=true;
   const t=document.getElementById('toast');
-  if(!t)return;
-  t.textContent=text;
-  t.classList.toggle('celebrate',!!celebrate);
+  if(!t){_toastActive=false;return;}
+  t.textContent=item.text;
+  t.classList.toggle('celebrate',!!item.celebrate);
   t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2800);
+  setTimeout(()=>{
+    t.classList.remove('show');
+    setTimeout(()=>{
+      _toastActive=false;
+      _nextToast();
+    },300); // small gap between toasts so user notices the change
+  },2400);
+}
+function showToast(text,celebrate){
+  _toastQueue.push({text,celebrate});
+  _nextToast();
 }
 
 // Big celebration (pet hatching, seed completion)
@@ -1403,6 +1421,10 @@ window.handleStandup=function(){
     countsAsStand=false;
     showCard=false;
     showToast('才剛坐下呢～再工作一會兒吧 🌱');
+    // Don't end session in silent zone — just reset sit timer
+    resetSit();
+    saveSync();
+    return;
   }else if(sat<threshSec){
     xpGain=2; // Active zone — proactive bonus
   }else if(sat<AWAY){
@@ -1418,7 +1440,13 @@ window.handleStandup=function(){
     if(xpGain>0)addSeedXP('sit',xpGain);
     checkPetGoals();
   }
-  resetSit();
+  // End the session — user needs to press "start work" again to resume
+  // This accumulates the session time into sessionSecTotal and stops the tick
+  S.sessionSecTotal=totalSS();
+  if(sat>(S.longestSit||0))S.longestSit=sat;
+  S.inSession=false;
+  S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
+  applySessionUI();
   // Mascot animation first; delay activity card so user can see the "great job" bounce
   triggerMascot('sit');
   renderAll();
