@@ -22,7 +22,9 @@ body{overflow-x:hidden;}
 .topbar .tb-chip{background:var(--card);border-radius:6px;padding:3px 7px;font-size:calc(11px * var(--fs));color:var(--text-dim);display:flex;align-items:center;gap:3px;white-space:nowrap;}
 .topbar .tb-chip .v{font-family:'Fredoka',monospace;font-weight:700;color:var(--gold);font-size:calc(12px * var(--fs));}
 .topbar .tb-chip .v.on{color:var(--green-light);}
-.topbar .tb-icon{background:none;border:none;color:var(--text-dim);font-size:calc(14px * var(--fs));cursor:pointer;padding:2px 4px;}
+.topbar .tb-icon{background:none;border:none;color:var(--text-dim);font-size:calc(14px * var(--fs));cursor:pointer;padding:2px 4px;transition:color .2s,transform .2s;}
+.topbar .tb-icon.on{color:var(--green-light);animation:music-beat 1.5s ease-in-out infinite;}
+@keyframes music-beat{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
 .sync-chip{background:var(--card);border:1px solid #2e7d3244;border-radius:12px;padding:3px 8px;font-size:calc(11px * var(--fs));color:var(--green-light);display:flex;align-items:center;gap:4px;white-space:nowrap;}
 .sync-chip .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
 .sync-chip.offline{border-color:#ff700344;color:var(--gold);}
@@ -364,11 +366,15 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
   </div>
   <div class="tb-right">
     <div class="sync-chip" id="syncChip"><span class="sync-dot"></span><span id="syncText">本地</span></div>
+    <button class="tb-icon" id="musicBtn" title="背景音樂">🎵</button>
     <button class="tb-icon" id="notifBtn" title="通知">🔔</button>
     <button class="tb-login" id="loginBtn">👤 登入</button>
     <button class="tb-icon" id="menuBtn" title="選單" style="font-size:16px;">⚙️</button>
   </div>
 </div>
+
+<!-- Background music audio element (hidden) -->
+<audio id="bgMusic" preload="auto" style="display:none;"></audio>
 
 <!-- SETTINGS DROPDOWN (attached to top bar) -->
 <div class="menu-overlay" id="menuOverlay"></div>
@@ -750,9 +756,10 @@ window.S=loadL();
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import{getDatabase,ref,set,get,onValue,off}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getStorage,ref as storageRef,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-scheduler-f752b.firebaseapp.com",databaseURL:"https://case-scheduler-f752b-default-rtdb.firebaseio.com",projectId:"case-scheduler-f752b",storageBucket:"case-scheduler-f752b.firebasestorage.app",messagingSenderId:"703006186929",appId:"1:703006186929:web:57ac5b059678005455f190"};
-const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),prov=new GoogleAuthProvider();
+const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),fbStorage=getStorage(fbApp),prov=new GoogleAuthProvider();
 let fbUser=null,dbRef=null;
 
 function setSyncChip(mode,text){
@@ -1790,6 +1797,92 @@ document.getElementById('btnRest').addEventListener('click',()=>{
   saveSync();
   closeMenu();
 });
+
+// ===== BACKGROUND MUSIC =====
+const MUSIC_TRACKS=['River.mp3','Canon.mp3'];
+let musicTrackIdx=0;
+let musicUrlCache={}; // filename -> download URL
+let musicPreparing=false;
+
+async function getMusicUrl(filename){
+  if(musicUrlCache[filename])return musicUrlCache[filename];
+  const r=storageRef(fbStorage,filename);
+  const url=await getDownloadURL(r);
+  musicUrlCache[filename]=url;
+  return url;
+}
+
+async function loadAndPlay(idx){
+  const audio=document.getElementById('bgMusic');
+  if(!audio)return;
+  const filename=MUSIC_TRACKS[idx%MUSIC_TRACKS.length];
+  try{
+    const url=await getMusicUrl(filename);
+    audio.src=url;
+    await audio.play();
+  }catch(e){
+    console.warn('[music] play failed:',e);
+    // Firebase Storage auth errors typically contain these codes
+    const msg=e.code==='storage/unauthorized'?'音樂存取被拒 · 請確認帳號':
+              e.code==='storage/object-not-found'?`找不到 ${filename}`:
+              '音樂載入失敗';
+    showToast(msg);
+    setMusicButton(false);
+  }
+}
+
+function setMusicButton(playing){
+  const btn=document.getElementById('musicBtn');
+  if(!btn)return;
+  if(playing){
+    btn.textContent='🎵';
+    btn.classList.add('on');
+    btn.title='暫停背景音樂';
+  }else{
+    btn.textContent='🎵';
+    btn.classList.remove('on');
+    btn.title='播放背景音樂';
+  }
+}
+
+// When one track ends, play the next (auto-rotate between the 2 tracks)
+document.getElementById('bgMusic').addEventListener('ended',()=>{
+  musicTrackIdx=(musicTrackIdx+1)%MUSIC_TRACKS.length;
+  loadAndPlay(musicTrackIdx);
+});
+
+document.getElementById('musicBtn').addEventListener('click',async()=>{
+  const audio=document.getElementById('bgMusic');
+  if(!audio||musicPreparing)return;
+  // Require login (Firebase Storage rules restrict read to authorized email)
+  if(!fbUser){
+    showToast('請先登入才能播放音樂 🎵');
+    return;
+  }
+  if(!audio.paused&&audio.src){
+    // Currently playing — pause
+    audio.pause();
+    setMusicButton(false);
+    try{localStorage.setItem('qlyd_music','0');}catch(e){}
+  }else{
+    // Start playing (or resume if paused)
+    musicPreparing=true;
+    setMusicButton(true);
+    if(audio.src){
+      // Resume paused
+      try{await audio.play();}catch(e){console.warn(e);setMusicButton(false);}
+    }else{
+      // First play — load track
+      await loadAndPlay(musicTrackIdx);
+    }
+    musicPreparing=false;
+    try{localStorage.setItem('qlyd_music','1');}catch(e){}
+  }
+});
+
+// Note: we don't auto-resume music on page load because browsers require
+// a user gesture to start audio. User must click 🎵 each session.
+// (We still save the preference so we could resume if allowed in future.)
 
 // ===== INIT =====
 applySessionUI();
