@@ -52,7 +52,7 @@ body{overflow-x:hidden;}
 }
 
 /* ========== MAIN LAYOUT ========== */
-.main{padding:12px;padding-bottom:60px;min-height:calc(100dvh - 48px);}
+.main{padding:8px;padding-bottom:56px;min-height:calc(100dvh - 48px);}
 @media (min-width:900px){
   .main{padding:16px 20px;padding-bottom:16px;min-height:0;height:calc(100vh - 52px);}
   html,body{height:100%;overflow:hidden;}
@@ -68,7 +68,7 @@ body{overflow-x:hidden;}
 }
 
 /* Row with sit and water cards */
-.row-main{display:flex;flex-direction:column;gap:10px;}
+.row-main{display:flex;flex-direction:column;gap:8px;}
 @media (min-width:768px){
   .row-main{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 }
@@ -89,15 +89,15 @@ body{overflow-x:hidden;}
 }
 
 /* ========== CARDS ========== */
-.c-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;position:relative;overflow:hidden;min-height:280px;}
+.c-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;position:relative;overflow:hidden;min-height:240px;}
 .c-card.sit{border-color:#66bb6a30;}
 .c-card.water{border-color:#42a5f530;}
-.c-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:calc(15px * var(--fs));font-weight:700;color:var(--text);}
+.c-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:calc(15px * var(--fs));font-weight:700;color:var(--text);}
 .c-head .ic{font-size:calc(16px * var(--fs));}
 .c-head .sub{font-size:calc(12px * var(--fs));color:var(--text-dim);font-weight:400;margin-left:auto;}
 .c-body{flex:1;display:flex;flex-direction:column;}
 .c-body-content{flex:1;display:flex;flex-direction:column;justify-content:center;padding-right:96px;position:relative;}
-.c-button-slot{margin-top:auto;padding-top:16px;}
+.c-button-slot{margin-top:auto;padding-top:12px;}
 .btn-full{width:100%;padding:16px;border-radius:12px;border:none;color:#fff !important;font-family:inherit;font-weight:700;font-size:calc(15px * var(--fs));cursor:pointer;transition:transform .1s;-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent;}
 .btn-full:active{transform:scale(0.97);}
 .btn-full.green-alt{background:linear-gradient(135deg,#81c784,var(--green-dark)) !important;box-shadow:0 3px 12px #66bb6a22;}
