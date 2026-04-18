@@ -210,12 +210,17 @@ body{overflow-x:hidden;}
 .hist-row .hr-v.bad{color:var(--red);}
 .hist-row .hr-rest{color:var(--text-dim);font-style:italic;}
 .hist-empty{text-align:center;color:var(--text-dim);padding:14px 0;font-size:calc(12px * var(--fs));}
-.daily-quote{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;}
+.daily-quote{margin-top:8px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;}
 .daily-quote .dq-icon{font-size:calc(26px * var(--fs));flex-shrink:0;animation:quote-sway 4s ease-in-out infinite;}
 @keyframes quote-sway{0%,100%{transform:rotate(-3deg);}50%{transform:rotate(3deg);}}
 .daily-quote .dq-content{flex:1;min-width:0;}
 .daily-quote .dq-status{font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;margin-bottom:4px;font-family:'Fredoka',monospace;}
 .daily-quote .dq-quote{font-size:calc(13px * var(--fs));color:var(--text-dim);line-height:1.5;font-style:italic;}
+/* Mobile version (inside garden tab) — standalone card with larger fonts */
+.daily-quote.mobile-quote{margin-top:14px;padding:14px 16px;border-top:none;background:var(--card);border:1px solid var(--line);border-radius:14px;gap:12px;}
+.daily-quote.mobile-quote .dq-icon{font-size:calc(32px * var(--fs));}
+.daily-quote.mobile-quote .dq-status{font-size:calc(16px * var(--fs));margin-bottom:6px;}
+.daily-quote.mobile-quote .dq-quote{font-size:calc(15px * var(--fs));line-height:1.6;}
 
 /* hist-tabs also scaled */
 .hist-card .htab{font-size:calc(12px * var(--fs));}
@@ -510,14 +515,14 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
           <div class="hstat"><div class="sv">0m</div><div class="sl">最長久坐</div></div>
           <div class="hstat"><div class="sv">0</div><div class="sl">今日站起</div></div>
         </div>
-      </div>
-    </div>
-    <!-- Daily quote (visible on both mobile and desktop at bottom of Home view) -->
-    <div class="daily-quote">
-      <div class="dq-icon">🌿</div>
-      <div class="dq-content">
-        <div class="dq-status" id="gardenStatus">花園裡有 0 位住客</div>
-        <div class="dq-quote" id="dailyQuote">慢慢來，每一次起身都在長成更好的你 🌱</div>
+        <!-- Daily quote (desktop: inside hist-card bottom) -->
+        <div class="daily-quote">
+          <div class="dq-icon">🌿</div>
+          <div class="dq-content">
+            <div class="dq-status" id="gardenStatus">花園裡有 0 位住客</div>
+            <div class="dq-quote" id="dailyQuote">慢慢來，每一次起身都在長成更好的你 🌱</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -536,6 +541,14 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
       </svg>
       <div class="garden-caption" id="gardenCaptionMobile">
         <span>繼續努力，花園會慢慢長滿 🌿</span>
+      </div>
+      <!-- Daily quote (mobile: inside garden tab) -->
+      <div class="daily-quote mobile-quote">
+        <div class="dq-icon">🌿</div>
+        <div class="dq-content">
+          <div class="dq-status" id="gardenStatusMobile">花園裡有 0 位住客</div>
+          <div class="dq-quote" id="dailyQuoteMobile">慢慢來，每一次起身都在長成更好的你 🌱</div>
+        </div>
       </div>
     </div>
   </div>
@@ -963,15 +976,16 @@ function renderAll(){
   const wMl=document.getElementById('wMl');
   if(wMl)wMl.textContent=`≈ ${(S.todayWater||0)*ML} ml · ${S.todayWater>=W_GOAL?'今日已完成 ✅':'目標 '+W_GOAL+' 杯'}`;
   renderCups();
-  // Quote + garden status
-  const q=document.getElementById('dailyQuote');if(q)q.textContent=getDailyQuote();
-  const gs=document.getElementById('gardenStatus');
-  if(gs){
-    const total=(S.garden||[]).length;
-    const sitN=(S.garden||[]).filter(g=>g.type==='sit').length;
-    const wN=total-sitN;
-    gs.innerHTML=`共 ${total} 棵 · 🪑 ${sitN} · 💧 ${wN}`;
-  }
+  // Quote + garden status (both desktop and mobile duplicates)
+  const quote=getDailyQuote();
+  const q=document.getElementById('dailyQuote');if(q)q.textContent=quote;
+  const qm=document.getElementById('dailyQuoteMobile');if(qm)qm.textContent=quote;
+  const total=(S.garden||[]).length;
+  const sitN=(S.garden||[]).filter(g=>g.type==='sit').length;
+  const wN=total-sitN;
+  const statusHtml=`共 ${total} 棵 · 🪑 ${sitN} · 💧 ${wN}`;
+  const gs=document.getElementById('gardenStatus');if(gs)gs.innerHTML=statusHtml;
+  const gsm=document.getElementById('gardenStatusMobile');if(gsm)gsm.innerHTML=statusHtml;
   // History
   renderHistory();
   // Timer display (so stopWork resets "--:--" immediately)
