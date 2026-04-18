@@ -208,8 +208,7 @@ body{overflow-x:hidden;}
 
 /* ========== MENU DROPDOWN ========== */
 .menu-overlay{position:fixed;inset:0;background:#00000080;z-index:99;display:none;}
-.menu-overlay.show{display:block;}
-.menu-dropdown{position:fixed;top:54px;right:8px;z-index:100;width:300px;max-width:calc(100vw - 16px);max-height:calc(100vh - 70px);overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 8px 32px rgba(0,0,0,0.6);display:none;}
+.menu-overlay.show{display:block;}.menu-dropdown{position:fixed;top:54px;right:8px;z-index:100;width:300px;max-width:calc(100vw - 16px);max-height:calc(100vh - 70px);overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 8px 32px rgba(0,0,0,0.6);display:none;}
 .menu-dropdown.show{display:block;}
 @media (min-width:768px){
   .menu-dropdown{top:60px;right:16px;width:340px;}
@@ -222,6 +221,23 @@ body{overflow-x:hidden;}
 .menu-inline{display:flex;gap:4px;}
 .menu-themes{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
 .menu-themes .sbtn{padding:7px 10px;font-size:11px;text-align:center;}
+
+/* ========== ACTIVITY OVERLAY ========== */
+.activity-overlay{position:fixed;inset:0;background:#000000aa;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+.activity-overlay.show{display:flex;}
+.activity-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,0.6);}
+.activity-card .ac-title{font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;margin-bottom:8px;}
+.activity-card .ac-icon{font-size:48px;margin:12px 0;}
+.activity-card .ac-text{font-size:calc(17px * var(--fs));color:var(--text);font-weight:700;line-height:1.5;margin-bottom:20px;}
+.activity-card .ac-btns{display:flex;gap:10px;}
+.activity-card .ac-btns button{flex:1;padding:12px;border-radius:10px;border:none;font-family:inherit;font-weight:700;font-size:calc(14px * var(--fs));cursor:pointer;}
+.activity-card .ac-no{background:var(--card-alt);color:var(--text-dim);}
+.activity-card .ac-yes{background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;}
+
+/* Toast */
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--green);color:var(--green-light);padding:10px 18px;border-radius:12px;font-size:calc(13px * var(--fs));z-index:300;box-shadow:0 4px 16px rgba(0,0,0,0.4);opacity:0;transition:opacity .3s;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast.celebrate{border-color:var(--gold);color:var(--gold);}
 
 /* ========== THEMES ========== */
 body.theme-kawaii{--bg:#fff0f5;--card:#ffffff;--card-alt:#fdf2f8;--green:#86efac;--green-light:#16a34a;--green-dark:#16a34a;--blue:#7dd3fc;--blue-light:#0284c7;--blue-dark:#0284c7;--gold:#fbbf24;--text:#4a2d3a;--text-dim:#9a7a88;--line:#f5d0e0;}
@@ -358,6 +374,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
             </div>
           </div>
           <div class="c-button-slot">
+            <button class="btn-full blue" id="startWorkBtn" style="display:none;">▶️ 開始工作</button>
             <button class="btn-full green-alt" id="standBtn">🧍 我站起來了<span class="xp" id="sitBadge">+1 XP</span></button>
           </div>
         </div>
@@ -474,6 +491,22 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
   <div class="t" data-view="History"><span class="ti">📊</span>歷史</div>
 </div>
 
+<!-- Activity suggestion overlay (after stand up) -->
+<div class="activity-overlay" id="activityOverlay">
+  <div class="activity-card">
+    <div class="ac-title" id="acTitle">🎉 站起來了！要不要動一動？</div>
+    <div class="ac-icon" id="acIcon">💪</div>
+    <div class="ac-text" id="acText">肩胛骨後收夾緊 × 10 下</div>
+    <div class="ac-btns">
+      <button class="ac-no" onclick="closeActivity(false)">跳過</button>
+      <button class="ac-yes" onclick="closeActivity(true)">好的 +1 XP</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast for notifications -->
+<div class="toast" id="toast"></div>
+
 <script type="module">
 // ===== DAILY LUCKY QUOTES =====
 const QUOTES=[
@@ -508,6 +541,37 @@ function getDailyQuote(){
 const SILENT=600,AWAY=3600,W_INT=7200,W_GOAL=12,ML=150,S_GOAL=5,W_STREAK=8;
 const THEMES=['default','kawaii','pixel','tama','neon','paper'];
 
+// Seed system (8 stages, each needs X XP to advance)
+// Index 7 = completed, triggers moving to garden + reset
+const SIT_STG=[
+  {e:'🌱',n:'種子',x:3},{e:'🌿',n:'嫩芽',x:4},{e:'☘️',n:'幼苗',x:5},{e:'🪴',n:'盆栽',x:5},
+  {e:'🎋',n:'竹苗',x:6},{e:'🌴',n:'棕櫚',x:6},{e:'🌳',n:'大樹',x:7},{e:'🌸',n:'完成',x:0}
+];
+const WATER_STG=[
+  {e:'🌱',n:'種子',x:4},{e:'🌿',n:'嫩葉',x:5},{e:'🌾',n:'小草',x:6},{e:'🪴',n:'小花盆',x:6},
+  {e:'🌷',n:'花苗',x:7},{e:'🌻',n:'花苞',x:8},{e:'🌺',n:'盛開',x:8},{e:'🌸',n:'完成',x:0}
+];
+// Final plant SVG pool (Designer's sprites). Sit = trees, Water = flowers/small plants
+const SIT_FINALS=['p-cherry','p-maple','p-pine','p-bamboo','p-mushroom-house'];
+const WATER_FINALS=['p-sunflower','p-cactus','p-succulent','p-tulip','p-tomato'];
+
+// Pet system (3 stages, days-met-goal based)
+// egg → baby: 5 days, baby → adult: 15 days. On adult, retire to garden, new egg starts.
+const PET_BABY_THRESHOLD=5;
+const PET_ADULT_THRESHOLD=15;
+function petStageOf(days){
+  if(days>=PET_ADULT_THRESHOLD)return['成體','adult'];
+  if(days>=PET_BABY_THRESHOLD)return['幼體','baby'];
+  return['蛋','egg'];
+}
+
+// Garden placement zones (y in SVG viewBox 0-350)
+const GARDEN_ZONES={
+  back:  {yMin:155,yMax:185},  // trees, adult pets (bigger, further)
+  mid:   {yMin:200,yMax:235},  // medium plants, succulents
+  front: {yMin:245,yMax:290},  // flowers, tulips, rocks
+};
+
 // ===== STATE =====
 function defS(){return{
   thresh:30,todayStand:0,todayWater:0,streak:0,lastDate:null,
@@ -516,6 +580,12 @@ function defS(){return{
   sessionSecTotal:0,longestSit:0,sessionsToday:0,
   inSession:false,sitStartAt:0,sessionStartAt:0,sessionAccum:0,lastWaterRemindAt:0,alerted:false,
   theme:'default',fontScale:1.3,
+  // Seed system: per-type progression
+  sitStageIdx:0,sitStageXP:0,
+  waterStageIdx:0,waterStageXP:0,
+  // Pet system: days-met-goal based
+  sitPetDays:0,waterPetDays:0,
+  sitGoalMetToday:false,waterGoalMetToday:false,
 };}
 
 function loadL(){
@@ -545,14 +615,18 @@ function loadL(){
         d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;
         d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;
         d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
+        d.sitGoalMetToday=false;d.waterGoalMetToday=false;
+        d._rolledOver=true;
       }
       if(!d.history||Array.isArray(d.history))d.history={};
       if(!Array.isArray(d.garden))d.garden=[];
-      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday'].forEach(k=>{if(!d[k])d[k]=0;});
+      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays'].forEach(k=>{if(!d[k])d[k]=0;});
       if(!d.thresh)d.thresh=30;
       if(!d.theme||!THEMES.includes(d.theme))d.theme='default';
       if(typeof d.soundOn!=='boolean')d.soundOn=true;
-      if(typeof d.fontScale!=='number'||d.fontScale<0.5||d.fontScale>2)d.fontScale=1;
+      if(typeof d.fontScale!=='number'||d.fontScale<0.5||d.fontScale>2)d.fontScale=1.3;
+      if(typeof d.sitGoalMetToday!=='boolean')d.sitGoalMetToday=false;
+      if(typeof d.waterGoalMetToday!=='boolean')d.waterGoalMetToday=false;
       return d;
     }
   }catch(e){console.warn('loadL error',e);}
@@ -653,8 +727,14 @@ async function cloudPull(firstPull){
     if(!Array.isArray(c.garden))c.garden=[];
 
     if(isCloudNewer(c)){
+      const wasInSession=S.inSession;
       Object.assign(S,c);
       saveLocal();
+      // Sync session UI state
+      if(S.inSession!==wasInSession||S.inSession){
+        applySessionUI();
+        if(S.inSession)resumeSessionIfNeeded();
+      }
       renderAll();
     }else if(firstPull){
       await cloudSave();
@@ -779,6 +859,8 @@ function renderAll(){
   document.getElementById('tbWater').textContent=(S.todayWater||0)+'/'+W_GOAL;
   // Water number + cups
   document.getElementById('wNum').textContent=(S.todayWater||0);
+  const wMl=document.getElementById('wMl');
+  if(wMl)wMl.textContent=`≈ ${(S.todayWater||0)*ML} ml · ${S.todayWater>=W_GOAL?'今日已完成 ✅':'目標 '+W_GOAL+' 杯'}`;
   renderCups();
   // Quote + garden status
   const q=document.getElementById('dailyQuote');if(q)q.textContent=getDailyQuote();
@@ -791,6 +873,24 @@ function renderAll(){
   }
   // History
   renderHistory();
+  // Pet mascots & garden (if functions are defined — they appear later in script)
+  if(typeof updatePetMascots==='function')updatePetMascots();
+  if(typeof renderGarden==='function')renderGarden();
+  // Notification button state
+  if('Notification' in window){
+    const btn=document.getElementById('btnNotif');
+    if(btn){
+      if(Notification.permission==='granted'){btn.textContent='已允許';btn.classList.add('on');}
+      else if(Notification.permission==='denied'){btn.textContent='已拒絕';btn.classList.remove('on');}
+      else{btn.textContent='請求';btn.classList.remove('on');}
+    }
+  }
+  // Sound button state
+  const sb=document.getElementById('btnSound');
+  if(sb){sb.textContent=S.soundOn?'開啟':'靜音';sb.classList.toggle('on',!!S.soundOn);}
+  // Rest button state
+  const rb=document.getElementById('btnRest');
+  if(rb){rb.textContent=S.restToday?'已休息':'標記';rb.classList.toggle('on',!!S.restToday);}
 }
 
 // ===== HISTORY =====
@@ -919,45 +1019,417 @@ function renderCups(){
   const n=S.todayWater||0;
   cupsRow.innerHTML=Array.from({length:12},(_,i)=>`<div class="cup ${i<n?'filled':''}" data-idx="${i}"><div class="water-fill"></div></div>`).join('');
   document.querySelectorAll('.cup').forEach(c=>{
-    c.addEventListener('click',()=>{if((S.todayWater||0)<12){S.todayWater++;triggerAction('water');renderAll();saveSync();}});
+    c.addEventListener('click',()=>doWater());
   });
 }
 
-// ===== MASCOT INTERACTION (demo — real logic in stage 3) =====
+// ===== ACTIVITIES POOL (20 cards) =====
+const ACTS=[
+  // Sit-break exercises
+  {i:'💪',t:'肩胛骨後收夾緊 × 10 下 · 改善圓肩'},
+  {i:'🙆',t:'雙手交握向後擴胸 + 抬頭 20 秒'},
+  {i:'🦴',t:'站姿後仰伸展 × 10 下 · 腰椎減壓'},
+  {i:'🔄',t:'坐姿脊椎扭轉，左右各停 15 秒'},
+  {i:'🦵',t:'站姿弓箭步拉髖屈肌，左右各 20 秒'},
+  {i:'🦶',t:'踮腳尖 × 20 下 · 幫下肢循環'},
+  {i:'🔁',t:'腳踝繞圈，左右各 10 圈 · 防靜脈滯留'},
+  {i:'🏋️',t:'扶桌淺蹲 × 10 下 · 下肢肌力'},
+  {i:'🤸',t:'扶牆站姿伏地挺身 × 10 下 · 胸臂'},
+  {i:'👀',t:'看 6 公尺外 20 秒 · 20-20-20 護眼'},
+  {i:'✊',t:'握拳-張開 × 15 次 · 活化手指'},
+  {i:'🙏',t:'手腕向上/向下伸展各 20 秒 · 防腕隧道'},
+  {i:'🚶',t:'走到走廊底再走回來 · 代謝重啟'},
+  {i:'🤲',t:'頸部左右轉動各 5 圈 · 解頸肩僵硬'},
+  {i:'🫸',t:'靠牆站 30 秒，感覺頭頸背靠平'},
+  // Relaxation
+  {i:'☕',t:'去泡杯茶或咖啡犒賞自己'},
+  {i:'🪟',t:'站到窗邊看看天空和風景'},
+  {i:'🧘',t:'深呼吸 × 5 次，放鬆自律神經'},
+  {i:'💆',t:'按摩太陽穴和後頸 30 秒'},
+  {i:'🙂',t:'站著伸個大懶腰，你很棒！'},
+];
+
+// Mascot speech messages
 const MSGS={
-  sit:['做得好！ 🌟','再幾分鐘就長大了～','感覺到成長了 😊','好棒！ '],
-  water:['咕嚕咕嚕～好清涼 💧','謝謝你照顧我！','水滴滴最愛水了～','健康！']
+  sit:['做得好！ 🌟','再幾分鐘就長大了～','感覺到成長了 😊','好棒！站起來真棒','腰椎會謝謝你的'],
+  water:['咕嚕咕嚕～好清涼 💧','謝謝你照顧我！','水滴滴最愛水了～','健康！','多喝水~'],
 };
-function stageOf(xp){if(xp>=15)return['成體','adult'];if(xp>=5)return['幼體','baby'];return['蛋','egg'];}
-function triggerAction(kind){
-  // Placeholder XP tracking until stage 3; uses S values
-  const s={sit:{type:'sprout',use:'sitMascotUse',xpEl:'sitXp',stageEl:'sitStage',el:'sitMascot',speech:'sitSpeech'},
-          water:{type:'drop',use:'waterMascotUse',xpEl:'waterXp',stageEl:'waterStage',el:'waterMascot',speech:'waterSpeech'}}[kind];
-  const useEl=document.getElementById(s.use);
-  const xpVal=kind==='sit'?(S.todayStand||0):(S.todayWater||0);
-  const[name,suffix]=stageOf(xpVal);
-  if(useEl)useEl.setAttribute('href','#m-'+s.type+'-'+suffix);
-  document.getElementById(s.xpEl).textContent=xpVal+' / 15';
-  document.getElementById(s.stageEl).textContent=name;
-  const m=document.getElementById(s.el);
-  m.classList.remove('idle');m.classList.add('happy');
-  setTimeout(()=>{m.classList.remove('happy');m.classList.add('idle');},1800);
-  const sp=document.getElementById(s.speech);
-  sp.textContent=MSGS[kind][Math.floor(Math.random()*MSGS[kind].length)];
+
+// ===== HELPERS =====
+function now(){return Date.now();}
+function fmtTimer(sec){
+  if(sec<0)sec=0;
+  const m=Math.floor(sec/60),s=sec%60;
+  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+function showToast(text,celebrate){
+  const t=document.getElementById('toast');
+  if(!t)return;
+  t.textContent=text;
+  t.classList.toggle('celebrate',!!celebrate);
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+function randPos(zoneName){
+  const z=GARDEN_ZONES[zoneName];
+  return {x:50+Math.random()*700,y:z.yMin+Math.random()*(z.yMax-z.yMin)};
+}
+
+// ===== SESSION TIMING =====
+// Total session seconds (accumulated + current live session if active)
+function totalSS(){
+  if(!S.inSession)return S.sessionSecTotal||0;
+  const live=Math.floor((now()-(S.sessionStartAt||now()))/1000);
+  return (S.sessionAccum||0)+live;
+}
+// Current sit duration (since last stand up)
+function currentSitSec(){
+  if(!S.inSession||!S.sitStartAt)return 0;
+  return Math.floor((now()-S.sitStartAt)/1000);
+}
+
+let tid=null;
+function tick(){
+  if(!S.inSession){renderTimer();return;}
+  const sit=currentSitSec();
+  if(sit>(S.longestSit||0))S.longestSit=sit;
+  S.sessionSecTotal=totalSS();
+  // Water reminder every W_INT (2h) seconds
+  if(S.lastWaterRemindAt&&(now()-S.lastWaterRemindAt)/1000>=W_INT){
+    S.lastWaterRemindAt=now();
+    showToast('💧 別忘了喝水～');
+    beep();
+  }
+  // Alert when past threshold
+  const threshSec=(S.thresh||30)*60;
+  if(sit>=threshSec&&!S.alerted){
+    S.alerted=true;
+    showToast('⏰ 該站起來動一動了！',true);
+    beep();
+  }
+  renderTimer();
+  // Save locally every 30s (cloud save only on manual actions to avoid too many writes)
+  if(sit%30===0)saveLocal();
+}
+
+function startTick(){
+  if(tid)clearInterval(tid);
+  tid=setInterval(tick,1000);
+  tick();
+}
+function stopTick(){if(tid){clearInterval(tid);tid=null;}}
+
+window.startWork=function(){
+  const n=now();
+  S.inSession=true;
+  S.sitStartAt=n;S.sessionStartAt=n;S.sessionAccum=S.sessionSecTotal||0;
+  S.lastWaterRemindAt=n;S.alerted=false;
+  S.sessionsToday=(S.sessionsToday||0)+1;
+  applySessionUI();
+  startTick();
+  saveSync();
+};
+
+// Silent reset of sit timer (e.g. when stand-up happens)
+function resetSit(){
+  S.sitStartAt=now();
+  S.alerted=false;
+}
+
+// Called when user confirms standing up
+window.handleStandup=function(){
+  if(!S.inSession){
+    // If not in session, prompt to start work instead
+    showToast('記得先按「開始工作」喔');
+    return;
+  }
+  const sat=currentSitSec();
+  // Reward: +1 base XP; if stood up before threshold, +1 extra for being proactive
+  let xpGain=1;
+  if(sat<(S.thresh||30)*60)xpGain=2;
+  // Base stand count
+  S.todayStand=(S.todayStand||0)+1;
+  S.totalStands=(S.totalStands||0)+1;
+  addSeedXP('sit',xpGain);
+  resetSit();
+  // Check goal met for pet (daily, each type independent)
+  checkPetGoals();
+  // Show activity suggestion
+  showActivity();
+  triggerMascot('sit');
+  renderAll();
+  saveSync();
+};
+
+// Called by tick when pages closed mid-session — resume correctly
+function resumeSessionIfNeeded(){
+  if(!S.inSession)return;
+  const live=Math.floor((now()-(S.sessionStartAt||now()))/1000);
+  // If session is > 6h old, assume it's stale
+  if(live>6*3600){
+    console.log('[session] stale (>6h), ending');
+    S.inSession=false;
+    S.sessionSecTotal=(S.sessionAccum||0); // keep accumulated time
+    applySessionUI();
+    return;
+  }
+  applySessionUI();
+  startTick();
+}
+
+// Apply UI state based on inSession
+function applySessionUI(){
+  const start=document.getElementById('startWorkBtn');
+  const stand=document.getElementById('standBtn');
+  if(S.inSession){
+    start.style.display='none';
+    stand.style.display='';
+  }else{
+    start.style.display='';
+    stand.style.display='none';
+    stopTick();
+  }
+}
+
+// Water action
+function doWater(){
+  if((S.todayWater||0)>=12){showToast('今天已經喝滿 12 杯了 🌊');return;}
+  S.todayWater++;
+  S.totalWater=(S.totalWater||0)+1;
+  addSeedXP('water',0.5);
+  checkPetGoals();
+  triggerMascot('water');
+  renderAll();
+  saveSync();
+}
+
+// ===== SEED SYSTEM =====
+function addSeedXP(type,xp){
+  const idxKey=type==='sit'?'sitStageIdx':'waterStageIdx';
+  const xpKey=type==='sit'?'sitStageXP':'waterStageXP';
+  const stg=type==='sit'?SIT_STG:WATER_STG;
+  if(S[idxKey]>=7)return; // already at "完成" — wait for cleanup
+  S[xpKey]=(S[xpKey]||0)+xp;
+  // Advance stages if enough XP
+  while(S[idxKey]<7){
+    const need=stg[S[idxKey]].x;
+    if(S[xpKey]>=need){
+      S[xpKey]-=need;
+      S[idxKey]++;
+      if(S[idxKey]===7){
+        // Completed — move to garden with random final SVG + random position
+        const finals=type==='sit'?SIT_FINALS:WATER_FINALS;
+        const svg=finals[Math.floor(Math.random()*finals.length)];
+        const zone=type==='sit'?'back':'front';
+        const pos=randPos(zone);
+        S.garden=S.garden||[];
+        S.garden.push({type:type,svg:svg,source:'seed',x:pos.x,y:pos.y,at:now()});
+        // Reset seed for next round
+        S[idxKey]=0;S[xpKey]=0;
+        const name=type==='sit'?'一棵樹':'一朵花';
+        showToast(`🎉 收成了${name}！進入花園`,true);
+        beep();
+      }else{
+        const name=stg[S[idxKey]].n;
+        showToast(`種子升級！${stg[S[idxKey]-1].e} → ${stg[S[idxKey]].e} ${name}`);
+      }
+    }else break;
+  }
+}
+
+// ===== PET SYSTEM (days-met-goal) =====
+function checkPetGoals(){
+  // Sit pet: increment daysMetGoal once per day when todayStand reaches goal
+  if(!S.sitGoalMetToday&&(S.todayStand||0)>=S_GOAL){
+    S.sitGoalMetToday=true;
+    S.sitPetDays=(S.sitPetDays||0)+1;
+    showToast('🪑 今日久坐目標達成！',true);
+    checkPetLevelUp('sit');
+  }
+  // Water pet: independent
+  if(!S.waterGoalMetToday&&(S.todayWater||0)>=W_STREAK){
+    S.waterGoalMetToday=true;
+    S.waterPetDays=(S.waterPetDays||0)+1;
+    showToast('💧 今日喝水目標達成！',true);
+    checkPetLevelUp('water');
+  }
+}
+
+function checkPetLevelUp(type){
+  const daysKey=type==='sit'?'sitPetDays':'waterPetDays';
+  const days=S[daysKey]||0;
+  // Just reached adult — retire to garden
+  if(days===PET_ADULT_THRESHOLD){
+    const svg=type==='sit'?'m-sprout-adult':'m-drop-adult';
+    const zone='back'; // pets retire to back row
+    const pos=randPos(zone);
+    S.garden=S.garden||[];
+    S.garden.push({type:type,svg:svg,source:'pet',x:pos.x,y:pos.y,at:now()});
+    S[daysKey]=0; // reset for next round (new egg)
+    const n=type==='sit'?'芽芽':'水滴滴';
+    showToast(`🎉 ${n} 長大了！已進入花園 🏡`,true);
+    beep();
+  }else if(days===PET_BABY_THRESHOLD){
+    const n=type==='sit'?'芽芽':'水滴滴';
+    showToast(`🐣 ${n} 孵化了！`);
+  }
+}
+
+// ===== MASCOT VISUAL =====
+function triggerMascot(type){
+  const el=document.getElementById(type+'Mascot');
+  const sp=document.getElementById(type+'Speech');
+  if(!el||!sp)return;
+  el.classList.remove('idle');el.classList.add('happy');
+  setTimeout(()=>{el.classList.remove('happy');el.classList.add('idle');},1800);
+  sp.textContent=MSGS[type][Math.floor(Math.random()*MSGS[type].length)];
   sp.classList.add('show');
   setTimeout(()=>sp.classList.remove('show'),2200);
 }
-document.getElementById('standBtn').addEventListener('click',()=>{
-  S.todayStand=(S.todayStand||0)+1;
-  triggerAction('sit');
-  renderAll();
+
+// Update mascot SVG based on pet days
+function updatePetMascots(){
+  const sitDays=S.sitPetDays||0;
+  const waterDays=S.waterPetDays||0;
+  const[sName,sSuf]=petStageOf(sitDays);
+  const[wName,wSuf]=petStageOf(waterDays);
+  const sitUse=document.getElementById('sitMascotUse');
+  const wUse=document.getElementById('waterMascotUse');
+  if(sitUse)sitUse.setAttribute('href','#m-sprout-'+sSuf);
+  if(wUse)wUse.setAttribute('href','#m-drop-'+wSuf);
+  const sitStage=document.getElementById('sitStage');
+  const wStage=document.getElementById('waterStage');
+  const sitXp=document.getElementById('sitXp');
+  const wXp=document.getElementById('waterXp');
+  if(sitStage)sitStage.textContent=sName;
+  if(wStage)wStage.textContent=wName;
+  const sitNext=sitDays<PET_BABY_THRESHOLD?PET_BABY_THRESHOLD:PET_ADULT_THRESHOLD;
+  const wNext=waterDays<PET_BABY_THRESHOLD?PET_BABY_THRESHOLD:PET_ADULT_THRESHOLD;
+  if(sitXp)sitXp.textContent=sitDays+' / '+sitNext+' 天';
+  if(wXp)wXp.textContent=waterDays+' / '+wNext+' 天';
+}
+
+// ===== TIMER RENDER =====
+function renderTimer(){
+  const sit=currentSitSec();
+  const threshSec=(S.thresh||30)*60;
+  const pct=Math.min(100,sit/threshSec*100);
+  const bar=document.getElementById('sitBarFill');
+  if(bar){
+    bar.style.width=pct+'%';
+    // Color shift: green → gold → red
+    if(sit>=threshSec)bar.style.background='linear-gradient(90deg,var(--red),var(--gold))';
+    else if(sit>=threshSec*0.8)bar.style.background='linear-gradient(90deg,var(--gold),var(--red))';
+    else bar.style.background='linear-gradient(90deg,var(--green),var(--gold))';
+  }
+  const disp=document.getElementById('sitDisp');
+  const hint=document.getElementById('sitHint');
+  const sub=document.getElementById('sitSubtitle');
+  if(S.inSession){
+    if(disp)disp.textContent=fmtTimer(sit);
+    const remain=threshSec-sit;
+    if(hint){
+      if(remain>0)hint.textContent=`離 ${S.thresh} 分還有 ${fmtTimer(remain)} · 再撐一下 😌`;
+      else hint.textContent=`⏰ 已超過 ${fmtTimer(-remain)} · 該站起來了！`;
+    }
+    if(sub)sub.textContent=`工作中 · ${S.thresh} 分門檻`;
+  }else{
+    if(disp)disp.textContent='--:--';
+    if(hint)hint.textContent='按「開始工作」開始計時';
+    if(sub)sub.textContent='待機 · '+S.thresh+' 分門檻';
+  }
+}
+
+// ===== GARDEN RENDERER =====
+function renderGarden(){
+  const scenes=[document.getElementById('gardenScene'),document.getElementById('gardenSceneMobile')];
+  scenes.forEach(scene=>{
+    if(!scene)return;
+    // Preserve background rects (first 3), clear the rest
+    const kids=Array.from(scene.children);
+    kids.forEach((k,i)=>{if(i>=3)k.remove();});
+    // Also add a few static decorations (rocks)
+    scene.insertAdjacentHTML('beforeend',
+      `<g transform="translate(30 300)"><use href="#rock" width="38" height="22"/></g>
+       <g transform="translate(720 308)"><use href="#rock" width="34" height="20"/></g>`);
+    // Render garden items sorted by y (back first, front last — natural z-order)
+    const items=[...(S.garden||[])].sort((a,b)=>a.y-b.y);
+    items.forEach(g=>{
+      const w=g.source==='pet'?52:70;
+      const h=g.source==='pet'?64:90;
+      scene.insertAdjacentHTML('beforeend',
+        `<g transform="translate(${g.x-w/2} ${g.y-h+30})"><use href="#${g.svg}" width="${w}" height="${h}"/></g>`);
+    });
+  });
+  // Update garden header sub
+  const subs=[document.getElementById('gardenSub'),document.getElementById('gardenSubMobile')];
+  subs.forEach(s=>{
+    if(!s)return;
+    const n=(S.garden||[]).length;
+    s.textContent=n===0?'還沒有植物':`共 ${n} 位住客`;
+  });
+}
+
+// ===== SOUND =====
+let audioCtx=null;
+function beep(){
+  if(!S.soundOn)return;
+  try{
+    if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const osc=audioCtx.createOscillator(),g=audioCtx.createGain();
+    osc.frequency.value=660;g.gain.value=0.08;
+    osc.connect(g);g.connect(audioCtx.destination);
+    osc.start();osc.stop(audioCtx.currentTime+0.15);
+  }catch(e){}
+}
+
+// ===== ACTIVITY OVERLAY =====
+let currentActivity=null;
+function showActivity(){
+  currentActivity=ACTS[Math.floor(Math.random()*ACTS.length)];
+  document.getElementById('acIcon').textContent=currentActivity.i;
+  document.getElementById('acText').textContent=currentActivity.t;
+  document.getElementById('activityOverlay').classList.add('show');
+}
+window.closeActivity=function(accepted){
+  document.getElementById('activityOverlay').classList.remove('show');
+  if(accepted&&currentActivity){
+    // +1 bonus XP for doing the activity
+    addSeedXP('sit',1);
+    showToast('💚 做得好！+1 額外 XP');
+    renderAll();
+    saveSync();
+  }
+  currentActivity=null;
+};
+
+// ===== BUTTON HANDLERS =====
+document.getElementById('startWorkBtn').addEventListener('click',()=>window.startWork());
+document.getElementById('standBtn').addEventListener('click',()=>window.handleStandup());
+document.getElementById('waterBtn').addEventListener('click',doWater);
+document.getElementById('btnSound').addEventListener('click',()=>{
+  S.soundOn=!S.soundOn;
+  document.getElementById('btnSound').textContent=S.soundOn?'開啟':'靜音';
+  document.getElementById('btnSound').classList.toggle('on',S.soundOn);
   saveSync();
 });
-document.getElementById('waterBtn').addEventListener('click',()=>{
-  if((S.todayWater||0)<12){S.todayWater++;triggerAction('water');renderAll();saveSync();}
+document.getElementById('btnNotif').addEventListener('click',async()=>{
+  if(!('Notification' in window)){showToast('此瀏覽器不支援通知');return;}
+  const r=await Notification.requestPermission();
+  const btn=document.getElementById('btnNotif');
+  if(r==='granted'){btn.textContent='已允許';btn.classList.add('on');}
+  else{btn.textContent='已拒絕';}
+});
+document.getElementById('btnRest').addEventListener('click',()=>{
+  S.restToday=true;
+  showToast('😴 今天休息，不中斷連續天數',true);
+  saveSync();
+  closeMenu();
 });
 
 // ===== INIT =====
+applySessionUI();
+resumeSessionIfNeeded();
 renderAll();
 </script>
 </body>
