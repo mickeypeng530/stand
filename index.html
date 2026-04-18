@@ -210,7 +210,7 @@ body{overflow-x:hidden;}
 .hist-row .hr-v.bad{color:var(--red);}
 .hist-row .hr-rest{color:var(--text-dim);font-style:italic;}
 .hist-empty{text-align:center;color:var(--text-dim);padding:14px 0;font-size:calc(12px * var(--fs));}
-.daily-quote{margin-top:8px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;}
+.daily-quote{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;}
 .daily-quote .dq-icon{font-size:calc(26px * var(--fs));flex-shrink:0;animation:quote-sway 4s ease-in-out infinite;}
 @keyframes quote-sway{0%,100%{transform:rotate(-3deg);}50%{transform:rotate(3deg);}}
 .daily-quote .dq-content{flex:1;min-width:0;}
@@ -510,13 +510,14 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
           <div class="hstat"><div class="sv">0m</div><div class="sl">最長久坐</div></div>
           <div class="hstat"><div class="sv">0</div><div class="sl">今日站起</div></div>
         </div>
-        <div class="daily-quote">
-          <div class="dq-icon">🌿</div>
-          <div class="dq-content">
-            <div class="dq-status" id="gardenStatus">花園裡有 0 位住客</div>
-            <div class="dq-quote" id="dailyQuote">慢慢來，每一次起身都在長成更好的你 🌱</div>
-          </div>
-        </div>
+      </div>
+    </div>
+    <!-- Daily quote (visible on both mobile and desktop at bottom of Home view) -->
+    <div class="daily-quote">
+      <div class="dq-icon">🌿</div>
+      <div class="dq-content">
+        <div class="dq-status" id="gardenStatus">花園裡有 0 位住客</div>
+        <div class="dq-quote" id="dailyQuote">慢慢來，每一次起身都在長成更好的你 🌱</div>
       </div>
     </div>
   </div>
