@@ -63,12 +63,11 @@ html,body{height:100%;}
 @media (max-width:899px){
   html,body{overflow:hidden;}
   .main{padding:8px;padding-bottom:62px;height:calc(100dvh - 48px);box-sizing:border-box;overflow:hidden;}
-  /* Today view: two cards stacked, fill available height */
+  /* Today view: cards use their natural size (not stretched) */
   #viewHome{height:100%;display:flex !important;flex-direction:column;}
   #viewHome.active{display:flex !important;}
   #viewHome:not(.active){display:none !important;}
-  #viewHome .row-main{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0;}
-  #viewHome .c-card{flex:1;min-height:0;}
+  #viewHome .row-main{display:flex;flex-direction:column;gap:8px;}
   #viewHome .bottom-row{display:none;}
   /* Garden view: full screen, no scroll */
   #viewGarden{height:100%;display:flex;flex-direction:column;gap:10px;overflow:hidden;}
