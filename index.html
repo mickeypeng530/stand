@@ -1745,27 +1745,60 @@ function renderGarden(){
     }
   });
   if(migrated)saveLocal();
+  // Fixed star positions (scattered across sky) — deterministic so they don't jump each render
+  const STARS=[
+    {x:45,y:28,t:'s',w:12},{x:110,y:18,t:'d',w:5},{x:180,y:38,t:'s',w:10},
+    {x:250,y:22,t:'d',w:4},{x:310,y:45,t:'s',w:11},{x:395,y:20,t:'d',w:5},
+    {x:470,y:50,t:'s',w:10},{x:560,y:30,t:'d',w:4},{x:620,y:60,t:'s',w:11},
+    {x:80,y:80,t:'d',w:4},{x:210,y:110,t:'s',w:9},{x:340,y:90,t:'d',w:5},
+    {x:450,y:120,t:'d',w:4},{x:540,y:100,t:'s',w:10},{x:680,y:130,t:'d',w:5},
+    {x:150,y:150,t:'d',w:4},{x:400,y:160,t:'d',w:4},{x:590,y:180,t:'d',w:4},
+  ];
   scenes.forEach(scene=>{
     if(!scene)return;
+    // Mobile scene — enlarge everything 1.8x since phone screen is smaller
+    const isMobile=scene.id==='gardenSceneMobile';
+    const scale=isMobile?1.8:1;
     // Preserve background rects (first 3), clear the rest
     const kids=Array.from(scene.children);
     kids.forEach((k,i)=>{if(i>=3)k.remove();});
+    // Night: darken sky background to deep blue
+    const skyRect=scene.children[0];
+    const grassRect=scene.children[1];
+    if(skyRect&&skyRect.tagName==='rect')skyRect.setAttribute('fill',isNight?'#1a2847':'#cfe8f5');
     // Static sky decoration: sun during day, moon+stars at night
     if(isNight){
+      // Moon — narrow (viewBox 40x64) so it looks round after horizontal stretch
+      const mw=40*scale,mh=64*scale;
       scene.insertAdjacentHTML('beforeend',
-        `<g transform="translate(660 30)"><use href="#d-moon" width="80" height="80"/></g>`);
+        `<g transform="translate(${720-mw} 30)"><use href="#d-moon" width="${mw}" height="${mh}"/></g>`);
+      // Scatter stars across the sky (y < 220 only)
+      let starsHtml='';
+      STARS.forEach(s=>{
+        const id=s.t==='s'?'d-star':'d-stardot';
+        const sw=s.w*scale;
+        const sh=s.w*scale;
+        starsHtml+=`<g transform="translate(${s.x-sw/2} ${s.y-sh/2})"><use href="#${id}" width="${sw}" height="${sh}"/></g>`;
+      });
+      scene.insertAdjacentHTML('beforeend',starsHtml);
     }else{
+      const sw=70*scale,sh=70*scale;
       scene.insertAdjacentHTML('beforeend',
-        `<g transform="translate(670 25)"><use href="#d-sun" width="70" height="70"/></g>`);
+        `<g transform="translate(${720-sw} 25)"><use href="#d-sun" width="${sw}" height="${sh}"/></g>`);
     }
-    // Static ground decorations: rocks + pond + sign + swing
-    // Swing & sign: bottom at y~232 (just into grass)
+    // Static ground decorations: rocks + pond + sign + swing (scaled on mobile)
+    // The y positions are the BASE (bottom edge), so pre-compute: top = base - height*scale
+    const deco=(x,baseY,id,w,h)=>{
+      const sw=w*scale,sh=h*scale;
+      return `<g transform="translate(${x-sw/2} ${baseY-sh})"><use href="#${id}" width="${sw}" height="${sh}"/></g>`;
+    };
     scene.insertAdjacentHTML('beforeend',
-      `<g transform="translate(30 300)"><use href="#rock" width="38" height="22"/></g>
-       <g transform="translate(720 308)"><use href="#rock" width="34" height="20"/></g>
-       <g transform="translate(120 278)"><use href="#d-pond" width="80" height="36"/></g>
-       <g transform="translate(580 182)"><use href="#d-sign" width="36" height="50"/></g>
-       <g transform="translate(400 172)"><use href="#d-swing" width="60" height="60"/></g>`);
+      deco(49,322,'rock',38,22)+
+      deco(737,328,'rock',34,20)+
+      deco(160,314,'d-pond',80,36)+
+      deco(618,235,'d-sign',36,50)+
+      deco(350,232,'d-swing',60,60)
+    );
     // Render garden items sorted by y (back first, front last — natural z-order)
     const items=[...(S.garden||[])].sort((a,b)=>a.y-b.y);
     items.forEach(g=>{
@@ -1779,10 +1812,10 @@ function renderGarden(){
         // Flowers — smaller
         w=54;h=70;
       }
+      const sw=w*scale,sh=h*scale;
       // g.x, g.y = center of base (feet touching ground)
-      // SVG <use> starts from top-left, so shift: x-w/2, y-h (not y-h+30 which lifted plants)
       scene.insertAdjacentHTML('beforeend',
-        `<g transform="translate(${Math.round(g.x-w/2)} ${Math.round(g.y-h)})"><use href="#${g.svg}" width="${w}" height="${h}"/></g>`);
+        `<g transform="translate(${Math.round(g.x-sw/2)} ${Math.round(g.y-sh)})"><use href="#${g.svg}" width="${sw}" height="${sh}"/></g>`);
     });
   });
   // Update garden header sub
