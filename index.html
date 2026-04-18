@@ -133,9 +133,10 @@ body{overflow-x:hidden;}
 @media (min-width:900px){
   .mascot-perch{width:120px;height:120px;right:20px;top:56px;}
   .mascot-perch svg{width:110px;height:110px;}
-  .mascot-meta{top:186px;right:16px;padding:5px 10px;max-width:140px;}
-  .mascot-meta .mm-row{font-size:calc(11px * var(--fs));}
-  .mascot-meta .mm-pet{font-size:calc(10px * var(--fs));}
+  /* Align with bottom of threshold buttons (20/30/45) and cups row */
+  .mascot-meta{top:auto;bottom:86px;right:18px;padding:8px 14px;max-width:170px;gap:3px;}
+  .mascot-meta .mm-row{font-size:calc(14px * var(--fs));}
+  .mascot-meta .mm-pet{font-size:calc(13px * var(--fs));}
 }
 
 /* ========== SIT SECTION ========== */
@@ -159,10 +160,9 @@ body{overflow-x:hidden;}
 .water-se .ml{font-size:calc(13px * var(--fs));color:var(--text-dim);}
 .cups-row{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:10px;margin-right:-96px;}
 .cup{aspect-ratio:0.85;position:relative;border-radius:0 0 6px 6px;border:2px solid #ffffff30;border-top:none;background:var(--card-alt);overflow:hidden;cursor:pointer;min-height:28px;}
-.cup::before{content:'';position:absolute;top:0;left:-2px;right:-2px;height:3px;background:#ffffff30;border-radius:3px 3px 0 0;}
+.cup::before{content:'';position:absolute;top:0;left:-2px;right:-2px;height:2px;background:#ffffff20;border-radius:2px 2px 0 0;}
 .cup .water-fill{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,var(--blue-light),var(--blue));border-radius:0 0 4px 4px;transition:height .5s ease;}
 .cup.filled{border-color:var(--blue);background:#42a5f533;}
-.cup.filled::before{background:var(--blue);}
 .cup.filled .water-fill{height:75%;}
 @media (min-width:900px){
   .water-se .big .n{font-size:60px;}
@@ -439,7 +439,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
             </div>
           </div>
           <div class="c-button-slot">
-            <button class="btn-full blue" id="startWorkBtn" style="display:none;">▶️ 開始工作</button>
+            <button class="btn-full green-alt" id="startWorkBtn" style="display:none;">▶️ 開始工作</button>
             <div class="session-buttons" id="sessionButtons" style="display:flex;gap:8px;">
               <button class="btn-full green-alt" id="standBtn" style="flex:1;">🧍 我站起來了<span class="xp" id="sitBadge">+1 XP</span></button>
               <button class="btn-stop" id="stopWorkBtn" title="結束工作">⏸</button>
@@ -590,26 +590,32 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
 <script type="module">
 // ===== DAILY LUCKY QUOTES =====
 const QUOTES=[
-  '慢慢來，每一次起身都在長成更好的你 🌱',
-  '今天的你，比昨天多動一點點就已經很棒了 ✨',
-  '你的身體會記得你對它好 💚',
-  '不是完美，是持續；不是爆發，是堅持 🌿',
-  '喝水的人運氣都不會太差 💧',
-  '每一杯水都在愛護你的身體 🌊',
-  '站起來的那一秒，就贏了昨天的自己 🧍',
-  '今天也要好好照顧這具軀殼 🌸',
-  '累了就休息，不累就再撐一下 ☕',
-  '健康不是偶爾努力，是日常習慣 🌻',
-  '你的椎間盤會謝謝你 🦴',
-  '走動一下，血液循環的你最美 🫀',
-  '深呼吸，世界會因此安靜一點 🌬️',
-  '小小的動，累積成大大的改變 🌳',
-  '照顧自己，是一種負責任的浪漫 💕',
-  '一天十分鐘的活動，勝過週末狂練 🏃',
-  '你是自己最長期的室友，對自己好一點 🏡',
-  '休息不是偷懶，是充電 🔋',
-  '微笑一下吧，今天值得 😊',
-  '腰痠了嗎？那是它在提醒你愛它 💆',
+  // 泰戈爾（5）
+  '天空中沒有翅膀的痕跡，而我已飛過 — 泰戈爾',
+  '生如夏花之絢爛，死如秋葉之靜美 — 泰戈爾',
+  '休息與工作的關係，猶如眼瞼與眼睛的關係 — 泰戈爾',
+  '讓我的愛像陽光包圍你，又給你璀璨的自由 — 泰戈爾',
+  '最好的東西不是獨來的，它伴著所有東西同來 — 泰戈爾',
+  // 林婉瑜（8）
+  '時間是溫柔的，只是忘了告訴你 — 林婉瑜',
+  '今天也辛苦了，明天也會的吧 — 林婉瑜',
+  '被愛的時候，整個人都變得比較軟 — 林婉瑜',
+  '晴天不是因為沒有雲，是因為雲走在別的地方 — 林婉瑜',
+  '有時候慢下來，是為了看清楚自己 — 林婉瑜',
+  '我喜歡你的方式，是讓你看見你自己 — 林婉瑜',
+  '長大就是把哭聲藏進微笑裡 — 林婉瑜',
+  '不是每一種辛苦都有意義，但你還是很勇敢 — 林婉瑜',
+  // 林婉瑜風格（1）
+  '今天的雲，看起來很適合發呆',
+  // 任明信（4）
+  '今天想做的事很少，比如呼吸，比如愛你 — 任明信',
+  '喜歡的事要慢慢做，像呼吸，像走路，像把光灑進心裡 — 任明信',
+  '每天都是一個小小的開始，就算只是睜開眼睛 — 任明信',
+  '好的東西會留下，像月亮留在水裡 — 任明信',
+  // 簡媜（1）
+  '好的日子，是被認真活著的 — 簡媜',
+  // 任明信（1）- 已有 4 句任明信，這句補到 20
+  '慢慢來比較快 — 任明信',
 ];
 function getDailyQuote(){
   const today=new Date();
