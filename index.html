@@ -1159,7 +1159,6 @@ window.stopWork=function(){
   applySessionUI();
   renderAll();
   saveSync();
-  showToast('⏸ 已結束工作');
 };
 
 // Silent reset of sit timer (e.g. when stand-up happens)
@@ -1438,9 +1437,7 @@ window.closeActivity=function(accepted){
 // ===== BUTTON HANDLERS =====
 document.getElementById('startWorkBtn').addEventListener('click',()=>window.startWork());
 document.getElementById('standBtn').addEventListener('click',()=>window.handleStandup());
-document.getElementById('stopWorkBtn').addEventListener('click',()=>{
-  if(confirm('結束本次工作？（計時會停止，本次累計的時間會保留到歷史）'))window.stopWork();
-});
+document.getElementById('stopWorkBtn').addEventListener('click',()=>window.stopWork());
 document.getElementById('waterBtn').addEventListener('click',doWater);
 document.getElementById('btnSound').addEventListener('click',()=>{
   S.soundOn=!S.soundOn;
