@@ -182,6 +182,36 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
 .rest-row{margin-top:12px;text-align:center;}
 .rest-btn{background:var(--card-alt);border:1px solid #ffffff15;color:var(--text-dim);padding:6px 16px;border-radius:10px;font-size:.72rem;font-family:inherit;cursor:pointer;}
 
+/* ========== HISTORY ========== */
+.hist-section{margin-top:18px;padding-top:14px;border-top:1px solid #ffffff08;}
+.hist-header{font-size:.85rem;color:var(--text-dim);margin-bottom:10px;text-align:center;}
+.hist-tabs{display:flex;background:var(--card-alt);border-radius:10px;padding:3px;gap:2px;margin-bottom:12px;}
+.htab{flex:1;padding:7px 0;text-align:center;font-size:.8rem;color:var(--text-dim);cursor:pointer;border-radius:8px;transition:all .2s;font-weight:700;}
+.htab.active{background:var(--green-dark);color:#fff;}
+.hist-body{font-size:.78rem;}
+.hist-summary{display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--card-alt);border-radius:10px;margin-bottom:12px;}
+.hs-row{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;}
+.hs-icon{font-size:.9rem;flex-shrink:0;}
+.hs-val{font-family:'Fredoka',sans-serif;font-weight:700;font-size:.95rem;color:var(--text);}
+.hs-sub{color:var(--text-dim);font-size:.72rem;}
+.hs-avg{color:var(--gold);font-size:.72rem;margin-left:auto;}
+.hs-val.ok{color:var(--green-light);}
+.hs-val.bad{color:var(--red);}
+.hs-val.info{color:var(--text);}
+
+.hist-list-title{font-size:.72rem;color:var(--text-dim);margin:6px 0 6px;text-align:center;}
+.hist-list{display:flex;flex-direction:column;gap:4px;}
+.hist-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card-alt);border-radius:8px;font-size:.72rem;}
+.hist-row .hr-date{color:var(--text-dim);min-width:48px;font-weight:700;}
+.hist-row .hr-item{display:flex;align-items:center;gap:2px;white-space:nowrap;}
+.hist-row .hr-item .hr-v{font-family:'Fredoka',sans-serif;font-weight:700;}
+.hist-row .hr-v.ok{color:var(--green-light);}
+.hist-row .hr-v.bad{color:var(--red);}
+.hist-row .hr-v.info{color:var(--text);}
+.hist-row .hr-v.over{color:var(--red);}
+.hist-row .hr-rest{color:var(--grey);font-style:italic;}
+.hist-empty{text-align:center;color:var(--text-dim);font-size:.78rem;padding:16px 0;}
+
 /* ========== OVERLAY ========== */
 .overlay{position:fixed;inset:0;background:#0c1810ee;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(10px);}
 .overlay.show{display:flex;}
@@ -346,6 +376,18 @@ body{font-family:'Noto Sans TC','Fredoka',sans-serif;background:var(--bg);color:
             <div class="stat"><div class="stat-v" id="totalStands">0</div><div class="stat-l">累計站起</div></div>
           </div>
           <div class="rest-row"><button class="rest-btn" onclick="restDay()">😴 今天休息（不中斷連續天數）</button></div>
+
+          <!-- History block -->
+          <div class="hist-section">
+            <div class="hist-header">📊 歷史紀錄</div>
+            <div class="hist-tabs">
+              <div class="htab active" data-range="day" onclick="switchHist('day')">日</div>
+              <div class="htab" data-range="week" onclick="switchHist('week')">週</div>
+              <div class="htab" data-range="month" onclick="switchHist('month')">月</div>
+              <div class="htab" data-range="all" onclick="switchHist('all')">總</div>
+            </div>
+            <div class="hist-body" id="histBody"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -519,7 +561,7 @@ window.S=loadL();
 function defS(){return{thresh:30,todayStand:0,todayWater:0,streak:0,lastDate:null,
   sitStageIdx:0,sitStageXP:0,waterStageIdx:0,waterStageXP:0,
   garden:[],soundOn:true,totalStands:0,totalWater:0,restToday:false,
-  sessionSecTotal:0,longestSit:0,
+  sessionSecTotal:0,longestSit:0,sessionsToday:0,history:[],
   inSession:false,sitStartAt:0,sessionStartAt:0,sessionAccum:0,lastWaterRemindAt:0,alerted:false}}
 function loadL(){
   try{
@@ -527,16 +569,34 @@ function loadL(){
     if(d){
       const today=new Date().toDateString();
       if(d.lastDate&&d.lastDate!==today){
+        // Snapshot yesterday's data into history before reset
+        if(!Array.isArray(d.history))d.history=[];
+        // Only snapshot if there was any meaningful activity (or it was a rest day)
+        if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday){
+          const LONGEST_THRESHOLD=45*60; // 45 min in seconds
+          d.history.push({
+            date:d.lastDate,
+            water:d.todayWater||0,
+            waterMl:(d.todayWater||0)*ML,
+            stands:d.todayStand||0,
+            sessions:d.sessionsToday||0,
+            workTimeSec:d.sessionSecTotal||0,
+            longestSitSec:d.longestSit||0,
+            rested:d.restToday||false,
+            overLongSit:(d.longestSit||0)>=LONGEST_THRESHOLD
+          });
+        }
         const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);
         if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
         else if(diff>1)d.streak=0;
-        d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;d.sessionSecTotal=0;d.longestSit=0;
+        d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;
         d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
       }
       if(!Array.isArray(d.garden))d.garden=[];
+      if(!Array.isArray(d.history))d.history=[];
       // Migrate old garden items (strings → objects)
       d.garden=d.garden.map(g=>typeof g==='string'?{type:'sit',emoji:g}:g);
-      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','totalStands','totalWater','sessionSecTotal','longestSit'].forEach(k=>{if(!d[k])d[k]=0;});
+      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday'].forEach(k=>{if(!d[k])d[k]=0;});
       if(!d.thresh)d.thresh=30;
       return d;
     }
@@ -578,6 +638,7 @@ window.startSession=function(){
   const n=now();
   S.inSession=true;S.sitStartAt=n;S.sessionStartAt=n;S.sessionAccum=S.sessionSecTotal||0;
   S.lastWaterRemindAt=n;S.alerted=false;
+  S.sessionsToday=(S.sessionsToday||0)+1;
   applySessionUI(true);
   if(tid)clearInterval(tid);tid=setInterval(tick,1000);tick();saveSync();
 };
@@ -817,6 +878,186 @@ function renderMini(el,type){
   el.innerHTML=`<div class="mini-row"><div class="mini-plant">${st.e}</div><div class="mini-info"><div class="mini-name ${nameCls}">${st.n} (${idx+1}/8)</div><div class="mini-bar"><div class="mini-bar-fill ${barCls}" style="width:${Math.min(100,xp/need*100)}%"></div></div></div></div><div class="mini-trees">${typeTrees.length?typeTrees.map(g=>`<span class="mini-tree">${g.emoji}</span>`).join(''):'<span class="mini-empty">還沒種出來呢</span>'}</div>`;
 }
 
+// ===== HISTORY =====
+const LONGEST_WARN_SEC=45*60; // 45min threshold for "over long sit"
+let currentHist='day';
+
+window.switchHist=function(range){
+  currentHist=range;
+  document.querySelectorAll('.htab').forEach(t=>t.classList.toggle('active',t.dataset.range===range));
+  renderHistory();
+};
+
+// Build "today" synthetic record from current state (for comparisons / week / month totals)
+function todaySnapshot(){
+  return {
+    date:S.lastDate||new Date().toDateString(),
+    water:S.todayWater||0,
+    waterMl:(S.todayWater||0)*ML,
+    stands:S.todayStand||0,
+    sessions:S.sessionsToday||0,
+    workTimeSec:(S.sessionAccum||0)+(S.inSession?Math.floor((Date.now()-(S.sessionStartAt||Date.now()))/1000):0),
+    longestSitSec:S.longestSit||0,
+    rested:S.restToday||false,
+    overLongSit:(S.longestSit||0)>=LONGEST_WARN_SEC
+  };
+}
+
+// Calculate aggregate stats over a set of day records. Excludes rest days from workday count.
+function aggregate(records){
+  const workdays=records.filter(r=>!r.rested);
+  const n=workdays.length||1;
+  const sum=(k)=>workdays.reduce((a,r)=>a+(r[k]||0),0);
+  const overLongCount=workdays.filter(r=>r.overLongSit).length;
+  return {
+    count:workdays.length,
+    totalWater:sum('water'),
+    totalWaterMl:sum('waterMl'),
+    totalStands:sum('stands'),
+    totalWorkSec:sum('workTimeSec'),
+    totalSessions:sum('sessions'),
+    avgWater:sum('water')/n,
+    avgWaterMl:sum('waterMl')/n,
+    avgStands:sum('stands')/n,
+    avgWorkSec:sum('workTimeSec')/n,
+    avgLongestSec:sum('longestSitSec')/n,
+    overLongCount
+  };
+}
+
+// Filter history records within last N days (based on date string comparison)
+function recentNDays(n){
+  const all=[...(S.history||[])];
+  // Add today if it has any activity
+  const today=todaySnapshot();
+  if(today.water>0||today.stands>0||today.workTimeSec>0||today.rested)all.push(today);
+  // Sort newest first
+  all.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  // Filter by age
+  const cutoff=new Date();cutoff.setDate(cutoff.getDate()-n);
+  return all.filter(r=>new Date(r.date)>=cutoff);
+}
+
+function allDays(){
+  const all=[...(S.history||[])];
+  const today=todaySnapshot();
+  if(today.water>0||today.stands>0||today.workTimeSec>0||today.rested)all.push(today);
+  all.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  return all;
+}
+
+function fmtDate(s){
+  const d=new Date(s);
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function fmtHr(sec){
+  if(sec<60)return sec+'s';
+  const m=Math.round(sec/60);
+  if(m<60)return m+'m';
+  const h=Math.floor(m/60),r=m%60;
+  return r?`${h}h${r}m`:`${h}h`;
+}
+
+// Color class helper for water/stand/longestSit
+function colorCls(type,val){
+  if(type==='water')return val>=W_STREAK?'ok':'bad';
+  if(type==='stand')return val>=S_GOAL?'ok':'bad';
+  if(type==='longest')return val>=LONGEST_WARN_SEC?'over':'ok';
+  return 'info';
+}
+
+function renderHistory(){
+  const body=document.getElementById('histBody');
+  if(!body)return;
+  if(currentHist==='day')body.innerHTML=renderDayView();
+  else if(currentHist==='week')body.innerHTML=renderRangeView(7,'最近 7 天');
+  else if(currentHist==='month')body.innerHTML=renderRangeView(30,'最近 30 天');
+  else body.innerHTML=renderAllView();
+}
+
+function renderDayView(){
+  const today=todaySnapshot();
+  // Use all history (workdays) for the "平均" comparison
+  const allData=aggregate(allDays());
+  const wCls=colorCls('water',today.water);
+  const sCls=colorCls('stand',today.stands);
+  const lCls=colorCls('longest',today.longestSitSec);
+  if(today.water===0&&today.stands===0&&today.workTimeSec===0&&!today.rested){
+    return `<div class="hist-empty">今天還沒開始記錄</div>`;
+  }
+  if(today.rested){
+    return `<div class="hist-summary">
+      <div class="hs-row"><span class="hs-icon">😴</span><span class="hs-val">休息日</span></div>
+    </div>`;
+  }
+  const avgLine=allData.count>0?`(歷史平均 ${allData.avgWater.toFixed(1)} 杯 / ${Math.round(allData.avgWaterMl)} ml)`:'';
+  const avgLineS=allData.count>0?`(歷史平均 ${allData.avgStands.toFixed(1)} 次)`:'';
+  const avgLineW=allData.count>0?`(歷史平均 ${fmtHr(Math.round(allData.avgWorkSec))})`:'';
+  const avgLineL=allData.count>0?`(歷史平均 ${fmtHr(Math.round(allData.avgLongestSec))})`:'';
+  return `<div class="hist-summary">
+    <div class="hs-row"><span class="hs-icon">💧</span><span class="hs-val ${wCls}">${today.water} 杯 (${today.waterMl} ml)</span><span class="hs-avg">${avgLine}</span></div>
+    <div class="hs-row"><span class="hs-icon">🪑</span><span class="hs-val ${sCls}">${today.stands} 次</span><span class="hs-avg">${avgLineS}</span></div>
+    <div class="hs-row"><span class="hs-icon">⏱️</span><span class="hs-val info">${fmtHr(today.workTimeSec)}</span><span class="hs-sub">${today.sessions} session</span><span class="hs-avg">${avgLineW}</span></div>
+    <div class="hs-row"><span class="hs-icon">📌</span><span class="hs-val ${lCls}">最長 ${fmtHr(today.longestSitSec)}</span>${today.overLongSit?'<span class="hs-sub">⚠️ 超標</span>':''}<span class="hs-avg">${avgLineL}</span></div>
+  </div>`;
+}
+
+function renderRangeView(days,label){
+  const records=recentNDays(days);
+  if(records.length===0){
+    return `<div class="hist-empty">${label}還沒有紀錄</div>`;
+  }
+  const agg=aggregate(records);
+  const gardenAdd=(S.garden||[]).length; // Total — we don't store garden per day; show total
+  const summary=`<div class="hist-summary">
+    <div class="hs-row"><span class="hs-icon">💧</span><span class="hs-val">${agg.totalWater} 杯 (${agg.totalWaterMl} ml)</span><span class="hs-avg">(平均 ${agg.avgWater.toFixed(1)} 杯 / ${Math.round(agg.avgWaterMl)} ml)</span></div>
+    <div class="hs-row"><span class="hs-icon">🪑</span><span class="hs-val">${agg.totalStands} 次</span><span class="hs-avg">(平均 ${agg.avgStands.toFixed(1)} 次)</span></div>
+    <div class="hs-row"><span class="hs-icon">⏱️</span><span class="hs-val">${fmtHr(agg.totalWorkSec)}</span><span class="hs-sub">${agg.totalSessions} sessions</span><span class="hs-avg">(平均 ${fmtHr(Math.round(agg.avgWorkSec))})</span></div>
+    <div class="hs-row"><span class="hs-icon">📌</span><span class="hs-val ${agg.overLongCount>0?'bad':'ok'}">超標 ${agg.overLongCount} 次</span><span class="hs-sub">(≥ 45 min)</span><span class="hs-avg">(平均 ${fmtHr(Math.round(agg.avgLongestSec))})</span></div>
+    <div class="hs-row"><span class="hs-icon">📅</span><span class="hs-val">${agg.count} 個工作日</span></div>
+  </div>`;
+  const list=renderDailyList(records);
+  return `<div class="hist-list-title">📅 ${label}累計</div>${summary}<div class="hist-list-title">每日明細</div>${list}`;
+}
+
+function renderAllView(){
+  const records=allDays();
+  if(records.length===0){
+    return `<div class="hist-empty">還沒有紀錄</div>`;
+  }
+  const agg=aggregate(records);
+  const gardenTotal=(S.garden||[]).length;
+  const summary=`<div class="hist-summary">
+    <div class="hs-row"><span class="hs-icon">💧</span><span class="hs-val">${agg.totalWater} 杯 (${agg.totalWaterMl} ml)</span><span class="hs-avg">(平均 ${agg.avgWater.toFixed(1)} 杯 / ${Math.round(agg.avgWaterMl)} ml)</span></div>
+    <div class="hs-row"><span class="hs-icon">🪑</span><span class="hs-val">${agg.totalStands} 次</span><span class="hs-avg">(平均 ${agg.avgStands.toFixed(1)} 次)</span></div>
+    <div class="hs-row"><span class="hs-icon">⏱️</span><span class="hs-val">${fmtHr(agg.totalWorkSec)}</span><span class="hs-sub">${agg.totalSessions} sessions</span><span class="hs-avg">(平均 ${fmtHr(Math.round(agg.avgWorkSec))})</span></div>
+    <div class="hs-row"><span class="hs-icon">📌</span><span class="hs-val ${agg.overLongCount>0?'bad':'ok'}">超標 ${agg.overLongCount} 次</span><span class="hs-sub">(≥ 45 min)</span><span class="hs-avg">(平均 ${fmtHr(Math.round(agg.avgLongestSec))})</span></div>
+    <div class="hs-row"><span class="hs-icon">🌳</span><span class="hs-val">植物園 ${gardenTotal} 棵</span></div>
+    <div class="hs-row"><span class="hs-icon">📅</span><span class="hs-val">${agg.count} 個工作日</span></div>
+  </div>`;
+  return `<div class="hist-list-title">📊 總累計</div>${summary}`;
+}
+
+function renderDailyList(records){
+  if(records.length===0)return '<div class="hist-empty">沒有資料</div>';
+  return `<div class="hist-list">${records.map(r=>{
+    if(r.rested){
+      return `<div class="hist-row"><span class="hr-date">${fmtDate(r.date)}</span><span class="hr-rest">😴 休息日</span></div>`;
+    }
+    const wCls=colorCls('water',r.water);
+    const sCls=colorCls('stand',r.stands);
+    const lCls=colorCls('longest',r.longestSitSec);
+    return `<div class="hist-row">
+      <span class="hr-date">${fmtDate(r.date)}</span>
+      <span class="hr-item">💧<span class="hr-v ${wCls}">${r.water}</span><span class="hs-sub">(${r.waterMl})</span></span>
+      <span class="hr-item">🪑<span class="hr-v ${sCls}">${r.stands}</span></span>
+      <span class="hr-item">⏱️<span class="hr-v info">${fmtHr(r.workTimeSec)}</span></span>
+      <span class="hr-item">📌<span class="hr-v ${lCls}">${fmtHr(r.longestSitSec)}</span>${r.overLongSit?'⚠️':''}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function renderAll(){
   updTop(S.inSession?sitE():0);
   // Cups
@@ -865,6 +1106,8 @@ function renderAll(){
   // Tab badges
   document.getElementById('tabWaterBadge').textContent=S.todayWater>=W_STREAK?'✓':(S.todayWater?`${S.todayWater}杯`:'');
   document.getElementById('tabGardenBadge').textContent=S.garden.length?`${S.garden.length}棵`:'';
+  // History
+  renderHistory();
 }
 
 function updTop(e){
