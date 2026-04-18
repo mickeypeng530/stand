@@ -782,17 +782,15 @@ onAuthStateChanged(fbAuth,async u=>{
     renderAll();
     // Set up realtime listener — triggers when cloud data changes from another device
     cloudListenerUnsub=onValue(dbRef,snap=>{
-      if(!snap.exists()){console.log('[onValue] snap empty');return;}
+      if(!snap.exists())return;
       const c=snap.val();
-      console.log('[onValue] received updatedAt=',c.updatedAt,'todayWater=',c.todayWater,'inSession=',c.inSession,'| local updatedAt=',S.updatedAt);
       const today=new Date().toDateString();
-      if(c.lastDate&&c.lastDate!==today&&c.lastDate!==null){console.log('[onValue] skip (different day)');return;}
+      if(c.lastDate&&c.lastDate!==today&&c.lastDate!==null)return;
       if(!c.history||Array.isArray(c.history))c.history={};
       if(!Array.isArray(c.garden))c.garden=[];
       // Skip if this is our own recent write (prevent echo loops)
-      if(c.updatedAt&&S.updatedAt&&c.updatedAt<=S.updatedAt){console.log('[onValue] skip (own write / older)');return;}
+      if(c.updatedAt&&S.updatedAt&&c.updatedAt<=S.updatedAt)return;
       if(isCloudNewer(c)){
-        console.log('[onValue] applying cloud state');
         const wasInSession=S.inSession;
         Object.assign(S,c);
         saveLocal();
@@ -801,8 +799,6 @@ onAuthStateChanged(fbAuth,async u=>{
           if(S.inSession)resumeSessionIfNeeded();
         }
         renderAll();
-      }else{
-        console.log('[onValue] cloud not newer, skip');
       }
     });
   }else{
@@ -821,7 +817,6 @@ async function cloudSave(){
   if(!dbRef)return;
   try{
     S.updatedAt=Date.now();
-    console.log('[cloudSave] writing, updatedAt=',S.updatedAt,'todayWater=',S.todayWater);
     await set(dbRef,{...S});
     setSyncChip('cloud','已同步');
   }catch(e){
