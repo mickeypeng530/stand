@@ -150,7 +150,7 @@ html,body{height:100%;}
 .mascot-perch{position:absolute;right:8px;top:40px;width:72px;height:72px;display:flex;align-items:center;justify-content:center;z-index:4;pointer-events:none;}
 .mascot-perch svg{width:66px;height:66px;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.3));}
 .mascot-perch.idle svg{animation:mascot-idle 3s ease-in-out infinite;}
-.mascot-perch.happy svg{animation:mascot-happy 0.6s ease-in-out 3;}
+.mascot-perch.happy svg{animation:mascot-happy 0.6s ease-in-out 2;}
 @keyframes mascot-idle{0%,100%{transform:translateY(0) rotate(0);}50%{transform:translateY(-4px) rotate(-2deg);}}
 @keyframes mascot-happy{0%,100%{transform:translateY(0) scale(1);}30%{transform:translateY(-12px) scale(1.1);}60%{transform:translateY(0) scale(1);}}
 .mascot-speech{position:absolute;right:14px;top:18px;background:#fff;color:#333;padding:4px 9px;border-radius:12px;font-size:calc(10px * var(--fs));font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.3);white-space:nowrap;z-index:3;opacity:0;transform:translateY(4px);transition:all .3s;}
@@ -164,7 +164,7 @@ html,body{height:100%;}
 @media (min-width:900px){
   .mascot-perch{width:120px;height:120px;right:20px;top:56px;}
   .mascot-perch svg{width:110px;height:110px;}
-  /* Align with bottom of threshold buttons (20/30/45) and cups row */
+  /* Align with bottom of threshold buttons (20/25/30/40) and cups row */
   /* Right edge aligned with button right edge (= card padding-right = 28px) */
   .mascot-meta{top:auto;bottom:86px;right:28px;padding:8px 14px;max-width:170px;gap:3px;}
   .mascot-meta .mm-row{font-size:calc(14px * var(--fs));}
@@ -295,14 +295,36 @@ html,body{height:100%;}
 /* ========== ACTIVITY OVERLAY ========== */
 .activity-overlay{position:fixed;inset:0;background:#000000aa;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
 .activity-overlay.show{display:flex;}
-.activity-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,0.6);}
+.activity-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,0.6);animation:cardIn .3s ease-out;}
+@keyframes cardIn{from{opacity:0;transform:scale(0.9);}to{opacity:1;transform:scale(1);}}
 .activity-card .ac-title{font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;margin-bottom:8px;}
-.activity-card .ac-icon{font-size:48px;margin:12px 0;}
-.activity-card .ac-text{font-size:calc(17px * var(--fs));color:var(--text);font-weight:700;line-height:1.5;margin-bottom:20px;}
+.activity-card .ac-icon{font-size:48px;margin:12px 0;display:inline-block;min-height:60px;line-height:60px;}
+.activity-card.rolling .ac-icon{animation:rouletteShake .06s linear infinite;}
+@keyframes rouletteShake{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-3px);}
+}
+.activity-card.settled .ac-icon{animation:rouletteStop .5s cubic-bezier(0.34,1.56,0.64,1);}
+@keyframes rouletteStop{
+  0%{transform:scale(1.4) rotate(-10deg);}
+  50%{transform:scale(0.85) rotate(5deg);}
+  100%{transform:scale(1) rotate(0);}
+}
+.activity-card.rolling .ac-text{opacity:0.35;transition:opacity .2s;}
+.activity-card.settled .ac-text{opacity:1;transition:opacity .4s;animation:textSlideIn .4s ease-out;}
+@keyframes textSlideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.activity-card .ac-text{font-size:calc(17px * var(--fs));color:var(--text);font-weight:700;line-height:1.5;margin-bottom:20px;min-height:52px;}
 .activity-card .ac-btns{display:flex;gap:10px;}
+.activity-card.rolling .ac-btns{opacity:0.3;pointer-events:none;transition:opacity .3s;}
 .activity-card .ac-btns button{flex:1;padding:12px;border-radius:10px;border:none;font-family:inherit;font-weight:700;font-size:calc(14px * var(--fs));cursor:pointer;}
 .activity-card .ac-no{background:var(--card-alt);color:var(--text-dim);}
 .activity-card .ac-yes{background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;}
+.activity-card .ac-countdown{margin-top:10px;font-size:calc(11px * var(--fs));color:var(--text-dim);opacity:0.7;min-height:14px;}
+.activity-card.doing{border-color:var(--green);}
+.activity-card.doing .ac-countdown{color:var(--green-light);font-size:calc(14px * var(--fs));font-weight:700;opacity:1;}
+.activity-card.doing .ac-title{color:var(--gold);}
+.activity-card.doing .ac-icon{animation:doingPulse 1.2s ease-in-out infinite;}
+@keyframes doingPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
 
 /* Toast */
 .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--green);color:var(--green-light);padding:10px 18px;border-radius:12px;font-size:calc(13px * var(--fs));z-index:300;box-shadow:0 4px 16px rgba(0,0,0,0.4);opacity:0;transition:opacity .3s;pointer-events:none;}
@@ -426,8 +448,9 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
       <span class="menu-text">久坐門檻</span>
       <div class="menu-inline">
         <button class="sbtn" data-thresh="20">20</button>
+        <button class="sbtn" data-thresh="25">25</button>
         <button class="sbtn on" data-thresh="30">30</button>
-        <button class="sbtn" data-thresh="45">45</button>
+        <button class="sbtn" data-thresh="40">40</button>
       </div>
     </div>
     <div class="menu-row">
@@ -629,6 +652,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
       <button class="ac-no" onclick="closeActivity(false)">跳過</button>
       <button class="ac-yes" onclick="closeActivity(true)">好的 +1 XP</button>
     </div>
+    <div class="ac-countdown" id="acCountdown"></div>
   </div>
 </div>
 
@@ -1460,59 +1484,66 @@ function resetSit(){
 // Called when user confirms standing up
 window.handleStandup=function(){
   if(!S.inSession){
-    // If not in session, prompt to start work instead
     showToast('記得先按「開始工作」喔');
     return;
   }
   const sat=currentSitSec();
   const threshSec=(S.thresh||30)*60;
-  // Zone-based XP rules
-  // 0-10min (silent): too soon, no break needed — reset only, no XP, no count
-  // 10-15min: encouragement zone — still no XP, but counts as light break
-  // 15min-threshold: active — +2 XP (healthy break)
-  // threshold-60min: reminded — +1 XP (took the break after alert)
-  // 60min+ (away): session was lost — no XP
-  let xpGain=0, countsAsStand=true, showCard=true;
+
+  // Zone-based behavior:
+  //   0-10 min (silent): reset sit timer, session continues, mascot says "加油加油", NO stand count, NO XP, NO card
+  //   10-15 min (encouragement): end session, NO stand count, NO XP, NO card, mascot says "辛苦了 休息一下"
+  //   15min - threshold (active): end session, +1 stand, +2 XP, show card, mascot happy (+toast)
+  //   threshold - 60min (reminded): end session, +1 stand, +1 XP, show card, mascot happy (+toast)
+  //   60+ min (away): end session, NO stand, NO XP, NO card, mascot says "休息一下 加油加油"
+
+  // Silent zone: just reset and continue
   if(sat<SILENT){
-    // 0-10 min — just reset, don't end session
-    countsAsStand=false;
-    showCard=false;
-    showToast('才剛坐下呢～再工作一會兒吧 🌱');
+    triggerMascot('sit','加油加油 💪');
     resetSit();
     saveSync();
     return;
-  }else if(sat<15*60){
-    // 10-15 min — counts as light break but no XP
-    xpGain=0;
-    showToast('動一下也好 · 繼續加油 💪');
-  }else if(sat<threshSec){
-    xpGain=2; // 15min - threshold (active zone) — proactive bonus
-  }else if(sat<AWAY){
-    xpGain=1; // threshold - 60min (reminded) — at least took the break
-  }else{
-    // 60+ min (away) — count as stand but no XP
-    xpGain=0;
-    showToast('離開好久～重新開始吧 😌');
   }
+
+  // End session for all other zones
+  let xpGain=0, countsAsStand=false, showCard=false, pendingToast=null, mascotMsg=null;
+
+  if(sat<15*60){
+    // 10-15 min: encouragement zone, no XP, no card
+    mascotMsg='辛苦了，休息一下 ☕';
+  }else if(sat<threshSec){
+    // Active zone: +2 XP, show card
+    xpGain=2; countsAsStand=true; showCard=true;
+    pendingToast='+2 XP · 動得好 💚';
+  }else if(sat<AWAY){
+    // Reminded zone: +1 XP, show card
+    xpGain=1; countsAsStand=true; showCard=true;
+    pendingToast='+1 XP · 動一動吧 ✨';
+  }else{
+    // Away zone (60+ min): no XP, no card
+    mascotMsg='休息一下，加油加油 🌿';
+  }
+
+  // Apply state changes
   if(countsAsStand){
     S.todayStand=(S.todayStand||0)+1;
     S.totalStands=(S.totalStands||0)+1;
     if(xpGain>0)addSeedXP('sit',xpGain);
     checkPetGoals();
   }
-  // End the session — user needs to press "start work" again to resume
-  // This accumulates the session time into sessionSecTotal and stops the tick
   S.sessionSecTotal=totalSS();
   if(sat>(S.longestSit||0))S.longestSit=sat;
   S.inSession=false;
   S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
   applySessionUI();
-  // Mascot animation first; delay activity card so user can see the "great job" bounce
-  triggerMascot('sit');
+  // Trigger mascot (either happy default or specific message)
+  triggerMascot('sit',mascotMsg);
   renderAll();
   saveSync();
+  // If showing activity card, delay for mascot animation (1300ms); toast shows AFTER card closes
   if(showCard){
-    setTimeout(()=>showActivity(),1600); // wait for mascot happy animation to finish
+    window._pendingPostCardToast=pendingToast;
+    setTimeout(()=>showActivity(),1300);
   }
 };
 
@@ -1637,13 +1668,14 @@ function checkPetLevelUp(type){
 }
 
 // ===== MASCOT VISUAL =====
-function triggerMascot(type){
+function triggerMascot(type,customMsg){
   const el=document.getElementById(type+'Mascot');
   const sp=document.getElementById(type+'Speech');
   if(!el||!sp)return;
   el.classList.remove('idle');el.classList.add('happy');
-  setTimeout(()=>{el.classList.remove('happy');el.classList.add('idle');},1800);
-  sp.textContent=MSGS[type][Math.floor(Math.random()*MSGS[type].length)];
+  setTimeout(()=>{el.classList.remove('happy');el.classList.add('idle');},1200);
+  // Use custom message if provided, otherwise pick from default pool
+  sp.textContent=customMsg||MSGS[type][Math.floor(Math.random()*MSGS[type].length)];
   sp.classList.add('show');
   setTimeout(()=>sp.classList.remove('show'),2200);
 }
@@ -1801,10 +1833,13 @@ function renderGarden(){
     const grassRect=scene.children[1];
     if(skyRect&&skyRect.tagName==='rect')skyRect.setAttribute('fill',isNight?'#1a2847':'#cfe8f5');
     // Static sky decoration: sun during day, moon+stars at night
+    // Mobile vertical compensation: container is 16:9 (1.78:1), viewBox is 800:350 (2.29:1)
+    // → vertical stretch factor ≈ 1.29, so shrink height by 1/1.29 ≈ 0.78 on mobile
+    const vCompensate=isMobile?0.78:1;
     if(isNight){
       // Moon — narrow (viewBox 40x64) so it looks round after horizontal stretch
       // Placed on LEFT side to avoid overlap with trees planted at right
-      const mw=40*scale,mh=64*scale;
+      const mw=40*scale,mh=64*scale*vCompensate;
       scene.insertAdjacentHTML('beforeend',
         `<g transform="translate(30 25)"><use href="#d-moon" width="${mw}" height="${mh}"/></g>`);
       // Scatter stars across the sky (y < 220 only)
@@ -1812,13 +1847,13 @@ function renderGarden(){
       STARS.forEach(s=>{
         const id=s.t==='s'?'d-star':'d-stardot';
         const sw=s.w*scale;
-        const sh=s.w*scale;
+        const sh=s.w*scale*vCompensate;
         starsHtml+=`<g transform="translate(${s.x-sw/2} ${s.y-sh/2})"><use href="#${id}" width="${sw}" height="${sh}"/></g>`;
       });
       scene.insertAdjacentHTML('beforeend',starsHtml);
     }else{
       // Sun — LEFT side, same reason
-      const sw=70*scale,sh=70*scale;
+      const sw=70*scale,sh=70*scale*vCompensate;
       scene.insertAdjacentHTML('beforeend',
         `<g transform="translate(30 25)"><use href="#d-sun" width="${sw}" height="${sh}"/></g>`);
     }
@@ -1882,21 +1917,124 @@ function beep(){
 
 // ===== ACTIVITY OVERLAY =====
 let currentActivity=null;
+let activityCountdownTimer=null;
+let activityAutoCloseTimer=null;
 function showActivity(){
   currentActivity=ACTS[Math.floor(Math.random()*ACTS.length)];
-  document.getElementById('acIcon').textContent=currentActivity.i;
-  document.getElementById('acText').textContent=currentActivity.t;
-  document.getElementById('activityOverlay').classList.add('show');
+  const overlay=document.getElementById('activityOverlay');
+  const card=overlay.querySelector('.activity-card');
+  const iconEl=document.getElementById('acIcon');
+  const textEl=document.getElementById('acText');
+  const countdownEl=document.getElementById('acCountdown');
+  overlay.classList.add('show');
+  card.classList.remove('settled');
+  card.classList.add('rolling');
+  textEl.textContent='🎲 抽卡中…';
+  if(countdownEl)countdownEl.textContent='';
+
+  // Roulette: cycle through random icons rapidly, then slow down
+  const totalTime=1400;
+  const startDelay=60;
+  const endDelay=240;
+  let elapsed=0;
+  const step=()=>{
+    const progress=Math.min(elapsed/totalTime,1);
+    const delay=startDelay+(endDelay-startDelay)*(progress*progress);
+    const randAct=ACTS[Math.floor(Math.random()*ACTS.length)];
+    iconEl.textContent=randAct.i;
+    elapsed+=delay;
+    if(elapsed<totalTime){
+      setTimeout(step,delay);
+    }else{
+      // Land on chosen activity
+      iconEl.textContent=currentActivity.i;
+      textEl.textContent=currentActivity.t;
+      card.classList.remove('rolling');
+      card.classList.add('settled');
+      if(S.soundOn)beep();
+      // Start 30s countdown auto-close
+      startActivityCountdown(30);
+    }
+  };
+  setTimeout(step,startDelay);
 }
+
+function startActivityCountdown(seconds){
+  const countdownEl=document.getElementById('acCountdown');
+  let remain=seconds;
+  if(countdownEl)countdownEl.textContent=`${remain}s 後自動關閉`;
+  activityCountdownTimer=setInterval(()=>{
+    remain--;
+    if(countdownEl)countdownEl.textContent=remain>0?`${remain}s 後自動關閉`:'';
+    if(remain<=0)clearInterval(activityCountdownTimer);
+  },1000);
+  activityAutoCloseTimer=setTimeout(()=>window.closeActivity(false),seconds*1000);
+}
+
 window.closeActivity=function(accepted){
-  document.getElementById('activityOverlay').classList.remove('show');
+  // Clear countdown timers
+  if(activityCountdownTimer){clearInterval(activityCountdownTimer);activityCountdownTimer=null;}
+  if(activityAutoCloseTimer){clearTimeout(activityAutoCloseTimer);activityAutoCloseTimer=null;}
   if(accepted&&currentActivity){
-    // +1 bonus XP for doing the activity
+    // Enter "doing" mode: show countdown, wait 30s, then give XP
+    startDoingCountdown(30);
+  }else{
+    // Skipped or auto-closed: close immediately
+    document.getElementById('activityOverlay').classList.remove('show');
+    if(window._pendingPostCardToast){
+      showToast(window._pendingPostCardToast);
+    }
+    window._pendingPostCardToast=null;
+    currentActivity=null;
+  }
+};
+
+let doingTimer=null;
+let doingAutoFinishTimer=null;
+function startDoingCountdown(seconds){
+  const card=document.querySelector('.activity-card');
+  const titleEl=document.getElementById('acTitle');
+  const textEl=document.getElementById('acText');
+  const countdownEl=document.getElementById('acCountdown');
+  const btns=document.querySelector('.ac-btns');
+  // Switch to "doing" state
+  card.classList.add('doing');
+  if(titleEl)titleEl.textContent='🔥 執行中…';
+  if(btns){
+    btns.innerHTML=`<button class="ac-yes" onclick="finishDoing()">完成 ✓</button>`;
+  }
+  let remain=seconds;
+  if(countdownEl)countdownEl.textContent=`💪 ${remain}s · 加油！`;
+  doingTimer=setInterval(()=>{
+    remain--;
+    if(countdownEl)countdownEl.textContent=remain>0?`💪 ${remain}s · 加油！`:'✅ 完成了！';
+    if(remain<=0)clearInterval(doingTimer);
+  },1000);
+  doingAutoFinishTimer=setTimeout(()=>window.finishDoing(),seconds*1000);
+}
+
+window.finishDoing=function(){
+  if(doingTimer){clearInterval(doingTimer);doingTimer=null;}
+  if(doingAutoFinishTimer){clearTimeout(doingAutoFinishTimer);doingAutoFinishTimer=null;}
+  const card=document.querySelector('.activity-card');
+  const titleEl=document.getElementById('acTitle');
+  card.classList.remove('doing');
+  // Restore title for next time
+  if(titleEl)titleEl.textContent='🎉 站起來了！要不要動一動？';
+  // Restore button layout for next time
+  const btns=document.querySelector('.ac-btns');
+  if(btns){
+    btns.innerHTML=`<button class="ac-no" onclick="closeActivity(false)">跳過</button><button class="ac-yes" onclick="closeActivity(true)">好的 +1 XP</button>`;
+  }
+  document.getElementById('activityOverlay').classList.remove('show');
+  // Give the XP reward
+  if(currentActivity){
     addSeedXP('sit',1);
     showToast('💚 做得好！+1 額外 XP');
     renderAll();
     saveSync();
   }
+  window._pendingPostCardToast=null;
   currentActivity=null;
 };
 
