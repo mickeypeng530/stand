@@ -209,7 +209,43 @@ html,body{height:100%;}
 .garden-scene-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;}
 .garden-head{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text);}
 .garden-head .gsub{margin-left:auto;font-size:10px;color:var(--text-dim);font-weight:400;}
-.garden-scene{width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;display:block;background:linear-gradient(180deg,#b8d9e8 0%,#d4e8c0 55%,#a8d582 100%);}
+/* Garden: HTML-based scene with absolute-positioned decorations */
+.garden-scene{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:10px;
+  overflow:hidden;
+  /* Sky 65% top, grass 35% bottom */
+  background:linear-gradient(180deg,#cfe8f5 0%,#cfe8f5 65%,#a8d582 65%,#a8d582 100%);
+  transition:background .6s;
+}
+.garden-scene.night{
+  background:linear-gradient(180deg,#1a2847 0%,#1a2847 65%,#a8d582 65%,#a8d582 100%);
+}
+/* Grass lip highlight (subtle horizon line) */
+.garden-scene::before{
+  content:'';
+  position:absolute;
+  left:0;right:0;
+  top:65%;
+  height:3px;
+  background:#8ec46e;
+  opacity:0.5;
+}
+/* Decoration base class — absolutely positioned, centered on its anchor point */
+.gdecor{
+  position:absolute;
+  display:block;
+  pointer-events:none;
+}
+.gdecor svg{display:block;width:100%;height:100%;}
+
+@media (min-width:900px){
+  /* Desktop garden: use container's actual height instead of aspect ratio */
+  .garden-scene{aspect-ratio:auto;height:100%;min-height:120px;}
+}
+
 .garden-caption{display:flex;gap:8px;font-size:calc(13px * var(--fs));color:var(--text-dim);justify-content:space-between;padding:6px 4px;flex-wrap:wrap;}
 
 /* ========== HISTORY ========== */
@@ -554,12 +590,9 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
           <span>🏡</span>我的花園
           <span class="gsub" id="gardenSub">還沒有植物</span>
         </div>
-        <svg viewBox="0 0 800 350" class="garden-scene" preserveAspectRatio="none" shape-rendering="geometricPrecision" id="gardenScene">
-          <rect x="0" y="0" width="800" height="230" fill="#cfe8f5"/>
-          <rect x="0" y="230" width="800" height="120" fill="#a8d582"/>
-          <ellipse cx="400" cy="232" rx="800" ry="8" fill="#8ec46e" opacity="0.5"/>
-          <!-- Plants will be rendered here dynamically -->
-        </svg>
+        <div class="garden-scene" id="gardenScene">
+          <!-- Decorations rendered dynamically via renderGarden -->
+        </div>
         <div class="garden-caption" id="gardenCaption">
           <span>繼續努力，花園會慢慢長滿</span>
         </div>
@@ -597,11 +630,9 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
         <span>🏡</span>我的花園
         <span class="gsub" id="gardenSubMobile">還沒有植物</span>
       </div>
-      <svg viewBox="0 0 800 350" class="garden-scene" preserveAspectRatio="none" shape-rendering="geometricPrecision" id="gardenSceneMobile">
-        <rect x="0" y="0" width="800" height="230" fill="#cfe8f5"/>
-        <rect x="0" y="230" width="800" height="120" fill="#a8d582"/>
-        <ellipse cx="400" cy="232" rx="800" ry="8" fill="#8ec46e" opacity="0.5"/>
-      </svg>
+      <div class="garden-scene" id="gardenSceneMobile">
+        <!-- Decorations rendered dynamically via renderGarden -->
+      </div>
       <div class="garden-caption" id="gardenCaptionMobile">
         <span>繼續努力，花園會慢慢長滿</span>
       </div>
@@ -1792,26 +1823,29 @@ function renderTimer(){
 }
 
 // ===== GARDEN RENDERER =====
+// New architecture: HTML div container + absolute-positioned SVG items.
+// Each item's SVG retains its natural aspect ratio regardless of container size.
+// Positions use percentages so items move with container, but sizes use px (fixed).
+
 function renderGarden(){
   const scenes=[document.getElementById('gardenScene'),document.getElementById('gardenSceneMobile')];
   // Determine time of day: 6am-6pm = day, else = night
   const hr=new Date().getHours();
   const isNight=hr<6||hr>=18;
   // Migrate old garden items: anything with y < 230 was placed in sky (old zones bug)
-  // Relocate them to the grass area based on type
   let migrated=false;
   (S.garden||[]).forEach(g=>{
     if(g.y<230){
       if(g.type==='sit'||g.source==='pet'){
-        g.y=238+Math.random()*17; // back zone
+        g.y=238+Math.random()*17;
       }else{
-        g.y=295+Math.random()*30; // front zone
+        g.y=295+Math.random()*30;
       }
       migrated=true;
     }
   });
   if(migrated)saveLocal();
-  // Fixed star positions (scattered across sky) — deterministic so they don't jump each render
+  // Fixed star positions (relative to 800×350 reference grid — converted to % below)
   const STARS=[
     {x:45,y:28,t:'s',w:12},{x:110,y:18,t:'d',w:5},{x:180,y:38,t:'s',w:10},
     {x:250,y:22,t:'d',w:4},{x:310,y:45,t:'s',w:11},{x:395,y:20,t:'d',w:5},
@@ -1822,75 +1856,97 @@ function renderGarden(){
   ];
   scenes.forEach(scene=>{
     if(!scene)return;
-    // Mobile scene — enlarge everything 1.8x since phone screen is smaller
     const isMobile=scene.id==='gardenSceneMobile';
-    const scale=isMobile?1.8:1;
-    // Preserve background rects (first 3), clear the rest
-    const kids=Array.from(scene.children);
-    kids.forEach((k,i)=>{if(i>=3)k.remove();});
-    // Night: darken sky background to deep blue
-    const skyRect=scene.children[0];
-    const grassRect=scene.children[1];
-    if(skyRect&&skyRect.tagName==='rect')skyRect.setAttribute('fill',isNight?'#1a2847':'#cfe8f5');
-    // Static sky decoration: sun during day, moon+stars at night
-    // Mobile vertical compensation: container is 16:9 (1.78:1), viewBox is 800:350 (2.29:1)
-    // → vertical stretch factor ≈ 1.29, so shrink height by 1/1.29 ≈ 0.78 on mobile
-    const vCompensate=isMobile?0.78:1;
-    if(isNight){
-      // Moon — narrow (viewBox 40x64) so it looks round after horizontal stretch
-      // Placed on LEFT side to avoid overlap with trees planted at right
-      const mw=40*scale,mh=64*scale*vCompensate;
-      scene.insertAdjacentHTML('beforeend',
-        `<g transform="translate(30 25)"><use href="#d-moon" width="${mw}" height="${mh}"/></g>`);
-      // Scatter stars across the sky (y < 220 only)
-      let starsHtml='';
-      STARS.forEach(s=>{
-        const id=s.t==='s'?'d-star':'d-stardot';
-        const sw=s.w*scale;
-        const sh=s.w*scale*vCompensate;
-        starsHtml+=`<g transform="translate(${s.x-sw/2} ${s.y-sh/2})"><use href="#${id}" width="${sw}" height="${sh}"/></g>`;
-      });
-      scene.insertAdjacentHTML('beforeend',starsHtml);
-    }else{
-      // Sun — LEFT side, same reason
-      const sw=70*scale,sh=70*scale*vCompensate;
-      scene.insertAdjacentHTML('beforeend',
-        `<g transform="translate(30 25)"><use href="#d-sun" width="${sw}" height="${sh}"/></g>`);
-    }
-    // Static ground decorations: rocks + pond + sign + swing (scaled on mobile)
-    // The y positions are the BASE (bottom edge), so pre-compute: top = base - height*scale
-    const deco=(x,baseY,id,w,h)=>{
-      const sw=w*scale,sh=h*scale;
-      return `<g transform="translate(${x-sw/2} ${baseY-sh})"><use href="#${id}" width="${sw}" height="${sh}"/></g>`;
+    // Day/night CSS class (controls bg gradient)
+    scene.classList.toggle('night',isNight);
+    // Clear any existing children (no more rect children to preserve — bg is CSS now)
+    scene.innerHTML='';
+
+    // Size factors for different device types
+    // Base sizes defined in pixels; mobile scales them independently
+    const sizes={
+      sun:       isMobile?{w:48,h:48}:{w:60,h:60},
+      moon:      isMobile?{w:40,h:50}:{w:50,h:60},
+      star:      isMobile?{mult:1.2}:{mult:1.0},
+      rock:      isMobile?{w:32,h:20}:{w:40,h:24},
+      pond:      isMobile?{w:70,h:28}:{w:90,h:36},
+      sign:      isMobile?{w:32,h:44}:{w:40,h:52},
+      swing:     isMobile?{w:58,h:58}:{w:70,h:70},
+      tree:      isMobile?{w:60,h:80}:{w:80,h:106},
+      flower:    isMobile?{w:48,h:62}:{w:60,h:78},
+      pet:       isMobile?{w:52,h:62}:{w:62,h:74},
     };
-    scene.insertAdjacentHTML('beforeend',
-      deco(49,322,'rock',38,22)+
-      deco(737,328,'rock',34,20)+
-      deco(160,314,'d-pond',80,36)+
-      deco(618,235,'d-sign',36,50)+
-      deco(350,232,'d-swing',60,60)
-    );
-    // Render garden items sorted by y (back first, front last — natural z-order)
+
+    // Helper: build an absolute-positioned SVG element
+    // xp/yp = percentage anchor (0-100). Most items anchor at bottom-center.
+    // anchor: 'bottom' (default) or 'center'
+    const putItem=(xp,yp,w,h,symbolId,anchor)=>{
+      const el=document.createElement('div');
+      el.className='gdecor';
+      // Percentage positioning
+      if(anchor==='center'){
+        // Center anchor: offset by half width/height so xp/yp is the center
+        el.style.left=`calc(${xp}% - ${w/2}px)`;
+        el.style.top=`calc(${yp}% - ${h/2}px)`;
+      }else{
+        // Default 'bottom' anchor: xp is horizontal center, yp is bottom edge
+        el.style.left=`calc(${xp}% - ${w/2}px)`;
+        el.style.top=`calc(${yp}% - ${h}px)`;
+      }
+      el.style.width=w+'px';
+      el.style.height=h+'px';
+      el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet"><use href="#${symbolId}" width="${w}" height="${h}"/></svg>`;
+      scene.appendChild(el);
+    };
+
+    // === SKY: Sun (day) or Moon + Stars (night) ===
+    if(isNight){
+      // Moon — upper left
+      putItem(6,13,sizes.moon.w,sizes.moon.h,'d-moon','center');
+      // Stars — scatter across sky (y < 65% which is horizon line)
+      STARS.forEach(s=>{
+        const xPct=(s.x/800)*100;
+        const yPct=(s.y/350)*100;
+        const sw=s.w*sizes.star.mult;
+        if(yPct<63){  // only render in sky area
+          const id=s.t==='s'?'d-star':'d-stardot';
+          putItem(xPct,yPct,sw,sw,id,'center');
+        }
+      });
+    }else{
+      // Sun — upper left
+      putItem(6,13,sizes.sun.w,sizes.sun.h,'d-sun','center');
+    }
+
+    // === GROUND: static decorations (rocks, pond, sign, swing) ===
+    // Convert old 800×350 coords → percentages
+    // baseY values are bottom edges in the original 800×350 coord system
+    const groundItems=[
+      // x%, y% (bottom), symbol, size-key
+      {xp:(49/800)*100,  yp:(322/350)*100, id:'rock',    sz:sizes.rock},
+      {xp:(737/800)*100, yp:(328/350)*100, id:'rock',    sz:sizes.rock},
+      {xp:(160/800)*100, yp:(314/350)*100, id:'d-pond',  sz:sizes.pond},
+      {xp:(618/800)*100, yp:(235/350)*100, id:'d-sign',  sz:sizes.sign},
+      {xp:(350/800)*100, yp:(232/350)*100, id:'d-swing', sz:sizes.swing},
+    ];
+    groundItems.forEach(g=>{
+      putItem(g.xp,g.yp,g.sz.w,g.sz.h,g.id,'bottom');
+    });
+
+    // === PLANTS & PETS (sorted by y so front overlaps back) ===
     const items=[...(S.garden||[])].sort((a,b)=>a.y-b.y);
     items.forEach(g=>{
-      let w,h;
-      // On mobile, trees use a smaller scale (1.2) to avoid being too tall / overlap moon
-      // Flowers and pets keep the full mobile scale (1.8)
-      let itemScale=scale;
+      const xPct=(g.x/800)*100;
+      const yPct=(g.y/350)*100;
+      let sz;
       if(g.source==='pet'){
-        w=56;h=68;
+        sz=sizes.pet;
       }else if(g.type==='sit'){
-        // Trees — bigger base size, but smaller mobile multiplier
-        w=72;h=96;
-        if(isMobile)itemScale=1.2;
+        sz=sizes.tree;
       }else{
-        // Flowers — smaller
-        w=54;h=70;
+        sz=sizes.flower;
       }
-      const sw=w*itemScale,sh=h*itemScale;
-      // g.x, g.y = center of base (feet touching ground)
-      scene.insertAdjacentHTML('beforeend',
-        `<g transform="translate(${Math.round(g.x-sw/2)} ${Math.round(g.y-sh)})"><use href="#${g.svg}" width="${sw}" height="${sh}"/></g>`);
+      putItem(xPct,yPct,sz.w,sz.h,g.svg,'bottom');
     });
   });
   // Update garden header sub
