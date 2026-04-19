@@ -114,7 +114,6 @@ html,body{height:100%;}
 .bottom-row{display:none;}
 @media (min-width:900px){
   .bottom-row{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;flex:0 0 auto;max-height:45%;}
-  .garden-scene{aspect-ratio:auto;height:100%;min-height:120px;}
   .garden-scene-wrap{min-height:0;}
   .hist-card{min-height:0;overflow:hidden;}
 }
@@ -210,40 +209,42 @@ html,body{height:100%;}
 .garden-head{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text);}
 .garden-head .gsub{margin-left:auto;font-size:10px;color:var(--text-dim);font-weight:400;}
 /* Garden: HTML-based scene with absolute-positioned decorations */
+/* HORIZON_PCT = 70% (top of grass). Sky = 0-70%, grass = 70-100% */
 .garden-scene{
   position:relative;
   width:100%;
-  aspect-ratio:16/9;
+  aspect-ratio:16/7;  /* Original proportion — matches content design */
   border-radius:10px;
   overflow:hidden;
-  /* Sky 65% top, grass 35% bottom */
-  background:linear-gradient(180deg,#cfe8f5 0%,#cfe8f5 65%,#a8d582 65%,#a8d582 100%);
+  background:linear-gradient(180deg,#cfe8f5 0%,#cfe8f5 70%,#a8d582 70%,#a8d582 100%);
   transition:background .6s;
 }
 .garden-scene.night{
-  background:linear-gradient(180deg,#1a2847 0%,#1a2847 65%,#a8d582 65%,#a8d582 100%);
+  background:linear-gradient(180deg,#1a2847 0%,#1a2847 70%,#a8d582 70%,#a8d582 100%);
 }
 /* Grass lip highlight (subtle horizon line) */
 .garden-scene::before{
   content:'';
   position:absolute;
   left:0;right:0;
-  top:65%;
+  top:70%;
   height:3px;
   background:#8ec46e;
   opacity:0.5;
+  z-index:1;
 }
-/* Decoration base class — absolutely positioned, centered on its anchor point */
+/* Decoration base class */
 .gdecor{
   position:absolute;
   display:block;
   pointer-events:none;
+  z-index:2;
 }
 .gdecor svg{display:block;width:100%;height:100%;}
 
 @media (min-width:900px){
-  /* Desktop garden: use container's actual height instead of aspect ratio */
-  .garden-scene{aspect-ratio:auto;height:100%;min-height:120px;}
+  /* Desktop garden: aspect ratio stays to preserve proportions */
+  .garden-scene{aspect-ratio:16/5;}
 }
 
 .garden-caption{display:flex;gap:8px;font-size:calc(13px * var(--fs));color:var(--text-dim);justify-content:space-between;padding:6px 4px;flex-wrap:wrap;}
@@ -1900,44 +1901,62 @@ function renderGarden(){
     };
 
     // === SKY: Sun (day) or Moon + Stars (night) ===
+    // Sun/moon pinned to top-left corner with fixed px offsets (not %), so they
+    // never get clipped regardless of container height.
     if(isNight){
-      // Moon — upper left
-      putItem(6,13,sizes.moon.w,sizes.moon.h,'d-moon','center');
-      // Stars — scatter across sky (y < 65% which is horizon line)
+      // Moon — pin to top-left, 12px from top and left edge
+      const el=document.createElement('div');
+      el.className='gdecor';
+      el.style.left='12px';
+      el.style.top='12px';
+      el.style.width=sizes.moon.w+'px';
+      el.style.height=sizes.moon.h+'px';
+      el.innerHTML=`<svg viewBox="0 0 ${sizes.moon.w} ${sizes.moon.h}" preserveAspectRatio="xMidYMid meet"><use href="#d-moon" width="${sizes.moon.w}" height="${sizes.moon.h}"/></svg>`;
+      scene.appendChild(el);
+      // Stars — scatter across sky (y% < 65, above horizon at 70%)
       STARS.forEach(s=>{
         const xPct=(s.x/800)*100;
         const yPct=(s.y/350)*100;
         const sw=s.w*sizes.star.mult;
-        if(yPct<63){  // only render in sky area
-          const id=s.t==='s'?'d-star':'d-stardot';
-          putItem(xPct,yPct,sw,sw,id,'center');
+        // Only render stars in the sky area (above horizon at 70%)
+        if(yPct<65){
+          putItem(xPct,yPct,sw,sw,s.t==='s'?'d-star':'d-stardot','center');
         }
       });
     }else{
-      // Sun — upper left
-      putItem(6,13,sizes.sun.w,sizes.sun.h,'d-sun','center');
+      // Sun — pin to top-left, 12px from top and left edge
+      const el=document.createElement('div');
+      el.className='gdecor';
+      el.style.left='12px';
+      el.style.top='12px';
+      el.style.width=sizes.sun.w+'px';
+      el.style.height=sizes.sun.h+'px';
+      el.innerHTML=`<svg viewBox="0 0 ${sizes.sun.w} ${sizes.sun.h}" preserveAspectRatio="xMidYMid meet"><use href="#d-sun" width="${sizes.sun.w}" height="${sizes.sun.h}"/></svg>`;
+      scene.appendChild(el);
     }
 
     // === GROUND: static decorations (rocks, pond, sign, swing) ===
-    // Convert old 800×350 coords → percentages
-    // baseY values are bottom edges in the original 800×350 coord system
+    // Horizon line is at 70% of container height.
+    // Convert old coords (230=sky/grass boundary in 350-high grid = 65.7%) to new 70% system.
+    // groundY_new = 70 + ((oldY - 230) / (350 - 230)) * 30
+    const mapY=(oldY)=>70+((oldY-230)/120)*30;
     const groundItems=[
-      // x%, y% (bottom), symbol, size-key
-      {xp:(49/800)*100,  yp:(322/350)*100, id:'rock',    sz:sizes.rock},
-      {xp:(737/800)*100, yp:(328/350)*100, id:'rock',    sz:sizes.rock},
-      {xp:(160/800)*100, yp:(314/350)*100, id:'d-pond',  sz:sizes.pond},
-      {xp:(618/800)*100, yp:(235/350)*100, id:'d-sign',  sz:sizes.sign},
-      {xp:(350/800)*100, yp:(232/350)*100, id:'d-swing', sz:sizes.swing},
+      // xp (0-100), oldBaseY (in 0-350 coord), symbol, size
+      {xp:(49/800)*100,  oldY:322, id:'rock',    sz:sizes.rock},
+      {xp:(737/800)*100, oldY:328, id:'rock',    sz:sizes.rock},
+      {xp:(160/800)*100, oldY:314, id:'d-pond',  sz:sizes.pond},
+      {xp:(618/800)*100, oldY:235, id:'d-sign',  sz:sizes.sign},
+      {xp:(350/800)*100, oldY:232, id:'d-swing', sz:sizes.swing},
     ];
     groundItems.forEach(g=>{
-      putItem(g.xp,g.yp,g.sz.w,g.sz.h,g.id,'bottom');
+      putItem(g.xp,mapY(g.oldY),g.sz.w,g.sz.h,g.id,'bottom');
     });
 
     // === PLANTS & PETS (sorted by y so front overlaps back) ===
     const items=[...(S.garden||[])].sort((a,b)=>a.y-b.y);
     items.forEach(g=>{
       const xPct=(g.x/800)*100;
-      const yPct=(g.y/350)*100;
+      const yPct=mapY(g.y);
       let sz;
       if(g.source==='pet'){
         sz=sizes.pet;
