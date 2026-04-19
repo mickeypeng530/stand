@@ -335,17 +335,18 @@ html,body{height:100%;}
 .activity-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,0.6);animation:cardIn .3s ease-out;}
 @keyframes cardIn{from{opacity:0;transform:scale(0.9);}to{opacity:1;transform:scale(1);}}
 .activity-card .ac-title{font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;margin-bottom:8px;}
-.activity-card .ac-icon{font-size:48px;margin:12px 0;display:inline-block;min-height:60px;line-height:60px;}
-.activity-card.rolling .ac-icon{animation:rouletteShake .06s linear infinite;}
-@keyframes rouletteShake{
-  0%,100%{transform:translateY(0);}
-  50%{transform:translateY(-3px);}
+.activity-card .ac-icon{font-size:48px;margin:12px 0;display:inline-block;min-height:90px;line-height:90px;overflow:hidden;position:relative;will-change:transform;}
+.activity-card.rolling .ac-icon{animation:slotSpin 0.22s linear;}
+@keyframes slotSpin{
+  0%  {transform:translateY(-100px);opacity:0.15;}
+  25% {opacity:0.9;}
+  100%{transform:translateY(0);opacity:1;}
 }
-.activity-card.settled .ac-icon{animation:rouletteStop .5s cubic-bezier(0.34,1.56,0.64,1);}
-@keyframes rouletteStop{
-  0%{transform:scale(1.4) rotate(-10deg);}
-  50%{transform:scale(0.85) rotate(5deg);}
-  100%{transform:scale(1) rotate(0);}
+.activity-card.settled .ac-icon{animation:slotStop 0.55s cubic-bezier(0.34,1.56,0.64,1);}
+@keyframes slotStop{
+  0%  {transform:translateY(-55px);opacity:0.4;}
+  55% {transform:translateY(10px);opacity:1;}
+  100%{transform:translateY(0);opacity:1;}
 }
 .activity-card.rolling .ac-text{opacity:0.35;transition:opacity .2s;}
 .activity-card.settled .ac-text{opacity:1;transition:opacity .4s;animation:textSlideIn .4s ease-out;}
@@ -1864,18 +1865,18 @@ function renderGarden(){
     scene.innerHTML='';
 
     // Size factors for different device types
-    // Base sizes defined in pixels; mobile scales them 0.9 to fit more items over time
+    // Base sizes defined in pixels; mobile scales them 0.8 to fit more items over time
     const sizes={
-      sun:       isMobile?{w:43,h:43}:{w:60,h:60},
-      moon:      isMobile?{w:36,h:45}:{w:50,h:60},
-      star:      isMobile?{mult:1.1}:{mult:1.0},
-      rock:      isMobile?{w:29,h:18}:{w:40,h:24},
-      pond:      isMobile?{w:63,h:25}:{w:90,h:36},
-      sign:      isMobile?{w:29,h:40}:{w:40,h:52},
-      swing:     isMobile?{w:52,h:52}:{w:70,h:70},
-      tree:      isMobile?{w:54,h:72}:{w:80,h:106},
-      flower:    isMobile?{w:43,h:56}:{w:60,h:78},
-      pet:       isMobile?{w:47,h:56}:{w:62,h:74},
+      sun:       isMobile?{w:38,h:38}:{w:60,h:60},
+      moon:      isMobile?{w:32,h:40}:{w:50,h:60},
+      star:      isMobile?{mult:1.0}:{mult:1.0},
+      rock:      isMobile?{w:26,h:16}:{w:40,h:24},
+      pond:      isMobile?{w:56,h:22}:{w:90,h:36},
+      sign:      isMobile?{w:26,h:36}:{w:40,h:52},
+      swing:     isMobile?{w:46,h:46}:{w:70,h:70},
+      tree:      isMobile?{w:48,h:64}:{w:80,h:106},
+      flower:    isMobile?{w:38,h:50}:{w:60,h:78},
+      pet:       isMobile?{w:42,h:50}:{w:62,h:74},
     };
 
     // Helper: build an absolute-positioned SVG element
@@ -2007,27 +2008,37 @@ function showActivity(){
   textEl.textContent='🎲 抽卡中…';
   if(countdownEl)countdownEl.textContent='';
 
-  // Roulette: cycle through random icons rapidly, then slow down
-  const totalTime=1400;
-  const startDelay=60;
-  const endDelay=240;
+  // Slot-machine animation: 1.5s total, each icon fully plays slotSpin before next
+  const totalTime=1500;
+  const startDelay=250;
+  const endDelay=450;
   let elapsed=0;
+  // Reset transform style
+  iconEl.style.transition='';
+  iconEl.style.transform='';
+  // Show initial random icon
+  iconEl.textContent=ACTS[Math.floor(Math.random()*ACTS.length)].i;
+
   const step=()=>{
     const progress=Math.min(elapsed/totalTime,1);
+    // Quadratic slowdown: delay grows from startDelay to endDelay
     const delay=startDelay+(endDelay-startDelay)*(progress*progress);
     const randAct=ACTS[Math.floor(Math.random()*ACTS.length)];
     iconEl.textContent=randAct.i;
+    // Restart the CSS animation by toggling
+    iconEl.style.animation='none';
+    void iconEl.offsetWidth; // force reflow
+    iconEl.style.animation='';
     elapsed+=delay;
     if(elapsed<totalTime){
       setTimeout(step,delay);
     }else{
-      // Land on chosen activity
+      // Landing: final icon with slotStop spring animation (defined in CSS)
       iconEl.textContent=currentActivity.i;
       textEl.textContent=currentActivity.t;
       card.classList.remove('rolling');
       card.classList.add('settled');
       if(S.soundOn)beep();
-      // Start 30s countdown auto-close
       startActivityCountdown(30);
     }
   };
