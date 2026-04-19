@@ -336,16 +336,16 @@ html,body{height:100%;}
 @keyframes cardIn{from{opacity:0;transform:scale(0.9);}to{opacity:1;transform:scale(1);}}
 .activity-card .ac-title{font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;margin-bottom:8px;}
 .activity-card .ac-icon{font-size:48px;margin:12px 0;display:inline-block;min-height:90px;line-height:90px;overflow:hidden;position:relative;will-change:transform;}
-.activity-card.rolling .ac-icon{animation:slotSpin 0.22s linear;}
+.activity-card.rolling .ac-icon{animation:slotSpin 0.2s linear;}
 @keyframes slotSpin{
-  0%  {transform:translateY(-100px);opacity:0.15;}
-  25% {opacity:0.9;}
+  0%  {transform:translateY(-110px);opacity:0.15;}
+  25% {opacity:0.85;}
   100%{transform:translateY(0);opacity:1;}
 }
-.activity-card.settled .ac-icon{animation:slotStop 0.55s cubic-bezier(0.34,1.56,0.64,1);}
+.activity-card.settled .ac-icon{animation:slotStop 0.65s cubic-bezier(0.34,1.56,0.64,1);}
 @keyframes slotStop{
   0%  {transform:translateY(-55px);opacity:0.4;}
-  55% {transform:translateY(10px);opacity:1;}
+  50% {transform:translateY(10px);opacity:1;}
   100%{transform:translateY(0);opacity:1;}
 }
 .activity-card.rolling .ac-text{opacity:0.35;transition:opacity .2s;}
@@ -678,13 +678,10 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
 <!-- Activity suggestion overlay (after stand up) -->
 <div class="activity-overlay" id="activityOverlay">
   <div class="activity-card">
-    <div class="ac-title" id="acTitle">🎉 站起來了！要不要動一動？</div>
+    <div class="ac-title" id="acTitle">🎲 動一動吧</div>
     <div class="ac-icon" id="acIcon">💪</div>
     <div class="ac-text" id="acText">肩胛骨後收夾緊 × 10 下</div>
-    <div class="ac-btns">
-      <button class="ac-no" onclick="closeActivity(false)">跳過</button>
-      <button class="ac-yes" onclick="closeActivity(true)">好的 +1 XP</button>
-    </div>
+    <div class="ac-btns" id="acBtns"></div>
     <div class="ac-countdown" id="acCountdown"></div>
   </div>
 </div>
@@ -1305,29 +1302,34 @@ function renderCups(){
   });
 }
 
-// ===== ACTIVITIES POOL (20 cards) =====
+// ===== ACTIVITIES POOL =====
 const ACTS=[
-  // Sit-break exercises
+  // Upper body / posture (high evidence for radiologists)
   {i:'💪',t:'肩胛骨後收夾緊 × 10 下 · 改善圓肩'},
   {i:'🙆',t:'雙手交握向後擴胸 + 抬頭 20 秒'},
   {i:'🦴',t:'站姿後仰伸展 × 10 下 · 腰椎減壓'},
   {i:'🔄',t:'坐姿脊椎扭轉，左右各停 15 秒'},
-  {i:'🦵',t:'站姿弓箭步拉髖屈肌，左右各 20 秒'},
-  {i:'🦶',t:'踮腳尖 × 20 下 · 幫下肢循環'},
-  {i:'🔁',t:'腳踝繞圈，左右各 10 圈 · 防靜脈滯留'},
-  {i:'🏋️',t:'扶桌淺蹲 × 10 下 · 下肢肌力'},
-  {i:'🤸',t:'扶牆站姿伏地挺身 × 10 下 · 胸臂'},
-  {i:'👀',t:'看 6 公尺外 20 秒 · 20-20-20 護眼'},
-  {i:'✊',t:'握拳-張開 × 15 次 · 活化手指'},
-  {i:'🙏',t:'手腕向上/向下伸展各 20 秒 · 防腕隧道'},
-  {i:'🚶',t:'走到走廊底再走回來 · 代謝重啟'},
-  {i:'🤲',t:'頸部左右轉動各 5 圈 · 解頸肩僵硬'},
+  {i:'🐢',t:'下巴內縮（chin tuck）× 10 下 · 防烏龜頸'},
+  {i:'🤲',t:'左右轉頭 + 上下點頭各 5 下 · 解頸肩僵硬'},
   {i:'🫸',t:'靠牆站 30 秒，感覺頭頸背靠平'},
-  // Relaxation
+  // Lower body
+  {i:'🦵',t:'站姿弓箭步拉髖屈肌，左右各 20 秒'},
+  {i:'🦶',t:'踮腳尖 × 20 下 · 促進下肢循環'},
+  {i:'🔁',t:'腳踝繞圈，左右各 10 圈 · 促進下肢循環'},
+  {i:'🏋️',t:'扶桌淺蹲 × 10 下 · 下肢肌力'},
+  {i:'🦿',t:'站立原地高抬腿 × 15 下 · 下肢循環'},
+  // Cardio / metabolic reset
+  {i:'🚶‍♂️',t:'原地踏步 1 分鐘 · 代謝重啟'},
+  {i:'🤾',t:'開合跳 × 10 下 · 快速提升心率'},
+  {i:'🚶',t:'走去上個廁所 · 代謝重啟'},
+  // Upper body strength
+  {i:'🤸',t:'扶牆站姿伏地挺身 × 10 下 · 胸臂'},
+  {i:'🙏',t:'手腕向上/向下伸展各 20 秒 · 防腕隧道'},
+  // Eyes
+  {i:'👀',t:'看遠方 20 秒，讓眼睛休息'},
+  // Wellness
   {i:'☕',t:'去泡杯茶或咖啡犒賞自己'},
-  {i:'🪟',t:'站到窗邊看看天空和風景'},
   {i:'🧘',t:'深呼吸 × 5 次，放鬆自律神經'},
-  {i:'💆',t:'按摩太陽穴和後頸 30 秒'},
   {i:'🙂',t:'站著伸個大懶腰，你很棒！'},
 ];
 
@@ -2002,9 +2004,13 @@ function showActivity(){
   const iconEl=document.getElementById('acIcon');
   const textEl=document.getElementById('acText');
   const countdownEl=document.getElementById('acCountdown');
+  const titleEl=document.getElementById('acTitle');
+  const btns=document.getElementById('acBtns');
   overlay.classList.add('show');
-  card.classList.remove('settled');
+  card.classList.remove('settled','doing');
   card.classList.add('rolling');
+  if(titleEl)titleEl.textContent='🎲 動一動吧';
+  if(btns)btns.innerHTML='';
   textEl.textContent='🎲 抽卡中…';
   if(countdownEl)countdownEl.textContent='';
 
@@ -2039,7 +2045,8 @@ function showActivity(){
       card.classList.remove('rolling');
       card.classList.add('settled');
       if(S.soundOn)beep();
-      startActivityCountdown(30);
+      // Wait for settled animation, then enter doing mode directly (0.8s)
+      setTimeout(()=>startDoingCountdown(30),800);
     }
   };
   setTimeout(step,startDelay);
@@ -2057,22 +2064,16 @@ function startActivityCountdown(seconds){
   activityAutoCloseTimer=setTimeout(()=>window.closeActivity(false),seconds*1000);
 }
 
-window.closeActivity=function(accepted){
-  // Clear countdown timers
+window.closeActivity=function(){
+  // Only called if user skips (not used in new flow since doing mode starts directly)
   if(activityCountdownTimer){clearInterval(activityCountdownTimer);activityCountdownTimer=null;}
   if(activityAutoCloseTimer){clearTimeout(activityAutoCloseTimer);activityAutoCloseTimer=null;}
-  if(accepted&&currentActivity){
-    // Enter "doing" mode: show countdown, wait 30s, then give XP
-    startDoingCountdown(30);
-  }else{
-    // Skipped or auto-closed: close immediately
-    document.getElementById('activityOverlay').classList.remove('show');
-    if(window._pendingPostCardToast){
-      showToast(window._pendingPostCardToast);
-    }
-    window._pendingPostCardToast=null;
-    currentActivity=null;
+  document.getElementById('activityOverlay').classList.remove('show');
+  if(window._pendingPostCardToast){
+    showToast(window._pendingPostCardToast);
   }
+  window._pendingPostCardToast=null;
+  currentActivity=null;
 };
 
 let doingTimer=null;
@@ -2080,9 +2081,8 @@ let doingAutoFinishTimer=null;
 function startDoingCountdown(seconds){
   const card=document.querySelector('.activity-card');
   const titleEl=document.getElementById('acTitle');
-  const textEl=document.getElementById('acText');
   const countdownEl=document.getElementById('acCountdown');
-  const btns=document.querySelector('.ac-btns');
+  const btns=document.getElementById('acBtns');
   // Switch to "doing" state
   card.classList.add('doing');
   if(titleEl)titleEl.textContent='🔥 執行中…';
@@ -2105,13 +2105,10 @@ window.finishDoing=function(){
   const card=document.querySelector('.activity-card');
   const titleEl=document.getElementById('acTitle');
   card.classList.remove('doing');
-  // Restore title for next time
-  if(titleEl)titleEl.textContent='🎉 站起來了！要不要動一動？';
-  // Restore button layout for next time
-  const btns=document.querySelector('.ac-btns');
-  if(btns){
-    btns.innerHTML=`<button class="ac-no" onclick="closeActivity(false)">跳過</button><button class="ac-yes" onclick="closeActivity(true)">好的 +1 XP</button>`;
-  }
+  // Reset for next time
+  if(titleEl)titleEl.textContent='🎲 動一動吧';
+  const btns=document.getElementById('acBtns');
+  if(btns)btns.innerHTML='';
   document.getElementById('activityOverlay').classList.remove('show');
   // Give the XP reward
   if(currentActivity){
