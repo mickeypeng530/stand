@@ -326,6 +326,9 @@ html,body{height:100%;}
 .menu-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}
 .menu-text{font-size:13px;color:var(--text);}
 .menu-inline{display:flex;gap:4px;}
+/* Threshold/font size buttons: fixed total width, equal-width buttons (keeps width stable when option count changes) */
+.menu-inline[data-group="thresh"],.menu-inline[data-group="fs"]{width:180px;flex:0 0 180px;}
+.menu-inline[data-group="thresh"] .sbtn,.menu-inline[data-group="fs"] .sbtn{flex:1;padding:6px 0;text-align:center;min-width:0;}
 .menu-themes{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
 .menu-themes .sbtn{padding:7px 10px;font-size:11px;text-align:center;}
 
@@ -484,7 +487,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
     <div class="menu-label">⚙️ 追蹤設定</div>
     <div class="menu-row">
       <span class="menu-text">久坐門檻</span>
-      <div class="menu-inline">
+      <div class="menu-inline" data-group="thresh">
         <button class="sbtn" data-thresh="20">20</button>
         <button class="sbtn" data-thresh="25">25</button>
         <button class="sbtn on" data-thresh="30">30</button>
@@ -493,7 +496,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
     </div>
     <div class="menu-row">
       <span class="menu-text">🔤 字體大小</span>
-      <div class="menu-inline">
+      <div class="menu-inline" data-group="fs">
         <button class="sbtn" data-fs="0.85">小</button>
         <button class="sbtn" data-fs="1">中</button>
         <button class="sbtn" data-fs="1.15">大</button>
@@ -549,10 +552,7 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
           </div>
           <div class="c-button-slot">
             <button class="btn-full green-alt" id="startWorkBtn" style="display:none;">▶️ 開始工作</button>
-            <div class="session-buttons" id="sessionButtons" style="display:flex;gap:8px;">
-              <button class="btn-full green-alt" id="standBtn" style="flex:1;">🧍 我站起來了<span class="xp" id="sitBadge" style="display:none;"></span></button>
-              <button class="btn-stop" id="stopWorkBtn" title="結束工作">⏸</button>
-            </div>
+            <button class="btn-full green-alt" id="standBtn" style="display:none;">🧍 我站起來了<span class="xp" id="sitBadge" style="display:none;"></span></button>
           </div>
         </div>
       </div>
@@ -1525,25 +1525,18 @@ window.handleStandup=function(){
   const sat=currentSitSec();
   const threshSec=(S.thresh||30)*60;
 
-  // Zone-based behavior:
-  //   0-10 min (silent): reset sit timer, session continues, mascot says "加油加油", NO stand count, NO XP, NO card
-  //   10-15 min (encouragement): end session, NO stand count, NO XP, NO card, mascot says "辛苦了 休息一下"
-  //   15min - threshold (active): end session, +1 stand, +2 XP, show card, mascot happy (+toast)
-  //   threshold - 60min (reminded): end session, +1 stand, +1 XP, show card, mascot happy (+toast)
-  //   60+ min (away): end session, NO stand, NO XP, NO card, mascot says "休息一下 加油加油"
-
-  // Silent zone: just reset and continue
-  if(sat<SILENT){
-    triggerMascot('sit','加油加油 💪');
-    resetSit();
-    saveSync();
-    return;
-  }
-
-  // End session for all other zones
+  // Zone-based behavior (all zones end session — pressing "我站起來了" = session ends):
+  //   0-10 min (silent): end session, accumulate time, no stand count, no XP, no card, mascot says "加油加油"
+  //   10-15 min (encouragement): end session, accumulate time, no stand count, no XP, no card, mascot says "辛苦了 休息一下"
+  //   15min - threshold (active): end session, +1 stand, +2 XP, show card, mascot happy
+  //   threshold - 60min (reminded): end session, +1 stand, +1 XP, show card, mascot happy
+  //   60+ min (away): end session, accumulate time, no stand, no XP, no card, mascot says "休息一下 加油加油"
   let xpGain=0, countsAsStand=false, showCard=false, pendingToast=null, mascotMsg=null;
 
-  if(sat<15*60){
+  if(sat<SILENT){
+    // 0-10 min — session ends, time still accumulates, but no stand credit
+    mascotMsg='加油加油 💪';
+  }else if(sat<15*60){
     // 10-15 min: encouragement zone, no XP, no card
     mascotMsg='辛苦了，休息一下 ☕';
   }else if(sat<threshSec){
@@ -1559,7 +1552,7 @@ window.handleStandup=function(){
     mascotMsg='休息一下，加油加油 🌿';
   }
 
-  // Apply state changes
+  // Apply state changes — ALL zones end the session and accumulate the work time
   if(countsAsStand){
     S.todayStand=(S.todayStand||0)+1;
     S.totalStands=(S.totalStands||0)+1;
@@ -1571,11 +1564,10 @@ window.handleStandup=function(){
   S.inSession=false;
   S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
   applySessionUI();
-  // Trigger mascot (either happy default or specific message)
   triggerMascot('sit',mascotMsg);
   renderAll();
   saveSync();
-  // If showing activity card, delay for mascot animation (1300ms); toast shows AFTER card closes
+  // If showing activity card, delay for mascot animation (1300ms)
   if(showCard){
     window._pendingPostCardToast=pendingToast;
     setTimeout(()=>showActivity(),1300);
@@ -1601,13 +1593,13 @@ function resumeSessionIfNeeded(){
 // Apply UI state based on inSession
 function applySessionUI(){
   const start=document.getElementById('startWorkBtn');
-  const sessionBtns=document.getElementById('sessionButtons');
+  const stand=document.getElementById('standBtn');
   if(S.inSession){
     if(start)start.style.display='none';
-    if(sessionBtns)sessionBtns.style.display='flex';
+    if(stand)stand.style.display='';
   }else{
     if(start)start.style.display='';
-    if(sessionBtns)sessionBtns.style.display='none';
+    if(stand)stand.style.display='none';
     stopTick();
   }
 }
@@ -2124,7 +2116,6 @@ window.finishDoing=function(){
 // ===== BUTTON HANDLERS =====
 document.getElementById('startWorkBtn').addEventListener('click',()=>window.startWork());
 document.getElementById('standBtn').addEventListener('click',()=>window.handleStandup());
-document.getElementById('stopWorkBtn').addEventListener('click',()=>window.stopWork());
 document.getElementById('waterBtn').addEventListener('click',doWater);
 document.getElementById('btnSound').addEventListener('click',()=>{
   S.soundOn=!S.soundOn;
