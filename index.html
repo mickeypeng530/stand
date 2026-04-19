@@ -742,21 +742,21 @@ const THEMES=['default','kawaii','pixel','tama','neon','paper'];
 // Seed system (8 stages, each needs X XP to advance)
 // Index 7 = completed, triggers moving to garden + reset
 const SIT_STG=[
-  {e:'🌱',n:'種子',x:3},{e:'🌿',n:'嫩芽',x:4},{e:'☘️',n:'幼苗',x:5},{e:'🪴',n:'盆栽',x:5},
-  {e:'🎋',n:'竹苗',x:6},{e:'🌴',n:'棕櫚',x:6},{e:'🌳',n:'大樹',x:7},{e:'🌸',n:'完成',x:0}
+  {e:'🌱',n:'種子',x:2},{e:'🌿',n:'嫩芽',x:2},{e:'☘️',n:'幼苗',x:3},{e:'🪴',n:'盆栽',x:4},
+  {e:'🎋',n:'竹苗',x:5},{e:'🌴',n:'棕櫚',x:6},{e:'🌳',n:'大樹',x:6},{e:'🌸',n:'完成',x:0}
 ];
 const WATER_STG=[
-  {e:'🌱',n:'種子',x:4},{e:'🌿',n:'嫩葉',x:5},{e:'🌾',n:'小草',x:6},{e:'🪴',n:'小花盆',x:6},
-  {e:'🌷',n:'花苗',x:7},{e:'🌻',n:'花苞',x:8},{e:'🌺',n:'盛開',x:8},{e:'🌸',n:'完成',x:0}
+  {e:'🌱',n:'種子',x:3},{e:'🌿',n:'嫩葉',x:4},{e:'🌾',n:'小草',x:4},{e:'🪴',n:'小花盆',x:5},
+  {e:'🌷',n:'花苗',x:6},{e:'🌻',n:'花苞',x:7},{e:'🌺',n:'盛開',x:7},{e:'🌸',n:'完成',x:0}
 ];
 // Final plant SVG pool (Designer's sprites). Sit = trees, Water = flowers/small plants
 const SIT_FINALS=['p-cherry','p-maple','p-pine','p-bamboo','p-mushroom-house'];
 const WATER_FINALS=['p-sunflower','p-cactus','p-succulent','p-tulip','p-tomato'];
 
 // Pet system (3 stages, days-met-goal based)
-// egg → baby: 5 days, baby → adult: 15 days. On adult, retire to garden, new egg starts.
-const PET_BABY_THRESHOLD=5;
-const PET_ADULT_THRESHOLD=15;
+// egg → baby: 3 days, baby → adult: 10 days. On adult, retire to garden, new egg starts.
+const PET_BABY_THRESHOLD=3;
+const PET_ADULT_THRESHOLD=10;
 function petStageOf(days){
   if(days>=PET_ADULT_THRESHOLD)return['成體','adult'];
   if(days>=PET_BABY_THRESHOLD)return['幼體','baby'];
