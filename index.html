@@ -766,7 +766,7 @@ function petStageOf(days){
 // Garden placement zones (y in SVG viewBox 0-350)
 // Grass starts at y=230. y values represent where the item's BASE (feet) sits.
 const GARDEN_ZONES={
-  back:  {yMin:238,yMax:255},  // trees, adult pets — close to horizon, bigger
+  back:  {yMin:238,yMax:275},  // trees, adult pets — wider range for depth
   mid:   {yMin:265,yMax:285},  // medium plants, succulents
   front: {yMin:295,yMax:325},  // flowers, tulips — front of frame, closer
 };
@@ -1871,7 +1871,7 @@ function renderGarden(){
       pond:      isMobile?{w:56,h:22}:{w:90,h:36},
       sign:      isMobile?{w:26,h:36}:{w:40,h:52},
       swing:     isMobile?{w:46,h:46}:{w:70,h:70},
-      tree:      isMobile?{w:42,h:56}:{w:70,h:90},
+      tree:      isMobile?{w:36,h:48}:{w:60,h:78},
       flower:    isMobile?{w:38,h:50}:{w:60,h:78},
       pet:       isMobile?{w:42,h:50}:{w:62,h:74},
     };
