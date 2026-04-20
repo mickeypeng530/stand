@@ -824,7 +824,7 @@ const WATER_FINALS=['p-sunflower','p-cactus','p-succulent','p-tulip','p-tomato']
 // Pet system (3 stages, days-met-goal based)
 // egg → baby: 3 days, baby → adult: 10 days. On adult, retire to garden, new egg starts.
 const PET_BABY_THRESHOLD=3;
-const PET_ADULT_THRESHOLD=10;
+const PET_ADULT_THRESHOLD=8;
 function petStageOf(days){
   if(days>=PET_ADULT_THRESHOLD)return['成體','adult'];
   if(days>=PET_BABY_THRESHOLD)return['幼體','baby'];
@@ -834,7 +834,7 @@ function petStageOf(days){
 // Garden placement zones (y in SVG viewBox 0-350)
 // Grass starts at y=230. y values represent where the item's BASE (feet) sits.
 const GARDEN_ZONES={
-  back:  {yMin:238,yMax:275},  // trees, adult pets — wider range for depth
+  back:  {yMin:238,yMax:315},  // trees, adult pets — wide range so trees can be near or far
   mid:   {yMin:265,yMax:285},  // medium plants, succulents
   front: {yMin:295,yMax:325},  // flowers, tulips — front of frame, closer
 };
@@ -1497,12 +1497,44 @@ function fireNotif(text){
   if(Notification.permission!=='granted')return;
   try{new Notification('🌱 起來動一動',{body:text,icon:''});}catch(e){}
 }
+// Fixed decorations that plants should avoid colliding with
+// These are in the 800×350 reference coords
+const FIXED_OBJECTS=[
+  {x:100, y:245, label:'swing'},    // 鞦韆 x=12.5%
+  {x:260, y:314, label:'pond'},     // 池塘 x=32.5%
+  {x:618, y:245, label:'sign'},     // 木牌 x=77.3%
+  {x:49,  y:322, label:'rockL'},    // 左石頭
+  {x:737, y:328, label:'rockR'},    // 右石頭
+];
+// Distance considered "same spot" — both X and Y must be within these to count as collision
+// 8% of 800 = 64px (x), 8% of 350 = 28px (y)
+const COLLIDE_X=64, COLLIDE_Y=28;
+
+function isColliding(x,y){
+  // Check against fixed objects
+  for(const o of FIXED_OBJECTS){
+    if(Math.abs(x-o.x)<COLLIDE_X && Math.abs(y-o.y)<COLLIDE_Y)return true;
+  }
+  // Check against existing garden items
+  for(const g of (S.garden||[])){
+    if(Math.abs(x-g.x)<COLLIDE_X && Math.abs(y-g.y)<COLLIDE_Y)return true;
+  }
+  return false;
+}
+
 function randPos(zoneName){
   const z=GARDEN_ZONES[zoneName];
   // Avoid left 25% (x < 200): this is where sun/moon and swing live.
   // Trees/flowers/pets should plant in x=200-750 range.
   const pickX=()=>200+Math.random()*550;
-  return {x:pickX(),y:z.yMin+Math.random()*(z.yMax-z.yMin)};
+  const pickY=()=>z.yMin+Math.random()*(z.yMax-z.yMin);
+  // Try up to 20 times to find a non-colliding position
+  for(let i=0;i<20;i++){
+    const x=pickX(),y=pickY();
+    if(!isColliding(x,y))return {x,y};
+  }
+  // Fallback: return last attempt (allow collision)
+  return {x:pickX(),y:pickY()};
 }
 
 // ===== SESSION TIMING =====
@@ -1784,7 +1816,7 @@ function checkPetLevelUp(type){
     S[speciesKey]=species;
     const nameMap={original:(type==='sit'?'芽芽':'水滴滴'),pikachu:'皮卡丘',mario:'馬力歐'};
     const n=nameMap[species];
-    celebrate('🐣',`${n} 孵化了！`,'繼續照顧，再 10 天就能長大');
+    celebrate('🐣',`${n} 孵化了！`,'繼續照顧，再 5 天就能長大');
   }
 }
 
@@ -1935,11 +1967,13 @@ function renderGarden(){
   // Migrate old garden items:
   // (1) y < 230 = placed in sky (old zones bug) → move to grass
   // (2) x < 200 = in new forbidden zone (sun/swing area) → move right
+  // (3) existing items colliding with fixed objects (sign, pond, swing) → relocate
   let migrated=false;
-  (S.garden||[]).forEach(g=>{
+  const garden=(S.garden||[]);
+  garden.forEach((g,idx)=>{
     if(g.y<230){
       if(g.type==='sit'||g.source==='pet'){
-        g.y=238+Math.random()*17;
+        g.y=238+Math.random()*77;  // use new expanded back zone
       }else{
         g.y=295+Math.random()*30;
       }
@@ -1948,6 +1982,27 @@ function renderGarden(){
     if(g.x<200){
       g.x=200+Math.random()*550;
       migrated=true;
+    }
+    // Check if this item is colliding with fixed objects — if so, re-random
+    let collidingWithFixed=false;
+    for(const o of FIXED_OBJECTS){
+      if(Math.abs(g.x-o.x)<COLLIDE_X && Math.abs(g.y-o.y)<COLLIDE_Y){
+        collidingWithFixed=true;break;
+      }
+    }
+    if(collidingWithFixed){
+      // Find a non-colliding spot in the same type of zone
+      const zone=(g.type==='sit'||g.source==='pet')?'back':'front';
+      const z=GARDEN_ZONES[zone];
+      for(let i=0;i<20;i++){
+        const nx=200+Math.random()*550;
+        const ny=z.yMin+Math.random()*(z.yMax-z.yMin);
+        let ok=true;
+        for(const o of FIXED_OBJECTS){
+          if(Math.abs(nx-o.x)<COLLIDE_X && Math.abs(ny-o.y)<COLLIDE_Y){ok=false;break;}
+        }
+        if(ok){g.x=nx;g.y=ny;migrated=true;break;}
+      }
     }
   });
   if(migrated)saveLocal();
