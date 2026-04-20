@@ -150,8 +150,14 @@ html,body{height:100%;}
 .mascot-perch svg{width:66px;height:66px;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.3));}
 .mascot-perch.idle svg{animation:mascot-idle 3s ease-in-out infinite;}
 .mascot-perch.happy svg{animation:mascot-happy 0.6s ease-in-out 2;}
+/* Character pets (pikachu/mario adult) — more floaty, with aura */
+.mascot-perch.char-float svg{animation:char-float 2.4s ease-in-out infinite !important;filter:drop-shadow(0 4px 10px rgba(255,215,0,0.35));}
+@keyframes char-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
 @keyframes mascot-idle{0%,100%{transform:translateY(0) rotate(0);}50%{transform:translateY(-4px) rotate(-2deg);}}
 @keyframes mascot-happy{0%,100%{transform:translateY(0) scale(1);}30%{transform:translateY(-12px) scale(1.1);}60%{transform:translateY(0) scale(1);}}
+/* Garden pikachu/mario — floating effect in the garden */
+.gdecor.float-char svg{animation:garden-float 3s ease-in-out infinite;}
+@keyframes garden-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
 .mascot-speech{position:absolute;right:14px;top:18px;background:#fff;color:#333;padding:4px 9px;border-radius:12px;font-size:calc(10px * var(--fs));font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.3);white-space:nowrap;z-index:3;opacity:0;transform:translateY(4px);transition:all .3s;}
 .mascot-speech.show{opacity:1;transform:translateY(0);}
 .mascot-speech::after{content:'';position:absolute;bottom:-4px;right:14px;width:8px;height:8px;background:#fff;transform:rotate(45deg);}
@@ -433,10 +439,28 @@ body.theme-paper{font-family:'Baloo 2',sans-serif;}
 body.theme-paper .c-card{border:2px solid #333;box-shadow:3px 3px 0 #333;border-radius:6px;background:repeating-linear-gradient(0deg,#fffef7 0 20px,#f5efd8 20px 21px);}
 body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2px 2px 0 #333;}
 
+/* Pokemon theme — 皮卡丘風：亮黃 + 精靈球紅 + 深藍字 */
+body.theme-pokemon{--bg:#fffbe6;--card:#fff7d1;--card-alt:#fff2b2;--green:#ffd700;--green-light:#c69000;--green-dark:#b38400;--blue:#ee1515;--blue-light:#c41818;--blue-dark:#a01010;--gold:#ff9a00;--text:#1a3a8a;--text-dim:#7a5c00;--line:#c6900030;}
+body.theme-pokemon .c-card{border:3px solid #ffd700;box-shadow:0 3px 0 #c69000;border-radius:18px;}
+body.theme-pokemon .c-card.sit{background:#fffde0;border-color:#ffd700;}
+body.theme-pokemon .c-card.water{background:#fff5e8;border-color:#ee1515;}
+body.theme-pokemon .btn-full.green-alt{background:linear-gradient(135deg,#ffd700,#ff9a00) !important;box-shadow:0 3px 0 #b38400;color:#1a3a8a !important;border-radius:14px;}
+body.theme-pokemon .btn-full.blue{background:linear-gradient(135deg,#ee1515,#c41818) !important;box-shadow:0 3px 0 #a01010;color:#fff !important;border-radius:14px;}
+
+/* Mario theme — 馬力歐風：天藍 + 馬力歐紅 + 吊帶藍 + 金幣黃 */
+body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;--green-light:#a61912;--green-dark:#7a1209;--blue:#1e5fdc;--blue-light:#0b3a9c;--blue-dark:#052670;--gold:#ffcd00;--text:#3d1a0a;--text-dim:#6b4520;--line:#7a120930;}
+body.theme-mario .c-card{border:3px solid #3d1a0a;box-shadow:3px 3px 0 #3d1a0a;border-radius:8px;}
+body.theme-mario .c-card.sit{background:#fef0e0;border-color:#e52521;}
+body.theme-mario .c-card.water{background:#e8f3ff;border-color:#1e5fdc;}
+body.theme-mario .btn-full.green-alt{background:linear-gradient(135deg,#e52521,#a61912) !important;box-shadow:0 3px 0 #3d1a0a;color:#fff !important;border-radius:8px;}
+body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9c) !important;box-shadow:0 3px 0 #3d1a0a;color:#ffcd00 !important;border-radius:8px;}
+
 /* Paper & neon themes: buttons have thicker borders/shadows, nudge badge up so it doesn't overlap */
 @media (min-width:900px){
   body.theme-paper .mascot-meta,
-  body.theme-neon .mascot-meta{bottom:98px;}
+  body.theme-neon .mascot-meta,
+  body.theme-pokemon .mascot-meta,
+  body.theme-mario .mascot-meta{bottom:98px;}
 }
 </style>
 </head>
@@ -480,6 +504,8 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
       <button class="sbtn" data-theme="tama">🥚 電子寵物</button>
       <button class="sbtn" data-theme="neon">💫 霓虹</button>
       <button class="sbtn" data-theme="paper">📒 紙本</button>
+      <button class="sbtn" data-theme="pokemon">⚡ 皮卡丘</button>
+      <button class="sbtn" data-theme="mario">🍄 馬力歐</button>
     </div>
   </div>
 
@@ -779,7 +805,7 @@ function getDailyQuote(){
 
 // ===== CONSTANTS =====
 const SILENT=600,AWAY=3600,W_INT=7200,W_GOAL=12,ML=150,S_GOAL=8,W_STREAK=6;
-const THEMES=['default','kawaii','pixel','tama','neon','paper'];
+const THEMES=['default','kawaii','pixel','tama','neon','paper','pokemon','mario'];
 
 // Seed system (8 stages, each needs X XP to advance)
 // Index 7 = completed, triggers moving to garden + reset
@@ -827,6 +853,8 @@ function defS(){return{
   // Pet system: days-met-goal based
   sitPetDays:0,waterPetDays:0,
   sitGoalMetToday:false,waterGoalMetToday:false,
+  // Pet species (determined when egg hatches): 'original' | 'pikachu' (sit) | 'mario' (water)
+  sitPetSpecies:'original',waterPetSpecies:'original',
 };}
 
 function loadL(){
@@ -867,6 +895,8 @@ function loadL(){
       if(typeof d.soundOn!=='boolean')d.soundOn=true;
       if(typeof d.sitGoalMetToday!=='boolean')d.sitGoalMetToday=false;
       if(typeof d.waterGoalMetToday!=='boolean')d.waterGoalMetToday=false;
+      if(!d.sitPetSpecies)d.sitPetSpecies='original';
+      if(!d.waterPetSpecies)d.waterPetSpecies='original';
       // Remove fontScale from cloud state (device-local only now)
       delete d.fontScale;
       return d;
@@ -1721,22 +1751,40 @@ function checkPetGoals(){
 
 function checkPetLevelUp(type){
   const daysKey=type==='sit'?'sitPetDays':'waterPetDays';
+  const speciesKey=type==='sit'?'sitPetSpecies':'waterPetSpecies';
   const days=S[daysKey]||0;
-  // Just reached adult — retire to garden
+  // Just reached adult — retire to garden with species-specific svg
   if(days===PET_ADULT_THRESHOLD){
-    const svg=type==='sit'?'m-sprout-adult':'m-drop-adult';
+    const species=S[speciesKey]||'original';
+    let svg;
+    if(type==='sit'){
+      svg=species==='pikachu'?'m-pikachu-adult':'m-sprout-adult';
+    }else{
+      svg=species==='mario'?'m-mario-adult':'m-drop-adult';
+    }
     const pos=randPos('back');
     S.garden=S.garden||[];
     S.garden.push({type:type,svg:svg,source:'pet',x:pos.x,y:pos.y,at:now()});
     S[daysKey]=0; // reset for next round (new egg)
-    const n=type==='sit'?'芽芽':'水滴滴';
+    S[speciesKey]='original'; // reset species (new egg = not-yet-decided)
+    const nameMap={original:(type==='sit'?'芽芽':'水滴滴'),pikachu:'皮卡丘',mario:'馬力歐'};
+    const n=nameMap[species];
     const emoji=type==='sit'?'🌿':'💧';
     celebrate('🏡',`${n} 長大了！`,`已搬進花園，新的蛋開始孵化 ${emoji}`);
     beep();
   }else if(days===PET_BABY_THRESHOLD){
-    const n=type==='sit'?'芽芽':'水滴滴';
-    const emoji=type==='sit'?'🐣':'💧';
-    celebrate(emoji,`${n} 孵化了！`,'繼續照顧，再 10 天就能長大');
+    // Hatching: randomly decide species (50/50)
+    const rand=Math.random()<0.5;
+    let species;
+    if(type==='sit'){
+      species=rand?'pikachu':'original';
+    }else{
+      species=rand?'mario':'original';
+    }
+    S[speciesKey]=species;
+    const nameMap={original:(type==='sit'?'芽芽':'水滴滴'),pikachu:'皮卡丘',mario:'馬力歐'};
+    const n=nameMap[species];
+    celebrate('🐣',`${n} 孵化了！`,'繼續照顧，再 10 天就能長大');
   }
 }
 
@@ -1761,8 +1809,18 @@ function updatePetMascots(){
   const[,wSuf]=petStageOf(waterDays);
   const sitUse=document.getElementById('sitMascotUse');
   const wUse=document.getElementById('waterMascotUse');
-  if(sitUse)sitUse.setAttribute('href','#m-sprout-'+sSuf);
-  if(wUse)wUse.setAttribute('href','#m-drop-'+wSuf);
+  // Choose symbol based on species + stage. Eggs always use original.
+  const sitSpecies=S.sitPetSpecies||'original';
+  const wSpecies=S.waterPetSpecies||'original';
+  const sitPrefix=(sSuf==='egg')?'m-sprout':(sitSpecies==='pikachu'?'m-pikachu':'m-sprout');
+  const wPrefix=(wSuf==='egg')?'m-drop':(wSpecies==='mario'?'m-mario':'m-drop');
+  if(sitUse)sitUse.setAttribute('href','#'+sitPrefix+'-'+sSuf);
+  if(wUse)wUse.setAttribute('href','#'+wPrefix+'-'+wSuf);
+  // Apply float class to adult pikachu/mario for extra bounce
+  const sitMascot=document.getElementById('sitMascot');
+  const wMascot=document.getElementById('waterMascot');
+  if(sitMascot)sitMascot.classList.toggle('char-float',sSuf==='adult'&&sitSpecies==='pikachu');
+  if(wMascot)wMascot.classList.toggle('char-float',wSuf==='adult'&&wSpecies==='mario');
   // Seed stage line
   const sitSeedIdx=S.sitStageIdx||0;
   const wSeedIdx=S.waterStageIdx||0;
@@ -1931,6 +1989,10 @@ function renderGarden(){
     const putItem=(xp,yp,w,h,symbolId,anchor)=>{
       const el=document.createElement('div');
       el.className='gdecor';
+      // Character pets (pikachu/mario adults) get floating animation
+      if(symbolId==='m-pikachu-adult'||symbolId==='m-mario-adult'){
+        el.classList.add('float-char');
+      }
       // Percentage positioning
       if(anchor==='center'){
         // Center anchor: offset by half width/height so xp/yp is the center
