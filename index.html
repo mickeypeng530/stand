@@ -1427,13 +1427,9 @@ function fireNotif(text){
 }
 function randPos(zoneName){
   const z=GARDEN_ZONES[zoneName];
-  // Avoid left edge (x<140) where sun/moon sit (y=25-90 at x=30-140)
-  // Trees reach up to ~170px tall, so their top could overlap if planted at x<140 in back zone
-  // Skip the range 40-140 for all zones to be safe
-  const pickX=()=>{
-    const x=50+Math.random()*700;
-    return (x>40&&x<140)?(160+Math.random()*580):x;
-  };
+  // Avoid left 25% (x < 200): this is where sun/moon and swing live.
+  // Trees/flowers/pets should plant in x=200-750 range.
+  const pickX=()=>200+Math.random()*550;
   return {x:pickX(),y:z.yMin+Math.random()*(z.yMax-z.yMin)};
 }
 
@@ -1829,7 +1825,9 @@ function renderGarden(){
   // Determine time of day: 6am-6pm = day, else = night
   const hr=new Date().getHours();
   const isNight=hr<6||hr>=18;
-  // Migrate old garden items: anything with y < 230 was placed in sky (old zones bug)
+  // Migrate old garden items:
+  // (1) y < 230 = placed in sky (old zones bug) → move to grass
+  // (2) x < 200 = in new forbidden zone (sun/swing area) → move right
   let migrated=false;
   (S.garden||[]).forEach(g=>{
     if(g.y<230){
@@ -1838,6 +1836,10 @@ function renderGarden(){
       }else{
         g.y=295+Math.random()*30;
       }
+      migrated=true;
+    }
+    if(g.x<200){
+      g.x=200+Math.random()*550;
       migrated=true;
     }
   });
@@ -1869,7 +1871,7 @@ function renderGarden(){
       pond:      isMobile?{w:56,h:22}:{w:90,h:36},
       sign:      isMobile?{w:26,h:36}:{w:40,h:52},
       swing:     isMobile?{w:46,h:46}:{w:70,h:70},
-      tree:      isMobile?{w:48,h:64}:{w:80,h:106},
+      tree:      isMobile?{w:42,h:56}:{w:70,h:90},
       flower:    isMobile?{w:38,h:50}:{w:60,h:78},
       pet:       isMobile?{w:42,h:50}:{w:62,h:74},
     };
@@ -1940,9 +1942,9 @@ function renderGarden(){
       // xp (0-100), oldBaseY (in 0-350 coord), symbol, size
       {xp:(49/800)*100,  oldY:322, id:'rock',    sz:sizes.rock},
       {xp:(737/800)*100, oldY:328, id:'rock',    sz:sizes.rock},
-      {xp:(160/800)*100, oldY:314, id:'d-pond',  sz:sizes.pond},
+      {xp:(260/800)*100, oldY:314, id:'d-pond',  sz:sizes.pond},
       {xp:(618/800)*100, oldY:245, id:'d-sign',  sz:sizes.sign},
-      {xp:(350/800)*100, oldY:245, id:'d-swing', sz:sizes.swing},
+      {xp:(100/800)*100, oldY:245, id:'d-swing', sz:sizes.swing},
     ];
     groundItems.forEach(g=>{
       putItem(g.xp,mapY(g.oldY),g.sz.w,g.sz.h,g.id,'bottom');
