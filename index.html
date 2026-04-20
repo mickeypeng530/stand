@@ -702,13 +702,16 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
 <script type="module">
 // ===== DAILY LUCKY QUOTES =====
 const QUOTES=[
-  // 泰戈爾（5）
+  // 泰戈爾（8）
   '天空中沒有翅膀的痕跡，而我已飛過 — 泰戈爾',
   '生如夏花之絢爛，死如秋葉之靜美 — 泰戈爾',
   '休息與工作的關係，猶如眼瞼與眼睛的關係 — 泰戈爾',
   '讓我的愛像陽光包圍你，又給你璀璨的自由 — 泰戈爾',
   '最好的東西不是獨來的，它伴著所有東西同來 — 泰戈爾',
-  // 林婉瑜（8）
+  '錯過了太陽時你流淚，那你也要錯過群星了 — 泰戈爾',
+  '小草呀，你的足跡雖小，卻擁有你足下的土地 — 泰戈爾',
+  '只有流過血的手指，才能彈出世間的絕唱 — 泰戈爾',
+  // 林婉瑜（11）
   '時間是溫柔的，只是忘了告訴你 — 林婉瑜',
   '今天也辛苦了，明天也會的吧 — 林婉瑜',
   '被愛的時候，整個人都變得比較軟 — 林婉瑜',
@@ -717,21 +720,60 @@ const QUOTES=[
   '我喜歡你的方式，是讓你看見你自己 — 林婉瑜',
   '長大就是把哭聲藏進微笑裡 — 林婉瑜',
   '不是每一種辛苦都有意義，但你還是很勇敢 — 林婉瑜',
-  // 林婉瑜風格（1）
   '今天的雲，看起來很適合發呆',
-  // 任明信（4）
+  '想你的時候，連天氣都變得溫柔 — 林婉瑜',
+  '有些人來過，就沒真正離開過 — 林婉瑜',
+  // 任明信（11）
   '今天想做的事很少，比如呼吸，比如愛你 — 任明信',
   '喜歡的事要慢慢做，像呼吸，像走路，像把光灑進心裡 — 任明信',
   '每天都是一個小小的開始，就算只是睜開眼睛 — 任明信',
   '好的東西會留下，像月亮留在水裡 — 任明信',
-  // 簡媜（1）
-  '好的日子，是被認真活著的 — 簡媜',
-  // 任明信（1）- 已有 4 句任明信，這句補到 20
   '慢慢來比較快 — 任明信',
+  '有些話不說，是因為想保留力氣去愛你 — 任明信',
+  '所有的告別，都是為了重新相遇 — 任明信',
+  '有你在的地方，時間都變得溫柔 — 任明信',
+  '不用急著長大，也不用急著變好 — 任明信',
+  '想成為你一生中，最輕的負擔、最重的安慰 — 任明信',
+  '把日子過好，是對自己最溫柔的事 — 任明信',
+  // 簡媜（2）
+  '好的日子，是被認真活著的 — 簡媜',
+  '日子要過得像一首詩，即使平凡也要有韻腳 — 簡媜',
+  // 宋尚緯（1）
+  '不是每個疼痛都能換來什麼，但你仍然值得被溫柔對待 — 宋尚緯',
+  // 鯨向海（1）
+  '在這個世界上，喜歡你，是我最認真做過的事 — 鯨向海',
+  // 夏宇風（1）
+  '你是我平凡世界裡，最不平凡的風景',
+  // 當代台灣詩風（5）
+  '平凡的日子裡，有你就夠了',
+  '我想和你，把平淡的日子過得有光',
+  '不是每件事都需要答案，有些事只需要陪伴',
+  '忙的時候，記得替自己倒一杯水',
+  '我們都活成了自己最不想要的樣子，但還沒放棄溫柔',
 ];
+// Switches twice daily at 09:00 and 15:00
+// Before 09:00 = late slot (yesterday afternoon's continuation)
+// 09:00 - 14:59 = morning slot
+// 15:00 - 08:59 next day = afternoon/late slot
 function getDailyQuote(){
-  const today=new Date();
-  const seed=today.getFullYear()*10000+(today.getMonth()+1)*100+today.getDate();
+  const now=new Date();
+  const y=now.getFullYear(),m=now.getMonth()+1,d=now.getDate();
+  const hr=now.getHours();
+  // Slot 0 = late (00:00-08:59, uses yesterday's date),
+  // Slot 1 = morning (09:00-14:59, uses today's date slot 1),
+  // Slot 2 = afternoon (15:00-23:59, uses today's date slot 2)
+  let slot, seed;
+  if(hr<9){
+    // Late slot — carry over from yesterday's afternoon
+    const yest=new Date(now.getTime()-24*3600*1000);
+    seed=yest.getFullYear()*100000+(yest.getMonth()+1)*1000+yest.getDate()*10+2;
+  }else if(hr<15){
+    // Morning slot
+    seed=y*100000+m*1000+d*10+1;
+  }else{
+    // Afternoon slot
+    seed=y*100000+m*1000+d*10+2;
+  }
   return QUOTES[seed%QUOTES.length];
 }
 
@@ -1784,7 +1826,7 @@ function renderTimer(){
         hint.textContent=`繼續加油 💪`;
       }else if(remain>0){
         // 15 min - threshold: alert them threshold is approaching
-        hint.textContent=`還有 ${fmtTimer(remain)} 就久坐太久了 · 準備站起來 ⚠️`;
+        hint.textContent=`還有 ${fmtTimer(remain)} 就坐太久了 · 準備站起來 ⚠️`;
       }else{
         // Past threshold: time to stand
         hint.textContent=`⏰ 坐太久了 · 起來動一動吧！已超過 ${fmtTimer(-remain)}`;
