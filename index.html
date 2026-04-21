@@ -790,6 +790,15 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
       </div>
     </div>
     <div class="edit-row">
+      <label>📌 最長久坐</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" id="etLongHr" min="0" max="23" step="1" style="width:56px"/>
+        <span style="font-size:calc(12px * var(--fs));color:var(--text-dim);">h</span>
+        <input type="number" id="etLongMin" min="0" max="59" step="1" style="width:56px"/>
+        <span style="font-size:calc(12px * var(--fs));color:var(--text-dim);">m</span>
+      </div>
+    </div>
+    <div class="edit-row">
       <label>💧 喝水杯數</label>
       <input type="number" id="etWater" min="0" max="12" step="0.5"/>
     </div>
@@ -2573,9 +2582,14 @@ function openEditTodayModal(){
   const sec=S.sessionSecTotal||0;
   const hr=Math.floor(sec/3600);
   const min=Math.floor((sec%3600)/60);
+  const lSec=S.longestSit||0;
+  const lHr=Math.floor(lSec/3600);
+  const lMin=Math.floor((lSec%3600)/60);
   document.getElementById('etStand').value=S.todayStand||0;
   document.getElementById('etHr').value=hr;
   document.getElementById('etMin').value=min;
+  document.getElementById('etLongHr').value=lHr;
+  document.getElementById('etLongMin').value=lMin;
   document.getElementById('etWater').value=S.todayWater||0;
   document.getElementById('etWarn').textContent='';
   document.getElementById('editTodayOverlay').classList.add('show');
@@ -2589,11 +2603,14 @@ window.saveEditToday=function(){
   const stand=Math.max(0,Math.min(99,Math.round(+document.getElementById('etStand').value||0)));
   const hr=Math.max(0,Math.min(23,Math.round(+document.getElementById('etHr').value||0)));
   const min=Math.max(0,Math.min(59,Math.round(+document.getElementById('etMin').value||0)));
+  const lHr=Math.max(0,Math.min(23,Math.round(+document.getElementById('etLongHr').value||0)));
+  const lMin=Math.max(0,Math.min(59,Math.round(+document.getElementById('etLongMin').value||0)));
   let water=+document.getElementById('etWater').value||0;
   // Round water to nearest 0.5
   water=Math.max(0,Math.min(12,Math.round(water*2)/2));
   S.todayStand=stand;
   S.sessionSecTotal=hr*3600+min*60;
+  S.longestSit=lHr*3600+lMin*60;
   S.todayWater=water;
   // Recompute goal-met flags (affects streak logic) but DO NOT advance pet days
   // (pet days already counted, we don't reapply)
