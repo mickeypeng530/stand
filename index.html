@@ -462,6 +462,25 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
   body.theme-pokemon .mascot-meta,
   body.theme-mario .mascot-meta{bottom:98px;}
 }
+
+/* Edit last-stand modal */
+.edit-overlay{position:fixed;inset:0;background:#000000aa;z-index:210;display:none;align-items:center;justify-content:center;padding:20px;}
+.edit-overlay.show{display:flex;}
+.edit-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;max-width:380px;width:100%;box-shadow:0 12px 48px rgba(0,0,0,0.6);animation:cardIn .3s ease-out;}
+.edit-title{font-size:calc(15px * var(--fs));color:var(--green-light);font-weight:700;margin-bottom:14px;}
+.edit-info{font-size:calc(12px * var(--fs));color:var(--text-dim);margin-bottom:14px;line-height:1.6;background:var(--card-alt);padding:8px 12px;border-radius:8px;}
+.edit-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
+.edit-row label{font-size:calc(13px * var(--fs));color:var(--text);}
+.edit-row input{background:var(--card-alt);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:8px;width:80px;text-align:center;font-size:calc(14px * var(--fs));font-family:'Fredoka',monospace;-webkit-appearance:none;appearance:none;}
+.edit-preview{font-size:calc(12px * var(--fs));color:var(--gold);margin:12px 0 4px;padding:8px 12px;background:#00000033;border-radius:8px;line-height:1.6;}
+.edit-warn{font-size:calc(11px * var(--fs));color:var(--red);margin:4px 0 12px;min-height:16px;}
+.edit-btns{display:flex;gap:8px;margin-top:12px;}
+.edit-btn{flex:1;padding:10px;border-radius:10px;border:none;font-family:inherit;font-weight:700;font-size:calc(13px * var(--fs));cursor:pointer;-webkit-appearance:none;appearance:none;}
+.edit-btn.del{background:#ef535020;color:var(--red);border:1px solid #ef535044;}
+.edit-btn.cancel{background:var(--card-alt);color:var(--text-dim);}
+.edit-btn.ok{background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;}
+.edit-btn:active{transform:scale(0.96);}
+.edit-btn:disabled{opacity:0.4;pointer-events:none;}
 </style>
 </head>
 <body>
@@ -540,6 +559,10 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
     <div class="menu-row">
       <span class="menu-text">😴 今天休息</span>
       <button class="sbtn" id="btnRest">標記</button>
+    </div>
+    <div class="menu-row">
+      <span class="menu-text">✏️ 編輯最近一筆</span>
+      <button class="sbtn" id="btnEdit">編輯</button>
     </div>
   </div>
 </div>
@@ -722,6 +745,25 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
     <div class="celebrate-icon" id="celebrateIcon">🎉</div>
     <div class="celebrate-title" id="celebrateTitle">恭喜！</div>
     <div class="celebrate-sub" id="celebrateSub"></div>
+  </div>
+</div>
+
+<!-- Edit last stand modal -->
+<div class="edit-overlay" id="editOverlay">
+  <div class="edit-card">
+    <div class="edit-title">✏️ 編輯最近一筆</div>
+    <div class="edit-info" id="editInfo">-- : --</div>
+    <div class="edit-row">
+      <label>⏱ 時長（分鐘）</label>
+      <input type="number" id="editDur" min="1" max="480" step="1"/>
+    </div>
+    <div class="edit-preview" id="editPreview">重算中…</div>
+    <div class="edit-warn" id="editWarn"></div>
+    <div class="edit-btns">
+      <button class="edit-btn del" onclick="window.deleteLastStand()">🗑 刪除</button>
+      <button class="edit-btn cancel" onclick="window.closeEditModal()">取消</button>
+      <button class="edit-btn ok" onclick="window.saveEditLastStand()">✓ 更新</button>
+    </div>
   </div>
 </div>
 
@@ -1618,59 +1660,77 @@ function resetSit(){
 }
 
 // Called when user confirms standing up
+// Determine session result based on sit duration (in seconds)
+// Returns {xpGain, countsAsStand, showCard, pendingToast, mascotMsg, zone}
+function sessionResultFor(sat){
+  const threshSec=(S.thresh||30)*60;
+  let xpGain=0, countsAsStand=false, showCard=false, pendingToast=null, mascotMsg=null, zone;
+  if(sat<SILENT){
+    zone='silent'; mascotMsg='加油加油 💪';
+  }else if(sat<15*60){
+    zone='encouragement'; mascotMsg='辛苦了，休息一下 ☕';
+  }else if(sat<threshSec){
+    zone='active'; xpGain=2; countsAsStand=true; showCard=true; pendingToast='+2 XP · 動得好 💚';
+  }else if(sat<AWAY){
+    zone='reminded'; xpGain=1; countsAsStand=true; showCard=true; pendingToast='+1 XP · 動一動吧 ✨';
+  }else{
+    zone='away'; mascotMsg='休息一下，加油加油 🌿';
+  }
+  return {xpGain,countsAsStand,showCard,pendingToast,mascotMsg,zone};
+}
+
 window.handleStandup=function(){
   if(!S.inSession){
     showToast('記得先按「開始工作」喔');
     return;
   }
   const sat=currentSitSec();
-  const threshSec=(S.thresh||30)*60;
+  const sitStartAt=S.sitStartAt;
+  const sitEndAt=now();
 
-  // Zone-based behavior (all zones end session — pressing "我站起來了" = session ends):
-  //   0-10 min (silent): end session, accumulate time, no stand count, no XP, no card, mascot says "加油加油"
-  //   10-15 min (encouragement): end session, accumulate time, no stand count, no XP, no card, mascot says "辛苦了 休息一下"
-  //   15min - threshold (active): end session, +1 stand, +2 XP, show card, mascot happy
-  //   threshold - 60min (reminded): end session, +1 stand, +1 XP, show card, mascot happy
-  //   60+ min (away): end session, accumulate time, no stand, no XP, no card, mascot says "休息一下 加油加油"
-  let xpGain=0, countsAsStand=false, showCard=false, pendingToast=null, mascotMsg=null;
+  const r=sessionResultFor(sat);
 
-  if(sat<SILENT){
-    // 0-10 min — session ends, time still accumulates, but no stand credit
-    mascotMsg='加油加油 💪';
-  }else if(sat<15*60){
-    // 10-15 min: encouragement zone, no XP, no card
-    mascotMsg='辛苦了，休息一下 ☕';
-  }else if(sat<threshSec){
-    // Active zone: +2 XP, show card
-    xpGain=2; countsAsStand=true; showCard=true;
-    pendingToast='+2 XP · 動得好 💚';
-  }else if(sat<AWAY){
-    // Reminded zone: +1 XP, show card
-    xpGain=1; countsAsStand=true; showCard=true;
-    pendingToast='+1 XP · 動一動吧 ✨';
-  }else{
-    // Away zone (60+ min): no XP, no card
-    mascotMsg='休息一下，加油加油 🌿';
-  }
+  // Save snapshot for edit/delete BEFORE applying changes
+  const snap={
+    sitStart:sitStartAt,
+    sitEnd:sitEndAt,
+    sitSec:sat,
+    zone:r.zone,
+    xpGain:r.xpGain,
+    countsAsStand:r.countsAsStand,
+    // rollback reference values (before changes)
+    prevStand:S.todayStand||0,
+    prevTotalStands:S.totalStands||0,
+    prevXP:S.sitStageXP||0,
+    prevStageIdx:S.sitStageIdx||0,
+    prevPetDays:S.sitPetDays||0,
+    prevGoalMet:!!S.sitGoalMetToday,
+    prevSessionTotal:S.sessionSecTotal||0,
+    prevLongest:S.longestSit||0,
+    prevPetSpecies:S.sitPetSpecies||'original',
+    prevGardenLen:(S.garden||[]).length,
+    day:new Date().toDateString(),
+  };
 
   // Apply state changes — ALL zones end the session and accumulate the work time
-  if(countsAsStand){
+  if(r.countsAsStand){
     S.todayStand=(S.todayStand||0)+1;
     S.totalStands=(S.totalStands||0)+1;
-    if(xpGain>0)addSeedXP('sit',xpGain);
+    if(r.xpGain>0)addSeedXP('sit',r.xpGain);
     checkPetGoals();
   }
   S.sessionSecTotal=totalSS();
   if(sat>(S.longestSit||0))S.longestSit=sat;
   S.inSession=false;
   S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
+  S.lastStand=snap;
   applySessionUI();
-  triggerMascot('sit',mascotMsg);
+  triggerMascot('sit',r.mascotMsg);
   renderAll();
   saveSync();
   // If showing activity card, delay for mascot animation (1300ms)
-  if(showCard){
-    window._pendingPostCardToast=pendingToast;
+  if(r.showCard){
+    window._pendingPostCardToast=r.pendingToast;
     setTimeout(()=>showActivity(),1300);
   }
 };
@@ -2318,6 +2378,151 @@ document.getElementById('btnRest').addEventListener('click',()=>{
   showToast('😴 今天休息，不中斷連續天數',true);
   saveSync();
   closeMenu();
+});
+
+// ===== EDIT LAST STAND =====
+document.getElementById('btnEdit').addEventListener('click',()=>{
+  const ls=S.lastStand;
+  const today=new Date().toDateString();
+  if(!ls){
+    showToast('還沒有可編輯的記錄');
+    return;
+  }
+  if(ls.day!==today){
+    showToast('只能編輯今天的最近一筆');
+    return;
+  }
+  // If a pet was retired during this stand (garden length increased), block edit
+  if((S.garden||[]).length>ls.prevGardenLen){
+    showToast('此次讓寵物進花園了，無法編輯');
+    return;
+  }
+  closeMenu();
+  openEditModal();
+});
+
+function fmtTime(ts){
+  const d=new Date(ts);
+  return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+}
+
+function openEditModal(){
+  const ls=S.lastStand;
+  if(!ls)return;
+  const info=document.getElementById('editInfo');
+  const dur=document.getElementById('editDur');
+  const preview=document.getElementById('editPreview');
+  const warn=document.getElementById('editWarn');
+  const sitMin=Math.max(1,Math.round(ls.sitSec/60));
+  info.textContent=`${fmtTime(ls.sitStart)} - ${fmtTime(ls.sitEnd)}（原本 ${sitMin} 分鐘）`;
+  dur.value=sitMin;
+  warn.textContent='';
+  updateEditPreview();
+  document.getElementById('editOverlay').classList.add('show');
+  dur.oninput=updateEditPreview;
+}
+
+function updateEditPreview(){
+  const dur=+document.getElementById('editDur').value||0;
+  const preview=document.getElementById('editPreview');
+  const warn=document.getElementById('editWarn');
+  if(dur<1){
+    preview.textContent='時長需要至少 1 分鐘';
+    warn.textContent='';
+    return;
+  }
+  const newSat=dur*60;
+  const r=sessionResultFor(newSat);
+  const zoneLabel={silent:'靜默（<10 分）',encouragement:'鼓勵（10-15 分）',active:'活躍（15-門檻）',reminded:'提醒（門檻-60 分）',away:'離開（60+ 分）'}[r.zone];
+  const standLabel=r.countsAsStand?'✓ 計為站起':'✗ 不計為站起';
+  const xpLabel=r.xpGain>0?`+${r.xpGain} XP`:'0 XP';
+  preview.innerHTML=`區間：${zoneLabel}<br>${standLabel} · ${xpLabel}`;
+}
+
+window.closeEditModal=function(){
+  document.getElementById('editOverlay').classList.remove('show');
+};
+
+window.saveEditLastStand=function(){
+  const ls=S.lastStand;
+  if(!ls)return;
+  const dur=+document.getElementById('editDur').value||0;
+  const warn=document.getElementById('editWarn');
+  if(dur<1){warn.textContent='時長需至少 1 分鐘';return;}
+  // Rollback to previous state, then re-apply with new duration
+  rollbackLastStand();
+  const newSat=dur*60;
+  S.sitStartAt=ls.sitStart;  // temporarily set for currentSitSec compatibility
+  applyStandWithDuration(newSat,ls.sitStart,ls.sitStart+newSat*1000);
+  S.sitStartAt=0;
+  closeEditModal();
+  showToast(`✓ 已更新為 ${dur} 分鐘`);
+  renderAll();
+  saveSync();
+};
+
+window.deleteLastStand=function(){
+  if(!confirm('確定刪除最近一筆？整筆當作沒發生，無法還原。'))return;
+  rollbackLastStand();
+  S.lastStand=null;
+  closeEditModal();
+  showToast('🗑 已刪除最近一筆');
+  renderAll();
+  saveSync();
+};
+
+// Restore state to snapshot (undo the last stand)
+function rollbackLastStand(){
+  const ls=S.lastStand;
+  if(!ls)return;
+  S.todayStand=ls.prevStand;
+  S.totalStands=ls.prevTotalStands;
+  S.sitStageXP=ls.prevXP;
+  S.sitStageIdx=ls.prevStageIdx;
+  S.sitPetDays=ls.prevPetDays;
+  S.sitGoalMetToday=ls.prevGoalMet;
+  S.sessionSecTotal=ls.prevSessionTotal;
+  S.longestSit=ls.prevLongest;
+  S.sitPetSpecies=ls.prevPetSpecies;
+}
+
+// Re-apply standing up with a given duration (used by edit save)
+function applyStandWithDuration(newSat,sitStart,sitEnd){
+  const r=sessionResultFor(newSat);
+  const snap={
+    sitStart:sitStart,
+    sitEnd:sitEnd,
+    sitSec:newSat,
+    zone:r.zone,
+    xpGain:r.xpGain,
+    countsAsStand:r.countsAsStand,
+    prevStand:S.todayStand||0,
+    prevTotalStands:S.totalStands||0,
+    prevXP:S.sitStageXP||0,
+    prevStageIdx:S.sitStageIdx||0,
+    prevPetDays:S.sitPetDays||0,
+    prevGoalMet:!!S.sitGoalMetToday,
+    prevSessionTotal:S.sessionSecTotal||0,
+    prevLongest:S.longestSit||0,
+    prevPetSpecies:S.sitPetSpecies||'original',
+    prevGardenLen:(S.garden||[]).length,
+    day:new Date().toDateString(),
+  };
+  if(r.countsAsStand){
+    S.todayStand=(S.todayStand||0)+1;
+    S.totalStands=(S.totalStands||0)+1;
+    if(r.xpGain>0)addSeedXP('sit',r.xpGain);
+    checkPetGoals();
+  }
+  // Add sit duration to session total (as if session was that long)
+  S.sessionSecTotal=(S.sessionSecTotal||0)+newSat;
+  if(newSat>(S.longestSit||0))S.longestSit=newSat;
+  S.lastStand=snap;
+}
+
+// Tap outside edit modal closes it
+document.getElementById('editOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='editOverlay')window.closeEditModal();
 });
 
 // ===== BACKGROUND MUSIC =====
