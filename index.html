@@ -564,6 +564,10 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
       <span class="menu-text">✏️ 編輯最近一筆</span>
       <button class="sbtn" id="btnEdit">編輯</button>
     </div>
+    <div class="menu-row">
+      <span class="menu-text">📝 編輯今日總計</span>
+      <button class="sbtn" id="btnEditToday">編輯</button>
+    </div>
   </div>
 </div>
 
@@ -763,6 +767,36 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
       <button class="edit-btn del" onclick="window.deleteLastStand()">🗑 刪除</button>
       <button class="edit-btn cancel" onclick="window.closeEditModal()">取消</button>
       <button class="edit-btn ok" onclick="window.saveEditLastStand()">✓ 更新</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit today totals modal -->
+<div class="edit-overlay" id="editTodayOverlay">
+  <div class="edit-card">
+    <div class="edit-title">📝 編輯今日總計</div>
+    <div class="edit-info">只改計數，不影響 XP 和寵物進度</div>
+    <div class="edit-row">
+      <label>🪑 站起次數</label>
+      <input type="number" id="etStand" min="0" max="99" step="1"/>
+    </div>
+    <div class="edit-row">
+      <label>⏱ 工作時間</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" id="etHr" min="0" max="23" step="1" style="width:56px"/>
+        <span style="font-size:calc(12px * var(--fs));color:var(--text-dim);">h</span>
+        <input type="number" id="etMin" min="0" max="59" step="1" style="width:56px"/>
+        <span style="font-size:calc(12px * var(--fs));color:var(--text-dim);">m</span>
+      </div>
+    </div>
+    <div class="edit-row">
+      <label>💧 喝水杯數</label>
+      <input type="number" id="etWater" min="0" max="12" step="0.5"/>
+    </div>
+    <div class="edit-warn" id="etWarn"></div>
+    <div class="edit-btns">
+      <button class="edit-btn cancel" onclick="window.closeEditTodayModal()">取消</button>
+      <button class="edit-btn ok" onclick="window.saveEditToday()">✓ 更新</button>
     </div>
   </div>
 </div>
@@ -2523,6 +2557,56 @@ function applyStandWithDuration(newSat,sitStart,sitEnd){
 // Tap outside edit modal closes it
 document.getElementById('editOverlay').addEventListener('click',(e)=>{
   if(e.target.id==='editOverlay')window.closeEditModal();
+});
+
+// ===== EDIT TODAY TOTALS =====
+document.getElementById('btnEditToday').addEventListener('click',()=>{
+  if(S.inSession){
+    showToast('請先結束 session（按「我站起來了」）再編輯');
+    return;
+  }
+  closeMenu();
+  openEditTodayModal();
+});
+
+function openEditTodayModal(){
+  const sec=S.sessionSecTotal||0;
+  const hr=Math.floor(sec/3600);
+  const min=Math.floor((sec%3600)/60);
+  document.getElementById('etStand').value=S.todayStand||0;
+  document.getElementById('etHr').value=hr;
+  document.getElementById('etMin').value=min;
+  document.getElementById('etWater').value=S.todayWater||0;
+  document.getElementById('etWarn').textContent='';
+  document.getElementById('editTodayOverlay').classList.add('show');
+}
+
+window.closeEditTodayModal=function(){
+  document.getElementById('editTodayOverlay').classList.remove('show');
+};
+
+window.saveEditToday=function(){
+  const stand=Math.max(0,Math.min(99,Math.round(+document.getElementById('etStand').value||0)));
+  const hr=Math.max(0,Math.min(23,Math.round(+document.getElementById('etHr').value||0)));
+  const min=Math.max(0,Math.min(59,Math.round(+document.getElementById('etMin').value||0)));
+  let water=+document.getElementById('etWater').value||0;
+  // Round water to nearest 0.5
+  water=Math.max(0,Math.min(12,Math.round(water*2)/2));
+  S.todayStand=stand;
+  S.sessionSecTotal=hr*3600+min*60;
+  S.todayWater=water;
+  // Recompute goal-met flags (affects streak logic) but DO NOT advance pet days
+  // (pet days already counted, we don't reapply)
+  S.sitGoalMetToday=stand>=S_GOAL;
+  S.waterGoalMetToday=water>=W_STREAK;
+  closeEditTodayModal();
+  showToast('✓ 已更新今日總計');
+  renderAll();
+  saveSync();
+};
+
+document.getElementById('editTodayOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='editTodayOverlay')window.closeEditTodayModal();
 });
 
 // ===== BACKGROUND MUSIC =====
