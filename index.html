@@ -84,24 +84,10 @@ html,body{height:100%;}
   /* The per-day list (shown in week/month/all) is the only scrollable area */
   #viewHistory .hist-list{flex:1;overflow-y:auto;min-height:0;}
 
-  /* === Mobile compact: shrink card internals ~7% to fit screen === */
-  .c-card{padding:10px 12px;min-height:0;}
-  .c-head{margin-bottom:6px;font-size:calc(14px * var(--fs));}
-  .c-body-content{padding-right:88px;}
-  .sit-se .timer-num{font-size:calc(50px * var(--fs));margin:2px 0;}
-  .sit-se .timer-sub{font-size:calc(12px * var(--fs));}
-  .sit-se .sit-bar{margin:10px 0 8px;}
-  .sit-se .sit-thresh .tp{padding:6px 0;font-size:calc(11px * var(--fs));}
-  .water-se .big{margin:2px 0;}
-  .water-se .big .n{font-size:calc(50px * var(--fs));}
-  .water-se .ml{font-size:calc(12px * var(--fs));}
-  .cups-row{margin-top:8px;margin-right:-88px;}
-  .cup{min-height:24px;}
-  .btn-full{padding:13px;font-size:calc(14px * var(--fs));}
-  .c-button-slot{padding-top:10px;}
-  .mascot-perch{width:62px;height:62px;top:36px;}
-  .mascot-perch svg{width:58px;height:58px;}
-  .mascot-meta{top:98px;}
+  /* === Mobile compact: tighter vertical spacing only (no internal shrink) === */
+  .main{padding:4px 8px 62px;}
+  #viewHome .row-main{gap:5px;}
+  .c-card{padding:8px 14px;min-height:0;}
 }
 @media (min-width:900px){
   .main{padding:16px 20px;padding-bottom:16px;min-height:0;height:calc(100vh - 52px);}
