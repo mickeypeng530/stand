@@ -481,6 +481,10 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
 .edit-btn.ok{background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;}
 .edit-btn:active{transform:scale(0.96);}
 .edit-btn:disabled{opacity:0.4;pointer-events:none;}
+
+/* Quick undo shortcut (top of menu, shown 5 min after standup) */
+.quick-undo{width:100%;padding:10px 14px;border-radius:10px;border:1px solid #ffd54f44;background:#ffd54f15;color:var(--gold);font-family:inherit;font-weight:700;font-size:calc(13px * var(--fs));cursor:pointer;-webkit-appearance:none;appearance:none;}
+.quick-undo:active{transform:scale(0.97);}
 </style>
 </head>
 <body>
@@ -514,6 +518,9 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
 <!-- SETTINGS DROPDOWN (attached to top bar) -->
 <div class="menu-overlay" id="menuOverlay"></div>
 <div class="menu-dropdown" id="menuDropdown">
+  <div class="menu-section" id="menuQuick" style="display:none;">
+    <button class="quick-undo" id="quickUndoBtn">↩️ 取消剛才那次站起</button>
+  </div>
   <div class="menu-section">
     <div class="menu-label">🎨 風格</div>
     <div class="menu-themes">
@@ -560,13 +567,19 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
       <span class="menu-text">😴 今天休息</span>
       <button class="sbtn" id="btnRest">標記</button>
     </div>
-    <div class="menu-row">
-      <span class="menu-text">✏️ 編輯最近一筆</span>
-      <button class="sbtn" id="btnEdit">編輯</button>
-    </div>
-    <div class="menu-row">
-      <span class="menu-text">📝 編輯今日總計</span>
-      <button class="sbtn" id="btnEditToday">編輯</button>
+  </div>
+
+  <div class="menu-section" id="menuAdvSec">
+    <div class="menu-label" id="menuAdvToggle" style="cursor:pointer;user-select:none;">🔧 進階 <span id="menuAdvArrow" style="font-size:10px;">▶</span></div>
+    <div id="menuAdvBody" style="display:none;">
+      <div class="menu-row">
+        <span class="menu-text">✏️ 編輯最近一筆</span>
+        <button class="sbtn" id="btnEdit">編輯</button>
+      </div>
+      <div class="menu-row">
+        <span class="menu-text">📝 編輯今日總計</span>
+        <button class="sbtn" id="btnEditToday">編輯</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1173,9 +1186,51 @@ const menuBtn=document.getElementById('menuBtn');
 const menuDropdown=document.getElementById('menuDropdown');
 const menuOverlay=document.getElementById('menuOverlay');
 function closeMenu(){menuDropdown.classList.remove('show');menuOverlay.classList.remove('show');}
-function openMenu(){menuDropdown.classList.add('show');menuOverlay.classList.add('show');}
+function openMenu(){
+  // Show quick-undo shortcut if recently pressed "我站起來了" (within 5 min)
+  const qu=document.getElementById('menuQuick');
+  const ls=S.lastStand;
+  const today=new Date().toDateString();
+  const recentStand=ls&&ls.day===today&&ls.sitEnd&&(now()-ls.sitEnd<5*60*1000);
+  const petEscaped=ls&&(S.garden||[]).length>ls.prevGardenLen;
+  if(qu){
+    if(recentStand&&!petEscaped){
+      qu.style.display='';
+    }else{
+      qu.style.display='none';
+    }
+  }
+  menuDropdown.classList.add('show');
+  menuOverlay.classList.add('show');
+}
 menuBtn.addEventListener('click',(e)=>{e.stopPropagation();if(menuDropdown.classList.contains('show'))closeMenu();else openMenu();});
 menuOverlay.addEventListener('click',closeMenu);
+
+// Quick undo button: opens edit-latest modal directly
+document.getElementById('quickUndoBtn').addEventListener('click',()=>{
+  closeMenu();
+  // Re-run the same checks as btnEdit
+  const ls=S.lastStand;
+  const today=new Date().toDateString();
+  if(!ls||ls.day!==today)return;
+  if((S.garden||[]).length>ls.prevGardenLen){
+    showToast('此次讓寵物進花園了，無法編輯');
+    return;
+  }
+  openEditModal();
+});
+
+// Advanced section toggle
+const advToggle=document.getElementById('menuAdvToggle');
+if(advToggle){
+  advToggle.addEventListener('click',()=>{
+    const body=document.getElementById('menuAdvBody');
+    const arrow=document.getElementById('menuAdvArrow');
+    const open=body.style.display!=='none';
+    body.style.display=open?'none':'';
+    if(arrow)arrow.textContent=open?'▶':'▼';
+  });
+}
 
 // ===== LOGIN BUTTON =====
 document.getElementById('loginBtn').addEventListener('click',()=>window.handleLogin());
