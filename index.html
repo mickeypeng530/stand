@@ -493,6 +493,13 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
 /* Quick undo shortcut (top of menu, shown 5 min after standup) */
 .quick-undo{width:100%;padding:10px 14px;border-radius:10px;border:1px solid #ffd54f44;background:#ffd54f15;color:var(--gold);font-family:inherit;font-weight:700;font-size:calc(13px * var(--fs));cursor:pointer;-webkit-appearance:none;appearance:none;}
 .quick-undo:active{transform:scale(0.97);}
+
+/* Portrait desktop screens (e.g. EIZO medical displays — tall aspect) */
+@media (orientation:portrait) and (min-width:900px){
+  .c-card{padding:18px 24px;}
+  .garden-scene{aspect-ratio:16/8;}
+  .bottom-row{max-height:55%;}
+}
 </style>
 </head>
 <body>
