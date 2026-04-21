@@ -119,7 +119,10 @@ html,body{height:100%;}
 }
 
 /* ========== CARDS ========== */
-.c-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;position:relative;overflow:hidden;min-height:240px;}
+.c-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;position:relative;overflow:hidden;min-height:228px;}
+@media (min-width:900px){
+  .c-card{min-height:240px;}
+}
 .c-card.sit{border-color:#66bb6a30;}
 .c-card.water{border-color:#42a5f530;}
 .c-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:calc(15px * var(--fs));font-weight:700;color:var(--text);}
