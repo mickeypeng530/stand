@@ -9,29 +9,29 @@
 :root{--bg:#0c1810;--card:#152319;--card-alt:#1d3226;--green:#66bb6a;--green-light:#a5d6a7;--green-dark:#2e7d32;--blue:#42a5f5;--blue-light:#90caf9;--blue-dark:#1565c0;--gold:#ffd54f;--red:#ef5350;--text:#e8f5e9;--text-dim:#7da57d;--line:#ffffff18;}
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{font-family:'Noto Sans TC','Fredoka','Segoe UI Emoji',sans-serif;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent;overflow:hidden;}
-body{padding:6px 8px;font-size:11px;user-select:none;min-width:260px;}
+body{padding:5px 7px;font-size:11px;user-select:none;min-width:200px;}
 
 /* Header bar */
-.hdr{display:flex;align-items:center;gap:5px;padding:2px 0 4px;}
+.hdr{display:flex;align-items:center;gap:4px;padding:1px 0 3px;}
 .hdr .title{font-family:'Fredoka',sans-serif;font-size:11px;font-weight:700;color:var(--green-light);}
 .hdr .spacer{flex:1;}
-.hdr .sync{font-size:10px;padding:1px 5px;border-radius:4px;background:var(--card);color:var(--green-light);border:1px solid #2e7d3244;}
+.hdr .sync{font-size:9px;padding:1px 4px;border-radius:3px;background:var(--card);color:var(--green-light);border:1px solid #2e7d3244;}
 .hdr .sync.off{color:var(--gold);border-color:#ff700344;}
 .hdr .sync.err{color:var(--red);border-color:#ef535044;}
-.hdr button{background:none;border:none;color:var(--text-dim);font-size:11px;cursor:pointer;padding:2px 4px;border-radius:3px;}
+.hdr button{background:none;border:none;color:var(--text-dim);font-size:10px;cursor:pointer;padding:1px 3px;border-radius:3px;}
 .hdr button:hover{background:var(--card-alt);color:var(--text);}
-.hdr .tb-login{background:var(--card-alt);border:1px solid #ffffff20;color:var(--text-dim);padding:1px 6px;border-radius:4px;font-size:10px;font-family:inherit;cursor:pointer;}
+.hdr .tb-login{background:var(--card-alt);border:1px solid #ffffff20;color:var(--text-dim);padding:1px 5px;border-radius:3px;font-size:10px;font-family:inherit;cursor:pointer;}
 .hdr .tb-login.on{border-color:var(--green);color:var(--green-light);}
 
 /* Line row */
-.row{display:flex;align-items:center;gap:6px;padding:3px 0;line-height:1.2;}
-.row .ic{font-size:12px;width:14px;text-align:center;}
-.row .val{font-family:'Fredoka',monospace;font-weight:700;color:var(--text);min-width:0;}
+.row{display:flex;align-items:center;gap:5px;padding:2px 0;line-height:1.2;}
+.row .ic{font-size:11px;width:12px;text-align:center;}
+.row .val{font-family:'Fredoka',monospace;font-weight:700;color:var(--text);font-size:12px;}
 .row .val.t{color:var(--green-light);}
 .row .val.w{color:var(--blue-light);}
-.row .sub{font-size:10px;color:var(--text-dim);}
+.row .sub{font-size:9px;color:var(--text-dim);}
 .row .spacer{flex:1;}
-.row .act{padding:3px 9px;border-radius:4px;border:none;font-family:inherit;font-weight:700;font-size:10px;cursor:pointer;-webkit-appearance:none;appearance:none;}
+.row .act{padding:2px 7px;border-radius:3px;border:none;font-family:inherit;font-weight:700;font-size:10px;cursor:pointer;-webkit-appearance:none;appearance:none;white-space:nowrap;}
 .row .act.green{background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;}
 .row .act.red{background:var(--card-alt);color:var(--text-dim);border:1px solid var(--line);}
 .row .act.blue{background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;}
@@ -39,17 +39,17 @@ body{padding:6px 8px;font-size:11px;user-select:none;min-width:260px;}
 .row .act:disabled{opacity:0.45;cursor:not-allowed;}
 
 /* Stats line */
-.stats{font-size:10px;color:var(--text-dim);padding:2px 0;display:flex;gap:8px;}
-.stats .s{display:flex;align-items:center;gap:3px;}
+.stats{font-size:9px;color:var(--text-dim);padding:1px 0;display:flex;gap:7px;}
+.stats .s{display:flex;align-items:center;gap:2px;}
 .stats .s .v{color:var(--gold);font-family:'Fredoka',monospace;font-weight:700;}
 
-.sep{height:1px;background:var(--line);margin:3px 0;}
+.sep{height:1px;background:var(--line);margin:2px 0;}
 
 /* Activity card area */
-.act-card{display:none;padding:4px 6px;margin-top:3px;background:var(--card);border:1px solid #66bb6a33;border-radius:5px;}
+.act-card{display:none;padding:3px 5px;margin-top:3px;background:var(--card);border:1px solid #66bb6a33;border-radius:4px;}
 .act-card.show{display:block;}
-.act-card .txt{font-size:11px;color:var(--text);line-height:1.35;margin-bottom:4px;}
-.act-card .done-btn{width:100%;padding:4px;border-radius:4px;border:none;background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;font-family:inherit;font-weight:700;font-size:10px;cursor:pointer;}
+.act-card .txt{font-size:10px;color:var(--text);line-height:1.3;margin-bottom:3px;}
+.act-card .done-btn{width:100%;padding:3px;border-radius:3px;border:none;background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;font-family:inherit;font-weight:700;font-size:10px;cursor:pointer;}
 .act-card .done-btn:active{transform:scale(0.97);}
 
 /* Toast */
@@ -78,22 +78,22 @@ body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;
 <div class="row">
   <span class="ic">🪑</span>
   <span class="val t" id="sitDisp">--:--</span>
-  <span class="sub" id="sitSub">門檻 25m</span>
+  <span class="sub" id="sitSub">25m</span>
   <span class="spacer"></span>
-  <button class="act green" id="sitBtn">▶️ 開始</button>
+  <button class="act green" id="sitBtn">開始</button>
 </div>
 
 <div class="row">
   <span class="ic">💧</span>
   <span class="val w" id="wDisp">0/12</span>
-  <span class="sub" id="wSub">0 ml</span>
+  <span class="sub" id="wSub">0ml</span>
   <span class="spacer"></span>
-  <button class="act blue" id="waterBtn">💧 +0.5</button>
+  <button class="act blue" id="waterBtn">+0.5</button>
 </div>
 
 <div class="stats">
-  <div class="s">🪑 <span class="v" id="stStand">0</span></div>
-  <div class="s">⏱ <span class="v" id="stWork">0m</span></div>
+  <div class="s">🪑<span class="v" id="stStand">0</span></div>
+  <div class="s">⏱<span class="v" id="stWork">0m</span></div>
 </div>
 
 <div class="act-card" id="actCard">
@@ -226,7 +226,7 @@ document.getElementById('loginBtn').addEventListener('click',async()=>{
 });
 
 document.getElementById('openMainBtn').addEventListener('click',()=>{
-  window.open('https://mickeypeng530.github.io/','healthMain');
+  window.open('https://mickeypeng530.github.io/stand/','healthMain');
 });
 
 // === TIMING ===
@@ -349,13 +349,13 @@ function render(){
     const threshSec=(S.thresh||30)*60;
     sitDisp.textContent=fmtTimer(sit);
     const remain=threshSec-sit;
-    if(remain>0)sitSub.textContent=`剩 ${fmtTimer(remain)}`;
-    else sitSub.textContent=`超過 ${fmtTimer(-remain)}`;
-    sitBtn.textContent='🧍 站起';
+    if(remain>0)sitSub.textContent=`剩${fmtTimer(remain)}`;
+    else sitSub.textContent=`超${fmtTimer(-remain)}`;
+    sitBtn.textContent='站起';
   }else{
     sitDisp.textContent='--:--';
-    sitSub.textContent=`門檻 ${S.thresh||30}m`;
-    sitBtn.textContent='▶️ 開始';
+    sitSub.textContent=`${S.thresh||30}m`;
+    sitBtn.textContent='開始';
   }
   // water
   const wDisp=document.getElementById('wDisp');
