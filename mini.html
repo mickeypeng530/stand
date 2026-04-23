@@ -29,7 +29,7 @@ body{padding:5px 7px;font-size:11px;user-select:none;min-width:200px;}
 .row .val{font-family:'Fredoka',monospace;font-weight:700;color:var(--text);font-size:12px;}
 .row .val.t{color:var(--green-light);}
 .row .val.w{color:var(--blue-light);}
-.row .sub{font-size:9px;color:var(--text-dim);}
+.row .sub{font-size:9px;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .row .spacer{flex:1;}
 .row .act{padding:2px 7px;border-radius:3px;border:none;font-family:inherit;font-weight:700;font-size:10px;cursor:pointer;-webkit-appearance:none;appearance:none;white-space:nowrap;}
 .row .act.green{background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;}
@@ -79,7 +79,6 @@ body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;
   <span class="ic">🪑</span>
   <span class="val t" id="sitDisp">--:--</span>
   <span class="sub" id="sitSub">25m</span>
-  <span class="spacer"></span>
   <button class="act green" id="sitBtn">開始</button>
 </div>
 
@@ -87,7 +86,6 @@ body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;
   <span class="ic">💧</span>
   <span class="val w" id="wDisp">0/12</span>
   <span class="sub" id="wSub">0ml</span>
-  <span class="spacer"></span>
   <button class="act blue" id="waterBtn">+0.5</button>
 </div>
 
