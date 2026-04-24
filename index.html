@@ -1025,7 +1025,7 @@ window.S=loadL();
 // ===== FIREBASE =====
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import{getDatabase,ref,set,get,onValue,off}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getDatabase,ref,set,update,get,onValue,off}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import{getStorage,ref as storageRef,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-scheduler-f752b.firebaseapp.com",databaseURL:"https://case-scheduler-f752b-default-rtdb.firebaseio.com",projectId:"case-scheduler-f752b",storageBucket:"case-scheduler-f752b.firebasestorage.app",messagingSenderId:"703006186929",appId:"1:703006186929:web:57ac5b059678005455f190"};
@@ -1076,7 +1076,12 @@ onAuthStateChanged(fbAuth,async u=>{
       if(c.updatedAt&&S.updatedAt&&c.updatedAt<=S.updatedAt)return;
       if(isCloudNewer(c)){
         const wasInSession=S.inSession;
-        Object.assign(S,c);
+        // Merge cloud fields into S (only fields that exist in cloud data)
+        for(const k of Object.keys(c)){
+          S[k]=c[k];
+        }
+        // Refresh lastCloudSnap so our next diff compares against the merged state
+        lastCloudSnap=JSON.parse(JSON.stringify(S));
         saveLocal();
         if(S.inSession!==wasInSession||S.inSession){
           applySessionUI();
@@ -1087,6 +1092,7 @@ onAuthStateChanged(fbAuth,async u=>{
     });
   }else{
     dbRef=null;
+    lastCloudSnap=null;
     updateLoginBtn(null);
     setSyncChip('local','本地');
   }
@@ -1097,11 +1103,32 @@ window.handleLogin=async()=>{
   else{try{await signInWithPopup(fbAuth,prov);}catch(e){console.warn('login failed',e);}}
 };
 
+// Track last state written to / synced from cloud (for diff-based writes)
+let lastCloudSnap=null;
+
 async function cloudSave(){
   if(!dbRef)return;
   try{
     S.updatedAt=Date.now();
-    await set(dbRef,{...S});
+    const patch={updatedAt:S.updatedAt};
+    if(lastCloudSnap){
+      // Only send fields that changed (prevents overwriting other devices' data)
+      for(const k of Object.keys(S)){
+        const a=JSON.stringify(S[k]);
+        const b=JSON.stringify(lastCloudSnap[k]);
+        if(a!==b)patch[k]=S[k];
+      }
+      if(Object.keys(patch).length===1){
+        // Only updatedAt changed (no real data change) — skip write
+        return;
+      }
+    }else{
+      // First write: send everything
+      Object.assign(patch,S);
+    }
+    await update(dbRef,patch);
+    // Snapshot after successful write (deep copy)
+    lastCloudSnap=JSON.parse(JSON.stringify(S));
     setSyncChip('cloud','已同步');
   }catch(e){
     console.warn('cloudSave err',e);
@@ -1139,7 +1166,12 @@ async function cloudPull(firstPull){
 
     if(isCloudNewer(c)){
       const wasInSession=S.inSession;
-      Object.assign(S,c);
+      // Merge only fields that exist in cloud (don't wipe device-local fields)
+      for(const k of Object.keys(c)){
+        S[k]=c[k];
+      }
+      // Snapshot this state — it's what's currently in cloud
+      lastCloudSnap=JSON.parse(JSON.stringify(S));
       saveLocal();
       // Sync session UI state
       if(S.inSession!==wasInSession||S.inSession){
