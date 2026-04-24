@@ -45,12 +45,13 @@ body{padding:5px 7px;font-size:11px;user-select:none;min-width:200px;}
 
 .sep{height:1px;background:var(--line);margin:2px 0;}
 
-/* Inline activity (shows after standup within stats row) */
+/* Inline activity text (shows after standup within stats row) */
 .act-inline{display:none;align-items:center;gap:3px;font-size:9px;color:var(--text-dim);min-width:0;flex:1;}
 .act-inline.show{display:flex;}
 .act-inline span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;}
-.act-inline .act-ok{background:var(--green-dark);color:#fff;border:none;border-radius:3px;font-size:9px;font-weight:700;padding:1px 5px;cursor:pointer;-webkit-appearance:none;appearance:none;flex-shrink:0;}
-.act-inline .act-ok:active{transform:scale(0.9);}
+/* Activity complete button (next to water +0.5) */
+.act-ok{background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;border:none;border-radius:3px;font-size:11px;font-weight:700;padding:2px 7px;cursor:pointer;-webkit-appearance:none;appearance:none;flex-shrink:0;}
+.act-ok:active{transform:scale(0.92);}
 
 /* Toast */
 .toast{position:fixed;top:2px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--green);color:var(--green-light);padding:3px 9px;border-radius:4px;font-size:10px;z-index:100;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;}
@@ -86,6 +87,7 @@ body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;
   <span class="val w" id="wDisp">0/12</span>
   <span class="sub" id="wSub">0ml</span>
   <button class="act blue" id="waterBtn">+0.5</button>
+  <button class="act-ok" id="actDone" title="完成活動 +1 XP" style="display:none;">✓</button>
 </div>
 
 <div class="stats">
@@ -93,7 +95,6 @@ body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;
   <div class="s">⏱<span class="v" id="stWork">0m</span></div>
   <div class="act-inline" id="actInline">
     <span id="actTxt"></span>
-    <button class="act-ok" id="actDone" title="完成 +1 XP">✓</button>
   </div>
 </div>
 
@@ -327,6 +328,7 @@ function handleStandup(){
     pendingActivity=ACTS[Math.floor(Math.random()*ACTS.length)];
     document.getElementById('actTxt').textContent=pendingActivity;
     document.getElementById('actInline').classList.add('show');
+    document.getElementById('actDone').style.display='';
     toast(`+${xpGain} XP · 動得好`);
   }else{
     toast('👍 已結束');
@@ -352,6 +354,7 @@ function finishActivity(){
   }
   pendingActivity=null;
   document.getElementById('actInline').classList.remove('show');
+  document.getElementById('actDone').style.display='none';
   render();saveSync();
 }
 
