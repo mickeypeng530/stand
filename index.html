@@ -542,8 +542,8 @@ body.theme-pokemon .c-card::before{
 body.theme-pokemon .c-card::after{
   content:'';position:absolute;top:-1px;right:22px;width:2px;height:6px;background:#1a1a1a;z-index:2;pointer-events:none;
 }
-body.theme-pokemon .btn-full.green-alt{background:linear-gradient(135deg,#ffd700,#ff9a00) !important;box-shadow:0 3px 0 #b38400;color:#1a3a8a !important;border-radius:14px;font-weight:900;}
-body.theme-pokemon .btn-full.blue{background:linear-gradient(135deg,#ee1515,#c41818) !important;box-shadow:0 3px 0 #a01010;color:#fff !important;border-radius:14px;font-weight:900;}
+body.theme-pokemon .btn-full.green-alt{background:#ffd700 !important;box-shadow:0 3px 0 #b38400;color:#1a3a8a !important;border-radius:14px;font-weight:900;}
+body.theme-pokemon .btn-full.blue{background:#ee1515 !important;box-shadow:0 3px 0 #a01010;color:#fff !important;border-radius:14px;font-weight:900;}
 /* Electric-glow on sit timer */
 body.theme-pokemon .sit-se .timer-num{color:#b38400;text-shadow:0 0 8px #ffd700,0 2px 0 #fff,2px 0 0 #fff,-2px 0 0 #fff,0 -2px 0 #fff;}
 body.theme-pokemon .water-se .big .n{color:#ee1515;text-shadow:0 2px 0 #fff,2px 0 0 #fff,-2px 0 0 #fff,0 -2px 0 #fff;}
@@ -576,8 +576,8 @@ body.theme-mario .c-card::before{
   font-family:'Press Start 2P','Fredoka',monospace;z-index:3;pointer-events:none;
 }
 body.theme-mario .btn-full{font-weight:900;letter-spacing:0.3px;}
-body.theme-mario .btn-full.green-alt{background:linear-gradient(135deg,#e52521,#a61912) !important;box-shadow:0 3px 0 #3d1a0a;color:#fff !important;border-radius:8px;border:2px solid #3d1a0a;}
-body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9c) !important;box-shadow:0 3px 0 #3d1a0a;color:#ffcd00 !important;border-radius:8px;border:2px solid #3d1a0a;}
+body.theme-mario .btn-full.green-alt{background:#e52521 !important;box-shadow:0 3px 0 #3d1a0a;color:#fff !important;border-radius:8px;border:2px solid #3d1a0a;}
+body.theme-mario .btn-full.blue{background:#1e5fdc !important;box-shadow:0 3px 0 #3d1a0a;color:#ffcd00 !important;border-radius:8px;border:2px solid #3d1a0a;}
 /* Pixelated chunky timer with dark outline */
 body.theme-mario .sit-se .timer-num{color:#e52521;text-shadow:0 2px 0 #3d1a0a,2px 0 0 #3d1a0a,-2px 0 0 #3d1a0a,0 -2px 0 #3d1a0a,2px 2px 0 #3d1a0a,3px 3px 0 rgba(0,0,0,0.3);font-family:'Fredoka',sans-serif;}
 body.theme-mario .water-se .big .n{color:#1e5fdc;text-shadow:0 2px 0 #3d1a0a,2px 0 0 #3d1a0a,-2px 0 0 #3d1a0a,0 -2px 0 #3d1a0a;}
@@ -605,6 +605,9 @@ body.theme-mario .mascot-speech::after{background:#fef6e4;border-right:2px solid
 @media (max-width:899px){
   body.theme-pokemon .c-card,
   body.theme-mario .c-card{padding:6px 12px;border-width:2px;}
+  /* Push the title row (「久坐追蹤」/「喝水追蹤」) down so it clears the corner decoration */
+  body.theme-pokemon .c-head,
+  body.theme-mario .c-head{padding-top:4px;padding-right:34px;}
 }
 
 /* Edit last-stand modal */
@@ -1098,6 +1101,15 @@ function getDailyQuote(){
 // ===== CONSTANTS =====
 const SILENT=600,AWAY=3600,W_INT=7200,W_GOAL=12,ML=150,S_GOAL=8,W_STREAK=6;
 const THEMES=['default','kawaii','pixel','tama','neon','paper','pokemon','mario'];
+// Timing (ms)
+const ANIM_MASCOT_DELAY=1300;       // wait for mascot happy animation before showing activity card
+const ACTIVITY_SLOT_TOTAL=1500;     // total slot-machine spin duration
+const ACTIVITY_SETTLE_DELAY=800;    // after slot settles, wait before entering "doing" mode
+const DOING_COUNTDOWN_SEC=30;       // activity "doing" phase in seconds
+const SESSION_STALE_HR=6;           // session older than this is considered stale on page load
+const CLOUD_PULL_DEBOUNCE_MS=10000; // min interval between cloudPull on visibility change
+const CELEBRATE_DURATION_MS=2400;   // big celebration overlay duration
+const TOAST_DURATION_MS=2400;       // individual toast duration
 
 // Seed system (8 stages, each needs X XP to advance)
 // Index 7 = completed, triggers moving to garden + reset
@@ -1204,7 +1216,7 @@ window.S=loadL();
 // ===== FIREBASE =====
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import{getDatabase,ref,set,update,get,onValue,off}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getDatabase,ref,update,get,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import{getStorage,ref as storageRef,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-scheduler-f752b.firebaseapp.com",databaseURL:"https://case-scheduler-f752b-default-rtdb.firebaseio.com",projectId:"case-scheduler-f752b",storageBucket:"case-scheduler-f752b.firebasestorage.app",messagingSenderId:"703006186929",appId:"1:703006186929:web:57ac5b059678005455f190"};
@@ -1212,15 +1224,15 @@ const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),f
 let fbUser=null,dbRef=null;
 
 function setSyncChip(mode,text){
-  const chip=document.getElementById('syncChip');
-  const t=document.getElementById('syncText');
+  const chip=$id('syncChip');
+  const t=$id('syncText');
   if(!chip||!t)return;
   if(mode==='cloud'){chip.classList.remove('offline');t.textContent=text||'已同步';}
   else{chip.classList.add('offline');t.textContent=text||'本地';}
 }
 
 function updateLoginBtn(u){
-  const btn=document.getElementById('loginBtn');
+  const btn=$id('loginBtn');
   if(!btn)return;
   if(u){
     btn.textContent='👤 '+(u.displayName?.split(' ')[0]||'已登入');
@@ -1369,7 +1381,7 @@ let lastPullAt=0;
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&dbRef){
     const n=Date.now();
-    if(n-lastPullAt>10000){lastPullAt=n;cloudPull(false);}
+    if(n-lastPullAt>CLOUD_PULL_DEBOUNCE_MS){lastPullAt=n;cloudPull(false);}
   }
 });
 
@@ -1381,7 +1393,7 @@ document.addEventListener('visibilitychange',()=>{
     const text=await r.text();
     const m=text.match(/<symbol[\s\S]*?<\/symbol>/g);
     if(!m||m.length===0)throw new Error('no symbols found');
-    document.getElementById('spriteDefs').innerHTML=m.join('\n');
+    $id('spriteDefs').innerHTML=m.join('\n');
     document.querySelectorAll('use[href]').forEach(u=>{
       const h=u.getAttribute('href');
       u.removeAttribute('href');
@@ -1403,18 +1415,18 @@ document.querySelectorAll('.tabbar .t').forEach(tab=>{
     const name=tab.dataset.view;
     document.querySelectorAll('.tabbar .t').forEach(t=>t.classList.toggle('active',t===tab));
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    document.getElementById(views[name]).classList.add('active');
+    $id(views[name]).classList.add('active');
   });
 });
 
 // ===== MENU DROPDOWN =====
-const menuBtn=document.getElementById('menuBtn');
-const menuDropdown=document.getElementById('menuDropdown');
-const menuOverlay=document.getElementById('menuOverlay');
+const menuBtn=$id('menuBtn');
+const menuDropdown=$id('menuDropdown');
+const menuOverlay=$id('menuOverlay');
 function closeMenu(){menuDropdown.classList.remove('show');menuOverlay.classList.remove('show');}
 function openMenu(){
   // Show quick-undo shortcut if recently pressed "我站起來了" (within 5 min)
-  const qu=document.getElementById('menuQuick');
+  const qu=$id('menuQuick');
   const ls=S.lastStand;
   const today=new Date().toDateString();
   const recentStand=ls&&ls.day===today&&ls.sitEnd&&(now()-ls.sitEnd<5*60*1000);
@@ -1433,7 +1445,7 @@ menuBtn.addEventListener('click',(e)=>{e.stopPropagation();if(menuDropdown.class
 menuOverlay.addEventListener('click',closeMenu);
 
 // Quick undo button: opens edit-latest modal directly
-document.getElementById('quickUndoBtn').addEventListener('click',()=>{
+$id('quickUndoBtn').addEventListener('click',()=>{
   closeMenu();
   // Re-run the same checks as btnEdit
   const ls=S.lastStand;
@@ -1447,11 +1459,11 @@ document.getElementById('quickUndoBtn').addEventListener('click',()=>{
 });
 
 // Advanced section toggle
-const advToggle=document.getElementById('menuAdvToggle');
+const advToggle=$id('menuAdvToggle');
 if(advToggle){
   advToggle.addEventListener('click',()=>{
-    const body=document.getElementById('menuAdvBody');
-    const arrow=document.getElementById('menuAdvArrow');
+    const body=$id('menuAdvBody');
+    const arrow=$id('menuAdvArrow');
     const open=body.style.display!=='none';
     body.style.display=open?'none':'';
     if(arrow)arrow.textContent=open?'▶':'▼';
@@ -1459,7 +1471,7 @@ if(advToggle){
 }
 
 // ===== LOGIN BUTTON =====
-document.getElementById('loginBtn').addEventListener('click',()=>window.handleLogin());
+$id('loginBtn').addEventListener('click',()=>window.handleLogin());
 
 // ===== THEME SWITCHING (with cloud sync) =====
 function applyTheme(name){
@@ -1531,26 +1543,26 @@ function renderAll(){
   // Top bar counters
   const wVal=S.todayWater||0;
   const wStr=Number.isInteger(wVal)?String(wVal):wVal.toFixed(1);
-  document.getElementById('tbStand').textContent=(S.todayStand||0)+'/'+S_GOAL;
-  document.getElementById('tbWater').textContent=wStr+'/'+W_GOAL;
+  $id('tbStand').textContent=(S.todayStand||0)+'/'+S_GOAL;
+  $id('tbWater').textContent=wStr+'/'+W_GOAL;
   // Top bar timer: today's total work time (accumulated across sessions)
-  const tbT=document.getElementById('tbTimer');
+  const tbT=$id('tbTimer');
   if(tbT)tbT.textContent=fmtHr(totalSS()||0);
   // Water number + cups
-  document.getElementById('wNum').textContent=wStr;
-  const wMl=document.getElementById('wMl');
+  $id('wNum').textContent=wStr;
+  const wMl=$id('wMl');
   if(wMl)wMl.textContent=`≈ ${Math.round(wVal*ML)} ml · ${wVal>=W_GOAL?'今日已完成 ✅':'目標 '+W_GOAL+' 杯'}`;
   renderCups();
   // Quote + garden status (both desktop and mobile duplicates)
   const quote=getDailyQuote();
-  const q=document.getElementById('dailyQuote');if(q)q.textContent=quote;
-  const qm=document.getElementById('dailyQuoteMobile');if(qm)qm.textContent=quote;
+  const q=$id('dailyQuote');if(q)q.textContent=quote;
+  const qm=$id('dailyQuoteMobile');if(qm)qm.textContent=quote;
   const total=(S.garden||[]).length;
   const sitN=(S.garden||[]).filter(g=>g.type==='sit').length;
   const wN=total-sitN;
   const statusHtml=`共 ${total} 棵 · 🪑 ${sitN} · 💧 ${wN}`;
-  const gs=document.getElementById('gardenStatus');if(gs)gs.innerHTML=statusHtml;
-  const gsm=document.getElementById('gardenStatusMobile');if(gsm)gsm.innerHTML=statusHtml;
+  const gs=$id('gardenStatus');if(gs)gs.innerHTML=statusHtml;
+  const gsm=$id('gardenStatusMobile');if(gsm)gsm.innerHTML=statusHtml;
   // History
   renderHistory();
   // Timer display (so stopWork resets "--:--" immediately)
@@ -1560,7 +1572,7 @@ function renderAll(){
   if(typeof renderGarden==='function')renderGarden();
   // Notification button state
   if('Notification' in window){
-    const btn=document.getElementById('btnNotif');
+    const btn=$id('btnNotif');
     if(btn){
       if(Notification.permission==='granted'){btn.textContent='已允許';btn.classList.add('on');}
       else if(Notification.permission==='denied'){btn.textContent='已拒絕';btn.classList.remove('on');}
@@ -1568,10 +1580,10 @@ function renderAll(){
     }
   }
   // Sound button state
-  const sb=document.getElementById('btnSound');
+  const sb=$id('btnSound');
   if(sb){sb.textContent=S.soundOn?'開啟':'靜音';sb.classList.toggle('on',!!S.soundOn);}
   // Rest button state
-  const rb=document.getElementById('btnRest');
+  const rb=$id('btnRest');
   if(rb){rb.textContent=S.restToday?'已休息':'標記';rb.classList.toggle('on',!!S.restToday);}
 }
 
@@ -1717,14 +1729,14 @@ function renderHistory(){
       html+=`</div>`;
     }
   }
-  const body=document.getElementById('histBody');
+  const body=$id('histBody');
   if(body)body.innerHTML=html;
-  const bodyM=document.getElementById('histBodyMobile');
+  const bodyM=$id('histBodyMobile');
   if(bodyM)bodyM.innerHTML=html;
 }
 
 // ===== CUPS (water tracker) =====
-const cupsRow=document.getElementById('cupsRow');
+const cupsRow=$id('cupsRow');
 function renderCups(){
   if(!cupsRow)return;
   const n=S.todayWater||0;
@@ -1780,6 +1792,9 @@ const MSGS={
 
 // ===== HELPERS =====
 function now(){return Date.now();}
+// DOM element cache — lazy-init on first use, then reuse
+const _domCache={};
+function $id(id){return _domCache[id]??=document.getElementById(id);}
 function fmtTimer(sec){
   if(sec<0)sec=0;
   const m=Math.floor(sec/60),s=sec%60;
@@ -1793,7 +1808,7 @@ function _nextToast(){
   const item=_toastQueue.shift();
   if(!item)return;
   _toastActive=true;
-  const t=document.getElementById('toast');
+  const t=$id('toast');
   if(!t){_toastActive=false;return;}
   t.textContent=item.text;
   t.classList.toggle('celebrate',!!item.celebrate);
@@ -1804,7 +1819,7 @@ function _nextToast(){
       _toastActive=false;
       _nextToast();
     },300); // small gap between toasts so user notices the change
-  },2400);
+  },TOAST_DURATION_MS);
 }
 function showToast(text,celebrate){
   _toastQueue.push({text,celebrate});
@@ -1813,15 +1828,15 @@ function showToast(text,celebrate){
 
 // Big celebration (pet hatching, seed completion)
 function celebrate(icon,title,sub){
-  const ov=document.getElementById('celebrateOverlay');
+  const ov=$id('celebrateOverlay');
   if(!ov)return;
-  document.getElementById('celebrateIcon').textContent=icon;
-  document.getElementById('celebrateTitle').textContent=title;
-  document.getElementById('celebrateSub').textContent=sub||'';
+  $id('celebrateIcon').textContent=icon;
+  $id('celebrateTitle').textContent=title;
+  $id('celebrateSub').textContent=sub||'';
   ov.classList.remove('show');
   void ov.offsetWidth; // restart animation
   ov.classList.add('show');
-  setTimeout(()=>ov.classList.remove('show'),2400);
+  setTimeout(()=>ov.classList.remove('show'),CELEBRATE_DURATION_MS);
   // Also shoot confetti
   shootConfetti(icon);
 }
@@ -1845,7 +1860,7 @@ function shootConfetti(emoji){
 
 // Little emoji that floats up from mascot when seed levels up
 function stageUpPop(mascotId,emoji){
-  const m=document.getElementById(mascotId);
+  const m=$id(mascotId);
   if(!m)return;
   const pop=document.createElement('div');
   pop.className='stage-up';
@@ -1941,7 +1956,7 @@ function tick(){
   }
   renderTimer();
   // Update top bar total work time (updates every second during session)
-  const tbT=document.getElementById('tbTimer');
+  const tbT=$id('tbTimer');
   if(tbT)tbT.textContent=fmtHr(S.sessionSecTotal||0);
   // Save locally every 30s (cloud save only on manual actions to avoid too many writes)
   if(sit%30===0)saveLocal();
@@ -2057,7 +2072,7 @@ window.handleStandup=function(){
   // If showing activity card, delay for mascot animation (1300ms)
   if(r.showCard){
     window._pendingPostCardToast=r.pendingToast;
-    setTimeout(()=>showActivity(),1300);
+    setTimeout(()=>showActivity(),ANIM_MASCOT_DELAY);
   }
 };
 
@@ -2066,7 +2081,7 @@ function resumeSessionIfNeeded(){
   if(!S.inSession)return;
   const live=Math.floor((now()-(S.sessionStartAt||now()))/1000);
   // If session is > 6h old, assume it's stale
-  if(live>6*3600){
+  if(live>SESSION_STALE_HR*3600){
     console.log('[session] stale (>6h), ending');
     S.inSession=false;
     S.sessionSecTotal=(S.sessionAccum||0); // keep accumulated time
@@ -2079,8 +2094,8 @@ function resumeSessionIfNeeded(){
 
 // Apply UI state based on inSession
 function applySessionUI(){
-  const start=document.getElementById('startWorkBtn');
-  const stand=document.getElementById('standBtn');
+  const start=$id('startWorkBtn');
+  const stand=$id('standBtn');
   if(S.inSession){
     if(start)start.style.display='none';
     if(stand)stand.style.display='';
@@ -2208,8 +2223,8 @@ function checkPetLevelUp(type){
 
 // ===== MASCOT VISUAL =====
 function triggerMascot(type,customMsg){
-  const el=document.getElementById(type+'Mascot');
-  const sp=document.getElementById(type+'Speech');
+  const el=$id(type+'Mascot');
+  const sp=$id(type+'Speech');
   if(!el||!sp)return;
   el.classList.remove('idle');el.classList.add('happy');
   setTimeout(()=>{el.classList.remove('happy');el.classList.add('idle');},1200);
@@ -2225,8 +2240,8 @@ function updatePetMascots(){
   const waterDays=S.waterPetDays||0;
   const[,sSuf]=petStageOf(sitDays);
   const[,wSuf]=petStageOf(waterDays);
-  const sitUse=document.getElementById('sitMascotUse');
-  const wUse=document.getElementById('waterMascotUse');
+  const sitUse=$id('sitMascotUse');
+  const wUse=$id('waterMascotUse');
   // Choose symbol based on species + stage. Eggs always use original.
   const sitSpecies=S.sitPetSpecies||'original';
   const wSpecies=S.waterPetSpecies||'original';
@@ -2235,8 +2250,8 @@ function updatePetMascots(){
   if(sitUse)sitUse.setAttribute('href','#'+sitPrefix+'-'+sSuf);
   if(wUse)wUse.setAttribute('href','#'+wPrefix+'-'+wSuf);
   // Apply float class to adult pikachu/mario for extra bounce
-  const sitMascot=document.getElementById('sitMascot');
-  const wMascot=document.getElementById('waterMascot');
+  const sitMascot=$id('sitMascot');
+  const wMascot=$id('waterMascot');
   if(sitMascot)sitMascot.classList.toggle('char-float',sSuf==='adult'&&sitSpecies==='pikachu');
   if(wMascot)wMascot.classList.toggle('char-float',wSuf==='adult'&&wSpecies==='mario');
   // Seed stage line
@@ -2244,12 +2259,12 @@ function updatePetMascots(){
   const wSeedIdx=S.waterStageIdx||0;
   const sitSeedStg=SIT_STG[sitSeedIdx];
   const wSeedStg=WATER_STG[wSeedIdx];
-  const sitStage=document.getElementById('sitStage');
-  const wStage=document.getElementById('waterStage');
+  const sitStage=$id('sitStage');
+  const wStage=$id('waterStage');
   if(sitStage)sitStage.textContent=`${sitSeedStg.e}${sitSeedStg.n}`;
   if(wStage)wStage.textContent=`${wSeedStg.e}${wSeedStg.n}`;
-  const sitXp=document.getElementById('sitXp');
-  const wXp=document.getElementById('waterXp');
+  const sitXp=$id('sitXp');
+  const wXp=$id('waterXp');
   if(sitXp){
     const sitNeed=sitSeedStg.x||0;
     sitXp.textContent=sitNeed>0?`${S.sitStageXP||0}/${sitNeed}`:'✓';
@@ -2259,8 +2274,8 @@ function updatePetMascots(){
     wXp.textContent=wNeed>0?`${S.waterStageXP||0}/${wNeed}`:'✓';
   }
   // Pet days line
-  const sitPet=document.getElementById('sitPet');
-  const wPet=document.getElementById('waterPet');
+  const sitPet=$id('sitPet');
+  const wPet=$id('waterPet');
   const sitEmoji=sSuf==='adult'?'🌿':(sSuf==='baby'?'🐣':'🥚');
   const wEmoji=wSuf==='adult'?'💧':(wSuf==='baby'?'🐣':'🥚');
   const sitNext=sitDays<PET_BABY_THRESHOLD?PET_BABY_THRESHOLD:PET_ADULT_THRESHOLD;
@@ -2274,7 +2289,7 @@ function renderTimer(){
   const sit=currentSitSec();
   const threshSec=(S.thresh||30)*60;
   const pct=S.inSession?Math.min(100,sit/threshSec*100):0;
-  const bar=document.getElementById('sitBarFill');
+  const bar=$id('sitBarFill');
   if(bar){
     bar.style.width=pct+'%';
     // Color shift: green → gold → red
@@ -2287,9 +2302,9 @@ function renderTimer(){
       bar.style.background='linear-gradient(90deg,var(--green),var(--gold))';
     }
   }
-  const disp=document.getElementById('sitDisp');
-  const hint=document.getElementById('sitHint');
-  const sub=document.getElementById('sitSubtitle');
+  const disp=$id('sitDisp');
+  const hint=$id('sitHint');
+  const sub=$id('sitSubtitle');
   if(S.inSession){
     if(disp)disp.textContent=fmtTimer(sit);
     const remain=threshSec-sit;
@@ -2315,7 +2330,7 @@ function renderTimer(){
     if(sub)sub.textContent='待機 · '+S.thresh+' 分門檻';
   }
   // Dynamic XP badge on stand button — shows the reward based on current zone
-  const badge=document.getElementById('sitBadge');
+  const badge=$id('sitBadge');
   if(badge){
     if(!S.inSession){
       badge.textContent='';
@@ -2346,7 +2361,7 @@ function renderTimer(){
 // Positions use percentages so items move with container, but sizes use px (fixed).
 
 function renderGarden(){
-  const scenes=[document.getElementById('gardenScene'),document.getElementById('gardenSceneMobile')];
+  const scenes=[$id('gardenScene'),$id('gardenSceneMobile')];
   // Determine time phase: 7-17 = day, 17-19 = dusk, 19-7 = night
   // (Early dawn 5-7am gets folded into 'night' — user said dawn is rarely used)
   const hr=new Date().getHours();
@@ -2651,7 +2666,7 @@ function renderGarden(){
     });
   });
   // Update garden header sub
-  const subs=[document.getElementById('gardenSub'),document.getElementById('gardenSubMobile')];
+  const subs=[$id('gardenSub'),$id('gardenSubMobile')];
   subs.forEach(s=>{
     if(!s)return;
     const n=(S.garden||[]).length;
@@ -2692,13 +2707,13 @@ function showActivity(){
   recentActs.push(idx);
   if(recentActs.length>history)recentActs.shift();
   currentActivity=ACTS[idx];
-  const overlay=document.getElementById('activityOverlay');
+  const overlay=$id('activityOverlay');
   const card=overlay.querySelector('.activity-card');
-  const iconEl=document.getElementById('acIcon');
-  const textEl=document.getElementById('acText');
-  const countdownEl=document.getElementById('acCountdown');
-  const titleEl=document.getElementById('acTitle');
-  const btns=document.getElementById('acBtns');
+  const iconEl=$id('acIcon');
+  const textEl=$id('acText');
+  const countdownEl=$id('acCountdown');
+  const titleEl=$id('acTitle');
+  const btns=$id('acBtns');
   overlay.classList.add('show');
   card.classList.remove('settled','doing');
   card.classList.add('rolling');
@@ -2707,8 +2722,8 @@ function showActivity(){
   textEl.textContent='🎲 抽卡中…';
   if(countdownEl)countdownEl.textContent='';
 
-  // Slot-machine animation: 1.5s total, each icon fully plays slotSpin before next
-  const totalTime=1500;
+  // Slot-machine animation: spin duration + fastest→slowest delays
+  const totalTime=ACTIVITY_SLOT_TOTAL;
   const startDelay=250;
   const endDelay=450;
   let elapsed=0;
@@ -2739,14 +2754,14 @@ function showActivity(){
       card.classList.add('settled');
       if(S.soundOn)beep();
       // Wait for settled animation, then enter doing mode directly (0.8s)
-      setTimeout(()=>startDoingCountdown(30),800);
+      setTimeout(()=>startDoingCountdown(DOING_COUNTDOWN_SEC),ACTIVITY_SETTLE_DELAY);
     }
   };
   setTimeout(step,startDelay);
 }
 
 function startActivityCountdown(seconds){
-  const countdownEl=document.getElementById('acCountdown');
+  const countdownEl=$id('acCountdown');
   let remain=seconds;
   if(countdownEl)countdownEl.textContent=`${remain}s 後自動關閉`;
   activityCountdownTimer=setInterval(()=>{
@@ -2761,7 +2776,7 @@ window.closeActivity=function(){
   // Only called if user skips (not used in new flow since doing mode starts directly)
   if(activityCountdownTimer){clearInterval(activityCountdownTimer);activityCountdownTimer=null;}
   if(activityAutoCloseTimer){clearTimeout(activityAutoCloseTimer);activityAutoCloseTimer=null;}
-  document.getElementById('activityOverlay').classList.remove('show');
+  $id('activityOverlay').classList.remove('show');
   if(window._pendingPostCardToast){
     showToast(window._pendingPostCardToast);
   }
@@ -2773,9 +2788,9 @@ let doingTimer=null;
 let doingAutoFinishTimer=null;
 function startDoingCountdown(seconds){
   const card=document.querySelector('.activity-card');
-  const titleEl=document.getElementById('acTitle');
-  const countdownEl=document.getElementById('acCountdown');
-  const btns=document.getElementById('acBtns');
+  const titleEl=$id('acTitle');
+  const countdownEl=$id('acCountdown');
+  const btns=$id('acBtns');
   // Switch to "doing" state
   card.classList.add('doing');
   if(titleEl)titleEl.textContent='🔥 執行中…';
@@ -2796,13 +2811,13 @@ window.finishDoing=function(){
   if(doingTimer){clearInterval(doingTimer);doingTimer=null;}
   if(doingAutoFinishTimer){clearTimeout(doingAutoFinishTimer);doingAutoFinishTimer=null;}
   const card=document.querySelector('.activity-card');
-  const titleEl=document.getElementById('acTitle');
+  const titleEl=$id('acTitle');
   card.classList.remove('doing');
   // Reset for next time
   if(titleEl)titleEl.textContent='🎲 動一動吧';
-  const btns=document.getElementById('acBtns');
+  const btns=$id('acBtns');
   if(btns)btns.innerHTML='';
-  document.getElementById('activityOverlay').classList.remove('show');
+  $id('activityOverlay').classList.remove('show');
   // Give the XP reward
   if(currentActivity){
     addSeedXP('sit',1);
@@ -2815,16 +2830,16 @@ window.finishDoing=function(){
 };
 
 // ===== BUTTON HANDLERS =====
-document.getElementById('startWorkBtn').addEventListener('click',()=>window.startWork());
-document.getElementById('standBtn').addEventListener('click',()=>window.handleStandup());
-document.getElementById('waterBtn').addEventListener('click',doWater);
-document.getElementById('btnSound').addEventListener('click',()=>{
+$id('startWorkBtn').addEventListener('click',()=>window.startWork());
+$id('standBtn').addEventListener('click',()=>window.handleStandup());
+$id('waterBtn').addEventListener('click',doWater);
+$id('btnSound').addEventListener('click',()=>{
   S.soundOn=!S.soundOn;
-  document.getElementById('btnSound').textContent=S.soundOn?'開啟':'靜音';
-  document.getElementById('btnSound').classList.toggle('on',S.soundOn);
+  $id('btnSound').textContent=S.soundOn?'開啟':'靜音';
+  $id('btnSound').classList.toggle('on',S.soundOn);
   saveSync();
 });
-document.getElementById('btnNotif').addEventListener('click',async()=>{
+$id('btnNotif').addEventListener('click',async()=>{
   if(!('Notification' in window)){showToast('此瀏覽器不支援通知');return;}
   if(Notification.permission==='granted'){
     // Re-confirm it works by firing a test notification
@@ -2845,7 +2860,7 @@ document.getElementById('btnNotif').addEventListener('click',async()=>{
     renderAll();
   }
 });
-document.getElementById('btnRest').addEventListener('click',()=>{
+$id('btnRest').addEventListener('click',()=>{
   S.restToday=true;
   showToast('😴 今天休息，不中斷連續天數',true);
   saveSync();
@@ -2853,7 +2868,7 @@ document.getElementById('btnRest').addEventListener('click',()=>{
 });
 
 // ===== EDIT LAST STAND =====
-document.getElementById('btnEdit').addEventListener('click',()=>{
+$id('btnEdit').addEventListener('click',()=>{
   const ls=S.lastStand;
   const today=new Date().toDateString();
   if(!ls){
@@ -2881,23 +2896,23 @@ function fmtTime(ts){
 function openEditModal(){
   const ls=S.lastStand;
   if(!ls)return;
-  const info=document.getElementById('editInfo');
-  const dur=document.getElementById('editDur');
-  const preview=document.getElementById('editPreview');
-  const warn=document.getElementById('editWarn');
+  const info=$id('editInfo');
+  const dur=$id('editDur');
+  const preview=$id('editPreview');
+  const warn=$id('editWarn');
   const sitMin=Math.max(1,Math.round(ls.sitSec/60));
   info.textContent=`${fmtTime(ls.sitStart)} - ${fmtTime(ls.sitEnd)}（原本 ${sitMin} 分鐘）`;
   dur.value=sitMin;
   warn.textContent='';
   updateEditPreview();
-  document.getElementById('editOverlay').classList.add('show');
+  $id('editOverlay').classList.add('show');
   dur.oninput=updateEditPreview;
 }
 
 function updateEditPreview(){
-  const dur=+document.getElementById('editDur').value||0;
-  const preview=document.getElementById('editPreview');
-  const warn=document.getElementById('editWarn');
+  const dur=+$id('editDur').value||0;
+  const preview=$id('editPreview');
+  const warn=$id('editWarn');
   if(dur<1){
     preview.textContent='時長需要至少 1 分鐘';
     warn.textContent='';
@@ -2912,14 +2927,14 @@ function updateEditPreview(){
 }
 
 window.closeEditModal=function(){
-  document.getElementById('editOverlay').classList.remove('show');
+  $id('editOverlay').classList.remove('show');
 };
 
 window.saveEditLastStand=function(){
   const ls=S.lastStand;
   if(!ls)return;
-  const dur=+document.getElementById('editDur').value||0;
-  const warn=document.getElementById('editWarn');
+  const dur=+$id('editDur').value||0;
+  const warn=$id('editWarn');
   if(dur<1){warn.textContent='時長需至少 1 分鐘';return;}
   // Rollback to previous state, then re-apply with new duration
   rollbackLastStand();
@@ -2993,12 +3008,12 @@ function applyStandWithDuration(newSat,sitStart,sitEnd){
 }
 
 // Tap outside edit modal closes it
-document.getElementById('editOverlay').addEventListener('click',(e)=>{
+$id('editOverlay').addEventListener('click',(e)=>{
   if(e.target.id==='editOverlay')window.closeEditModal();
 });
 
 // ===== EDIT TODAY TOTALS =====
-document.getElementById('btnEditToday').addEventListener('click',()=>{
+$id('btnEditToday').addEventListener('click',()=>{
   if(S.inSession){
     showToast('請先結束 session（按「我站起來了」）再編輯');
     return;
@@ -3014,27 +3029,27 @@ function openEditTodayModal(){
   const lSec=S.longestSit||0;
   const lHr=Math.floor(lSec/3600);
   const lMin=Math.floor((lSec%3600)/60);
-  document.getElementById('etStand').value=S.todayStand||0;
-  document.getElementById('etHr').value=hr;
-  document.getElementById('etMin').value=min;
-  document.getElementById('etLongHr').value=lHr;
-  document.getElementById('etLongMin').value=lMin;
-  document.getElementById('etWater').value=S.todayWater||0;
-  document.getElementById('etWarn').textContent='';
-  document.getElementById('editTodayOverlay').classList.add('show');
+  $id('etStand').value=S.todayStand||0;
+  $id('etHr').value=hr;
+  $id('etMin').value=min;
+  $id('etLongHr').value=lHr;
+  $id('etLongMin').value=lMin;
+  $id('etWater').value=S.todayWater||0;
+  $id('etWarn').textContent='';
+  $id('editTodayOverlay').classList.add('show');
 }
 
 window.closeEditTodayModal=function(){
-  document.getElementById('editTodayOverlay').classList.remove('show');
+  $id('editTodayOverlay').classList.remove('show');
 };
 
 window.saveEditToday=function(){
-  const stand=Math.max(0,Math.min(99,Math.round(+document.getElementById('etStand').value||0)));
-  const hr=Math.max(0,Math.min(23,Math.round(+document.getElementById('etHr').value||0)));
-  const min=Math.max(0,Math.min(59,Math.round(+document.getElementById('etMin').value||0)));
-  const lHr=Math.max(0,Math.min(23,Math.round(+document.getElementById('etLongHr').value||0)));
-  const lMin=Math.max(0,Math.min(59,Math.round(+document.getElementById('etLongMin').value||0)));
-  let water=+document.getElementById('etWater').value||0;
+  const stand=Math.max(0,Math.min(99,Math.round(+$id('etStand').value||0)));
+  const hr=Math.max(0,Math.min(23,Math.round(+$id('etHr').value||0)));
+  const min=Math.max(0,Math.min(59,Math.round(+$id('etMin').value||0)));
+  const lHr=Math.max(0,Math.min(23,Math.round(+$id('etLongHr').value||0)));
+  const lMin=Math.max(0,Math.min(59,Math.round(+$id('etLongMin').value||0)));
+  let water=+$id('etWater').value||0;
   // Round water to nearest 0.5
   water=Math.max(0,Math.min(12,Math.round(water*2)/2));
   S.todayStand=stand;
@@ -3051,7 +3066,7 @@ window.saveEditToday=function(){
   saveSync();
 };
 
-document.getElementById('editTodayOverlay').addEventListener('click',(e)=>{
+$id('editTodayOverlay').addEventListener('click',(e)=>{
   if(e.target.id==='editTodayOverlay')window.closeEditTodayModal();
 });
 
@@ -3070,7 +3085,7 @@ async function getMusicUrl(filename){
 }
 
 async function loadAndPlay(idx){
-  const audio=document.getElementById('bgMusic');
+  const audio=$id('bgMusic');
   if(!audio)return;
   const filename=MUSIC_TRACKS[idx%MUSIC_TRACKS.length];
   try{
@@ -3089,7 +3104,7 @@ async function loadAndPlay(idx){
 }
 
 function setMusicButton(playing){
-  const btn=document.getElementById('musicBtn');
+  const btn=$id('musicBtn');
   if(!btn)return;
   if(playing){
     btn.textContent='🎵';
@@ -3103,13 +3118,13 @@ function setMusicButton(playing){
 }
 
 // When one track ends, play the next (auto-rotate between the 2 tracks)
-document.getElementById('bgMusic').addEventListener('ended',()=>{
+$id('bgMusic').addEventListener('ended',()=>{
   musicTrackIdx=(musicTrackIdx+1)%MUSIC_TRACKS.length;
   loadAndPlay(musicTrackIdx);
 });
 
-document.getElementById('musicBtn').addEventListener('click',async()=>{
-  const audio=document.getElementById('bgMusic');
+$id('musicBtn').addEventListener('click',async()=>{
+  const audio=$id('bgMusic');
   if(!audio||musicPreparing)return;
   // Require login (Firebase Storage rules restrict read to authorized email)
   if(!fbUser){
