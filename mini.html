@@ -102,7 +102,7 @@ body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import{getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import{getDatabase,ref,set,get,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import{getDatabase,ref,set,update,get,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-scheduler-f752b.firebaseapp.com",databaseURL:"https://case-scheduler-f752b-default-rtdb.firebaseio.com",projectId:"case-scheduler-f752b",storageBucket:"case-scheduler-f752b.firebasestorage.app",messagingSenderId:"703006186929",appId:"1:703006186929:web:57ac5b059678005455f190"};
 const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),prov=new GoogleAuthProvider();
@@ -149,12 +149,28 @@ function loadL(){
   try{const d=JSON.parse(localStorage.getItem('health_v6'));if(d)return d;}catch(e){}
   return defS();
 }
+let lastCloudSnap=null;
 function saveLocal(){try{localStorage.setItem('health_v6',JSON.stringify(S));}catch(e){}}
 async function saveSync(){
   saveLocal();
   if(!dbRef)return;
-  try{S.updatedAt=Date.now();await set(dbRef,{...S});setSync('cloud','已同步');}
-  catch(e){setSync('err','錯誤');}
+  try{
+    S.updatedAt=Date.now();
+    const patch={updatedAt:S.updatedAt};
+    if(lastCloudSnap){
+      for(const k of Object.keys(S)){
+        const a=JSON.stringify(S[k]);
+        const b=JSON.stringify(lastCloudSnap[k]);
+        if(a!==b)patch[k]=S[k];
+      }
+      if(Object.keys(patch).length===1)return;
+    }else{
+      Object.assign(patch,S);
+    }
+    await update(dbRef,patch);
+    lastCloudSnap=JSON.parse(JSON.stringify(S));
+    setSync('cloud','已同步');
+  }catch(e){setSync('err','錯誤');}
 }
 
 S=loadL();
@@ -188,12 +204,14 @@ onAuthStateChanged(fbAuth,async u=>{
       if(!snap.exists())return;
       const c=snap.val();
       if(c.updatedAt&&S.updatedAt&&c.updatedAt<=S.updatedAt)return;
-      Object.assign(S,c);
+      for(const k of Object.keys(c)){S[k]=c[k];}
+      lastCloudSnap=JSON.parse(JSON.stringify(S));
       saveLocal();
       render();
     });
   }else{
     dbRef=null;
+    lastCloudSnap=null;
     updateLogin(null);
     setSync('off','本地');
   }
@@ -207,7 +225,11 @@ async function cloudPull(first){
     const c=snap.val();
     const today=new Date().toDateString();
     if(c.lastDate&&c.lastDate!==today&&c.lastDate!==null){if(first)await saveSync();return;}
-    if(isNewer(c)){Object.assign(S,c);saveLocal();render();}
+    if(isNewer(c)){
+      for(const k of Object.keys(c)){S[k]=c[k];}
+      lastCloudSnap=JSON.parse(JSON.stringify(S));
+      saveLocal();render();
+    }
     else if(first){await saveSync();}
   }catch(e){setSync('err','錯誤');}
 }
