@@ -368,10 +368,10 @@ html,body{height:100%;}
 .daily-quote .dq-status{font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;margin-bottom:4px;font-family:'Fredoka',monospace;}
 .daily-quote .dq-quote{font-size:calc(13px * var(--fs));color:var(--text-dim);line-height:1.5;font-style:italic;}
 /* Mobile version (inside garden tab) — standalone card with larger fonts */
-.daily-quote.mobile-quote{margin-top:14px;padding:14px 16px;border-top:none;background:var(--card);border:1px solid var(--line);border-radius:14px;gap:12px;}
-.daily-quote.mobile-quote .dq-icon{font-size:calc(32px * var(--fs));}
-.daily-quote.mobile-quote .dq-status{font-size:calc(16px * var(--fs));margin-bottom:6px;}
-.daily-quote.mobile-quote .dq-quote{font-size:calc(15px * var(--fs));line-height:1.6;}
+.daily-quote.mobile-quote{margin-top:8px;padding:10px 14px;border-top:none;background:var(--card);border:1px solid var(--line);border-radius:14px;gap:10px;}
+.daily-quote.mobile-quote .dq-icon{font-size:calc(26px * var(--fs));}
+.daily-quote.mobile-quote .dq-status{font-size:calc(14px * var(--fs));margin-bottom:3px;}
+.daily-quote.mobile-quote .dq-quote{font-size:calc(14px * var(--fs));line-height:1.5;}
 
 /* hist-tabs also scaled */
 .hist-card .htab{font-size:calc(12px * var(--fs));}
@@ -655,10 +655,25 @@ body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card
   .bottom-row{max-height:42%;}
 }
 
-/* Mobile snack card — display only inside viewGarden */
+/* Mobile snack card — display only inside viewGarden, compact single-row layout */
 .snack-card-mobile{display:none;}
 @media (max-width:899px){
-  .snack-card-mobile{display:block;margin-top:10px;}
+  .snack-card-mobile{display:block;margin-top:8px;padding:8px 12px;}
+  .snack-card-mobile .sk-head{font-size:calc(12px * var(--fs));gap:6px;}
+  .snack-card-mobile .sk-head .sk-ic{font-size:14px;}
+  .snack-card-mobile .sk-head .sk-sub{font-size:calc(10px * var(--fs));}
+  .snack-card-mobile .sk-body{padding-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .snack-card-mobile .sk-nums{margin-bottom:0;flex-shrink:0;}
+  .snack-card-mobile .sk-count{font-size:calc(20px * var(--fs));}
+  .snack-card-mobile .sk-slash{font-size:calc(12px * var(--fs));}
+  .snack-card-mobile .sk-limit{font-size:calc(11px * var(--fs));}
+  .snack-card-mobile .sk-candies{margin-bottom:0;min-height:20px;gap:2px;flex:1;}
+  .snack-card-mobile .sk-candies .cd{font-size:16px;}
+  .snack-card-mobile .sk-candies .cd-extra{font-size:calc(11px * var(--fs));}
+  .snack-card-mobile .sk-btns{flex:0 0 auto;gap:4px;}
+  .snack-card-mobile .sk-add{padding:5px 10px;font-size:calc(11px * var(--fs));border-radius:7px;flex:0 0 auto;}
+  .snack-card-mobile .sk-undo{padding:4px 7px;font-size:calc(10px * var(--fs));border-radius:7px;}
+  .snack-card-mobile .sk-pet{margin-top:4px;font-size:calc(10px * var(--fs));width:100%;}
 }
 
 /* Edit last-stand modal */
@@ -1707,7 +1722,8 @@ function todaySnapshot(){
     workTimeSec:S.sessionSecTotal||0,
     longestSitSec:S.longestSit||0,
     rested:S.restToday||false,
-    overLongSit:(S.longestSit||0)>=LONGEST_WARN_SEC
+    overLongSit:(S.longestSit||0)>=LONGEST_WARN_SEC,
+    snack:S.todaySnack||0
   };
 }
 
@@ -1720,7 +1736,7 @@ function getAllRecords(){
   });
   // Add today if has any activity
   const today=todaySnapshot();
-  if(today.water>0||today.stands>0||today.workTimeSec>0||today.rested){
+  if(today.water>0||today.stands>0||today.workTimeSec>0||today.rested||today.snack>0){
     records.push({date:S.lastDate||new Date().toDateString(),...today});
   }
   records.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -1743,12 +1759,15 @@ function aggregateRecords(records){
     totalStands:sum('stands'),
     totalWorkSec:sum('workTimeSec'),
     totalSessions:sum('sessions'),
+    totalSnack:sum('snack'),
     avgWater:sum('water')/n,
     avgWaterMl:sum('waterMl')/n,
     avgStands:sum('stands')/n,
     avgWorkSec:sum('workTimeSec')/n,
     avgLongestSec:sum('longestSitSec')/n,
-    overLongCount:workdays.filter(r=>r.overLongSit).length
+    avgSnack:sum('snack')/n,
+    overLongCount:workdays.filter(r=>r.overLongSit).length,
+    snackOverLimitCount:workdays.filter(r=>(r.snack||0)>(S.snackLimit||3)).length
   };
 }
 
@@ -1793,23 +1812,28 @@ function renderHistory(){
     const sCls=colorCls('stand',t.stands);
     const wCls=colorCls('water',t.water);
     const lCls=colorCls('longest',t.longestSitSec);
+    const snLimit=S.snackLimit||3;
+    const snCls=t.snack>snLimit?'bad':(t.snack===0?'ok':'');
     html=`<div class="hist-stats">
       <div class="hstat ${sCls}"><div class="sv">${t.stands}</div><div class="sl">今日站起 ${all.count>0?'(均 '+all.avgStands.toFixed(1)+')':''}</div></div>
       <div class="hstat ${wCls}"><div class="sv">${t.water}</div><div class="sl">今日喝水 ${all.count>0?'(均 '+all.avgWater.toFixed(1)+')':''}</div></div>
       <div class="hstat"><div class="sv">${fmtHr(t.workTimeSec)}</div><div class="sl">工作時間 ${all.count>0?'(均 '+fmtHr(Math.round(all.avgWorkSec))+')':''}</div></div>
       <div class="hstat ${lCls}"><div class="sv">${fmtHr(t.longestSitSec)}</div><div class="sl">最長久坐 ${t.overLongSit?'⚠️':''}</div></div>
+      <div class="hstat ${snCls}"><div class="sv">${t.snack}</div><div class="sl">🍪 零食 ${all.count>0?'(均 '+all.avgSnack.toFixed(1)+')':''}${t.snack>snLimit?' ⚠️':''}</div></div>
     </div>`;
   }else{
     const days=currentHistRange==='week'?7:(currentHistRange==='month'?30:null);
     const records=days?recordsInLastNDays(days):getAllRecords();
     const agg=aggregateRecords(records);
     const overCls=agg.overLongCount>0?'bad':'ok';
-    // Summary stats (4 cells)
+    const snOverCls=agg.snackOverLimitCount>0?'bad':'ok';
+    // Summary stats (5 cells including snack)
     html=`<div class="hist-stats">
       <div class="hstat"><div class="sv">${agg.totalStands}</div><div class="sl">站起 (均 ${agg.avgStands.toFixed(1)})</div></div>
       <div class="hstat"><div class="sv">${agg.totalWater}</div><div class="sl">喝水 (均 ${agg.avgWater.toFixed(1)})</div></div>
       <div class="hstat"><div class="sv">${fmtHr(agg.totalWorkSec)}</div><div class="sl">工作 (均 ${fmtHr(Math.round(agg.avgWorkSec))})</div></div>
       <div class="hstat ${overCls}"><div class="sv">${agg.overLongCount}</div><div class="sl">超標次數 (≥45m)</div></div>
+      <div class="hstat ${snOverCls}"><div class="sv">${agg.totalSnack}</div><div class="sl">🍪 零食 (均 ${agg.avgSnack.toFixed(1)})</div></div>
     </div>`;
     // Daily detail list
     if(records.length===0){
@@ -1823,12 +1847,15 @@ function renderHistory(){
           const wCls=colorCls('water',r.water||0);
           const sCls=colorCls('stand',r.stands||0);
           const lCls=colorCls('longest',r.longestSitSec||0);
+          const snLimit=S.snackLimit||3;
+          const snCls=(r.snack||0)>snLimit?'bad':'';
           html+=`<div class="hist-row">
             <span class="hr-date">${fmtDate(r.date)}</span>
             <span class="hr-item">💧<span class="hr-v ${wCls}">${r.water||0}</span></span>
             <span class="hr-item">🪑<span class="hr-v ${sCls}">${r.stands||0}</span></span>
             <span class="hr-item">⏱<span class="hr-v">${fmtHr(r.workTimeSec||0)}</span></span>
             <span class="hr-item">📌<span class="hr-v ${lCls}">${fmtHr(r.longestSitSec||0)}</span>${r.overLongSit?'⚠️':''}</span>
+            <span class="hr-item">🍪<span class="hr-v ${snCls}">${r.snack||0}</span></span>
           </div>`;
         }
       });
