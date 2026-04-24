@@ -970,7 +970,7 @@ body.theme-mario .mascot-speech::after{background:#fef6e4;border-right:2px solid
 <script type="module">
 // ===== DAILY LUCKY QUOTES =====
 const QUOTES=[
-  // 泰戈爾（8）
+  // 泰戈爾（9）
   '天空中沒有翅膀的痕跡，而我已飛過 — 泰戈爾',
   '生如夏花之絢爛，死如秋葉之靜美 — 泰戈爾',
   '休息與工作的關係，猶如眼瞼與眼睛的關係 — 泰戈爾',
@@ -979,7 +979,8 @@ const QUOTES=[
   '錯過了太陽時你流淚，那你也要錯過群星了 — 泰戈爾',
   '小草呀，你的足跡雖小，卻擁有你足下的土地 — 泰戈爾',
   '只有流過血的手指，才能彈出世間的絕唱 — 泰戈爾',
-  // 林婉瑜（11）
+  '人要在外面到處漂流，最後才能走到最深的內殿 — 泰戈爾',
+  // 林婉瑜(12)
   '時間是溫柔的，只是忘了告訴你 — 林婉瑜',
   '今天也辛苦了，明天也會的吧 — 林婉瑜',
   '被愛的時候，整個人都變得比較軟 — 林婉瑜',
@@ -991,7 +992,9 @@ const QUOTES=[
   '今天的雲，看起來很適合發呆',
   '想你的時候，連天氣都變得溫柔 — 林婉瑜',
   '有些人來過，就沒真正離開過 — 林婉瑜',
-  // 任明信（11）
+  '喜歡你，是一件很安靜的事 — 林婉瑜',
+  '有些日子需要慢慢過，就像有些話需要慢慢說 — 林婉瑜',
+  // 任明信(12)
   '今天想做的事很少，比如呼吸，比如愛你 — 任明信',
   '喜歡的事要慢慢做，像呼吸，像走路，像把光灑進心裡 — 任明信',
   '每天都是一個小小的開始，就算只是睜開眼睛 — 任明信',
@@ -1003,16 +1006,40 @@ const QUOTES=[
   '不用急著長大，也不用急著變好 — 任明信',
   '想成為你一生中，最輕的負擔、最重的安慰 — 任明信',
   '把日子過好，是對自己最溫柔的事 — 任明信',
-  // 簡媜（2）
+  '你值得被好好愛著，即使你覺得自己不夠好 — 任明信',
+  // 簡媜（3）
   '好的日子，是被認真活著的 — 簡媜',
   '日子要過得像一首詩，即使平凡也要有韻腳 — 簡媜',
-  // 宋尚緯（1）
+  '我們都是不完整的人，慢慢走，慢慢成為自己 — 簡媜',
+  // 宋尚緯（3）
   '不是每個疼痛都能換來什麼，但你仍然值得被溫柔對待 — 宋尚緯',
+  '比起完整，我更希望我們都能被接住 — 宋尚緯',
+  '我們都是彼此的光，雖然微弱，也足以照明 — 宋尚緯',
+  // 潘柏霖（1）
+  '我想成為，你回家路上的那盞燈 — 潘柏霖',
+  // 辛波絲卡（1）
+  '有些人擅長飛行，有些人擅長跌倒，所以別怕 — 辛波絲卡',
   // 鯨向海（1）
   '在這個世界上，喜歡你，是我最認真做過的事 — 鯨向海',
   // 夏宇風（1）
   '你是我平凡世界裡，最不平凡的風景',
-  // 當代台灣詩風（5）
+  // 韓劇 / 日劇（4）
+  '人生沒有完美，但還是要為自己鼓掌 — 我的大叔',
+  '很好的活過、很好的愛過，就夠了 — 我的大叔',
+  '我們都會好起來的，慢慢地，溫柔地 — 機智的醫生生活',
+  '即使是雨天，也有雨天的風景 — 四重奏',
+  // 華語劇(2)
+  '不要害怕選擇，每一條路都會帶你到該到的地方',
+  '人生不是在等風停，是在學會與風共舞',
+  // 我的大叔(1)
+  '你不需要變得更好，你只需要記得你很好 — 我的大叔',
+  // 經典文學(4)
+  '所有的大人都曾經是小孩，雖然只有少數人記得 — 小王子',
+  '時間是最偉大的作者，它總能寫出完美的結局 — 卓別林',
+  '不必每一天都精彩，日子本身就是答案',
+  '走得慢的人，往往走得最遠',
+  '人永遠無法讓時間停下，但可以讓每一個當下變得有意義 — 歌德',
+  // 當代台灣詩風(5)
   '平凡的日子裡，有你就夠了',
   '我想和你，把平淡的日子過得有光',
   '不是每件事都需要答案，有些事只需要陪伴',
@@ -1023,26 +1050,42 @@ const QUOTES=[
 // Before 09:00 = late slot (yesterday afternoon's continuation)
 // 09:00 - 14:59 = morning slot
 // 15:00 - 08:59 next day = afternoon/late slot
+// Fisher-Yates shuffle with a seeded PRNG (deterministic)
+function seededShuffle(n,seed){
+  const arr=[];
+  for(let i=0;i<n;i++)arr.push(i);
+  // xorshift PRNG
+  let s=seed|0;
+  const rnd=()=>{s^=s<<13;s^=s>>17;s^=s<<5;return (s>>>0)/4294967296;};
+  for(let i=n-1;i>0;i--){
+    const j=Math.floor(rnd()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
 function getDailyQuote(){
   const now=new Date();
   const y=now.getFullYear(),m=now.getMonth()+1,d=now.getDate();
   const hr=now.getHours();
-  // Slot 0 = late (00:00-08:59, uses yesterday's date),
-  // Slot 1 = morning (09:00-14:59, uses today's date slot 1),
-  // Slot 2 = afternoon (15:00-23:59, uses today's date slot 2)
-  let slot, seed;
+  // Re-shuffle every year (so order changes yearly)
+  const shuffled=seededShuffle(QUOTES.length,y*7919+31);
+  // Slot 0 = late (00:00-08:59, carry yesterday's afternoon)
+  // Slot 1 = morning (09:00-14:59)
+  // Slot 2 = afternoon (15:00-23:59)
+  // Use day-of-year * 2 + slot to index into shuffled array
+  const dayOfYear=Math.floor((now-new Date(y,0,0))/86400000);
+  let idx;
   if(hr<9){
-    // Late slot — carry over from yesterday's afternoon
     const yest=new Date(now.getTime()-24*3600*1000);
-    seed=yest.getFullYear()*100000+(yest.getMonth()+1)*1000+yest.getDate()*10+2;
+    const yDoy=Math.floor((yest-new Date(yest.getFullYear(),0,0))/86400000);
+    idx=(yDoy*2+1)%QUOTES.length;
   }else if(hr<15){
-    // Morning slot
-    seed=y*100000+m*1000+d*10+1;
+    idx=(dayOfYear*2)%QUOTES.length;
   }else{
-    // Afternoon slot
-    seed=y*100000+m*1000+d*10+2;
+    idx=(dayOfYear*2+1)%QUOTES.length;
   }
-  return QUOTES[seed%QUOTES.length];
+  return QUOTES[shuffled[idx]];
 }
 
 // ===== CONSTANTS =====
@@ -2626,8 +2669,22 @@ function beep(){
 let currentActivity=null;
 let activityCountdownTimer=null;
 let activityAutoCloseTimer=null;
+// Track recent activity indices (module-level, no persist — fresh each session)
+let recentActs=[];
+
 function showActivity(){
-  currentActivity=ACTS[Math.floor(Math.random()*ACTS.length)];
+  // Pick a random activity that hasn't been shown in recent history
+  const history=Math.min(5,ACTS.length-1);
+  let idx;
+  let tries=0;
+  do{
+    idx=Math.floor(Math.random()*ACTS.length);
+    tries++;
+  }while(recentActs.includes(idx)&&tries<20);
+  // Update history (keep only last N)
+  recentActs.push(idx);
+  if(recentActs.length>history)recentActs.shift();
+  currentActivity=ACTS[idx];
   const overlay=document.getElementById('activityOverlay');
   const card=overlay.querySelector('.activity-card');
   const iconEl=document.getElementById('acIcon');
