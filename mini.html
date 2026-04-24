@@ -35,6 +35,11 @@ body{padding:5px 7px;font-size:11px;user-select:none;min-width:200px;}
 .row .act.green{background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;}
 .row .act.red{background:var(--card-alt);color:var(--text-dim);border:1px solid var(--line);}
 .row .act.blue{background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;}
+.row .act.orange{background:#ff9a55;color:#fff;}
+.row .act-undo{background:var(--card-alt);color:var(--text-dim);border:1px solid var(--line);border-radius:3px;font-size:10px;padding:2px 5px;cursor:pointer;-webkit-appearance:none;appearance:none;flex-shrink:0;}
+.row .act-undo:active{transform:scale(0.9);}
+.row .val.sn{color:#ffb877;}
+.row .val.sn.over{color:#ef5350;font-weight:800;}
 .row .act:active{transform:scale(0.96);}
 .row .act:disabled{opacity:0.45;cursor:not-allowed;}
 
@@ -88,6 +93,14 @@ body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;
   <span class="sub" id="wSub">0ml</span>
   <button class="act blue" id="waterBtn">+0.5</button>
   <button class="act-ok" id="actDone" title="完成活動 +1 XP" style="display:none;">✓</button>
+</div>
+
+<div class="row">
+  <span class="ic">🍪</span>
+  <span class="val sn" id="snDisp">0/3</span>
+  <span class="sub" id="snSub">0🍬</span>
+  <button class="act orange" id="snackBtn">+1</button>
+  <button class="act-undo" id="snackUndoBtn" title="−1">−</button>
 </div>
 
 <div class="stats">
@@ -144,6 +157,8 @@ function defS(){return{
   sitStageIdx:0,sitStageXP:0,waterStageIdx:0,waterStageXP:0,
   sitPetDays:0,waterPetDays:0,sitGoalMetToday:false,waterGoalMetToday:false,
   totalStands:0,totalWater:0,
+  todaySnack:0,totalSnacks:0,snackLimit:3,snackGoalMetToday:true,
+  snackPetDays:0,snackPetSpecies:'original',
   theme:'default',
 };}
 
@@ -353,6 +368,24 @@ function doWater(){
   render();saveSync();
 }
 
+function doSnack(){
+  S.todaySnack=(S.todaySnack||0)+1;
+  S.totalSnacks=(S.totalSnacks||0)+1;
+  const limit=S.snackLimit||3;
+  const wasMet=S.snackGoalMetToday!==false;
+  S.snackGoalMetToday=S.todaySnack<=limit;
+  if(wasMet&&!S.snackGoalMetToday)toast('🍪 超過今日上限');
+  render();saveSync();
+}
+function undoSnack(){
+  if((S.todaySnack||0)<=0){toast('沒有紀錄');return;}
+  S.todaySnack=Math.max(0,(S.todaySnack||0)-1);
+  S.totalSnacks=Math.max(0,(S.totalSnacks||0)-1);
+  const limit=S.snackLimit||3;
+  S.snackGoalMetToday=S.todaySnack<=limit;
+  render();saveSync();
+}
+
 function finishActivity(){
   if(pendingActivity){
     addSeedXP('sit',1);
@@ -391,6 +424,20 @@ function render(){
   const wStr=Number.isInteger(w)?String(w):w.toFixed(1);
   wDisp.textContent=`${wStr}/12`;
   wSub.textContent=`${Math.round(w*ML)} ml`;
+  // snack
+  const snDisp=document.getElementById('snDisp');
+  const snSub=document.getElementById('snSub');
+  const sn=S.todaySnack||0;
+  const snLimit=S.snackLimit||3;
+  const overSn=sn>snLimit;
+  snDisp.textContent=`${sn}/${snLimit}`;
+  snDisp.classList.toggle('over',overSn);
+  // Sub: show candy visual up to 3 (fits in tiny space), use + for extras
+  let candies='';
+  for(let i=0;i<Math.min(sn,3);i++)candies+='🍬';
+  if(sn>3)candies+='🔴';
+  if(sn>4)candies+=`+${sn-4}`;
+  snSub.textContent=candies||'未吃';
   // stats
   document.getElementById('stStand').textContent=(S.todayStand||0);
   document.getElementById('stWork').textContent=fmtHr(totalSS()||0);
@@ -401,6 +448,8 @@ document.getElementById('sitBtn').addEventListener('click',()=>{
   if(S.inSession)handleStandup();else startWork();
 });
 document.getElementById('waterBtn').addEventListener('click',doWater);
+document.getElementById('snackBtn').addEventListener('click',doSnack);
+document.getElementById('snackUndoBtn').addEventListener('click',undoSnack);
 document.getElementById('actDone').addEventListener('click',finishActivity);
 
 // Toast
