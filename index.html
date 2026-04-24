@@ -166,6 +166,33 @@ html,body{height:100%;}
 /* Garden pikachu/mario — floating effect in the garden */
 .gdecor.float-char svg{animation:garden-float 3s ease-in-out infinite;}
 @keyframes garden-float{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
+/* === Pose variants (randomly assigned per character) === */
+/* pose-a: classic float (same as float-char default) */
+/* pose-b: side sway — shifts weight left/right like dancing */
+.gdecor.pose-b svg{animation:pose-sway 3.2s ease-in-out infinite;transform-origin:50% 100%;}
+@keyframes pose-sway{0%,100%{transform:rotate(-3deg) translateY(0);}50%{transform:rotate(3deg) translateY(-3px);}}
+/* pose-c: hop — periodic little jump */
+.gdecor.pose-c svg{animation:pose-hop 2.2s ease-in-out infinite;transform-origin:50% 100%;}
+@keyframes pose-hop{0%,70%,100%{transform:translateY(0) scaleY(1);}80%{transform:translateY(-8px) scaleY(1.05);}90%{transform:translateY(-2px) scaleY(0.95);}}
+/* pose-d: sleep — gentle breathe + tilted head */
+.gdecor.pose-d svg{animation:pose-breathe 3.5s ease-in-out infinite;transform-origin:50% 100%;}
+@keyframes pose-breathe{0%,100%{transform:rotate(-6deg) scale(1);}50%{transform:rotate(-6deg) scale(1.03);}}
+/* Sleep Zz indicator */
+.gdecor .zz-indicator{position:absolute;top:-8%;right:-12%;font-size:40%;color:#fff;font-weight:900;text-shadow:0 1px 2px rgba(0,0,0,0.5);animation:zz-rise 2.4s ease-out infinite;}
+@keyframes zz-rise{0%{opacity:0;transform:translate(0,4px) scale(0.6);}20%{opacity:1;}100%{opacity:0;transform:translate(6px,-16px) scale(1.1);}}
+/* Pikachu electric sparks — two small bolts that blink around the body */
+.gdecor.has-sparks{position:relative;}
+.gdecor .spark{position:absolute;pointer-events:none;z-index:1;animation:spark-blink 1.8s ease-in-out infinite;color:#fde047;font-weight:900;text-shadow:0 0 4px #facc15,0 0 8px #f59e0b;}
+.gdecor .spark.s1{top:8%;left:-6%;font-size:30%;animation-delay:0s;}
+.gdecor .spark.s2{top:32%;right:-8%;font-size:26%;animation-delay:0.6s;}
+.gdecor .spark.s3{top:60%;left:-4%;font-size:22%;animation-delay:1.2s;}
+@keyframes spark-blink{0%,40%,100%{opacity:0;transform:scale(0.4) rotate(0);}15%{opacity:1;transform:scale(1.1) rotate(15deg);}25%{opacity:0.7;transform:scale(0.9) rotate(-10deg);}}
+/* Mario gold coins — small rotating coins that orbit */
+.gdecor .coin{position:absolute;pointer-events:none;z-index:1;width:22%;height:22%;animation:coin-spin 2.4s ease-in-out infinite;}
+.gdecor .coin.c1{top:2%;right:-10%;animation-delay:0s;}
+.gdecor .coin.c2{top:38%;left:-12%;animation-delay:0.8s;}
+.gdecor .coin svg{display:block;width:100%;height:100%;}
+@keyframes coin-spin{0%,100%{transform:translateY(0) rotateY(0);}50%{transform:translateY(-6px) rotateY(180deg);}}
 .mascot-speech{position:absolute;right:14px;top:18px;background:#fff;color:#333;padding:4px 9px;border-radius:12px;font-size:calc(10px * var(--fs));font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.3);white-space:nowrap;z-index:3;opacity:0;transform:translateY(4px);transition:all .3s;}
 .mascot-speech.show{opacity:1;transform:translateY(0);}
 .mascot-speech::after{content:'';position:absolute;bottom:-4px;right:14px;width:8px;height:8px;background:#fff;transform:rotate(45deg);}
@@ -224,20 +251,30 @@ html,body{height:100%;}
 .garden-head .gsub{margin-left:auto;font-size:10px;color:var(--text-dim);font-weight:400;}
 /* Garden: HTML-based scene with absolute-positioned decorations */
 /* HORIZON_PCT = 55% (top of grass). Sky = 0-55%, grass = 55-100% */
+/* Flat-color 3-phase skies (no gradients) — day / dusk / night
+   Cartoon-style: sky is one solid color, grass is one solid color,
+   split sharply at the 55% horizon line. Variety comes from elements
+   (sun/moon position, clouds, birds, fireflies) — not from shading. */
 .garden-scene{
   position:relative;
   width:100%;
   aspect-ratio:16/11;  /* Mobile: taller scene, but less sky, more garden */
   border-radius:10px;
   overflow:hidden;
-  /* Layered sky gradient: warm dawn glow near horizon for day */
+  /* DAY (default): clear sky + saturated grass, sharp horizon */
   background:
-    linear-gradient(180deg,#b9e0ef 0%,#d6eef3 35%,#fce5b5 52%,#b5d97a 55%,#a8d582 100%);
+    linear-gradient(to bottom, #b9e0ef 0%, #b9e0ef 55%, #a8d582 55%, #a8d582 100%);
   transition:background .6s;
 }
+/* DUSK: golden-orange sky + amber-tinged grass (6-7pm) */
+.garden-scene.dusk{
+  background:
+    linear-gradient(to bottom, #ff9d6b 0%, #ff9d6b 55%, #8fbd5e 55%, #8fbd5e 100%);
+}
+/* NIGHT: deep indigo sky + cool teal grass (7pm-5am) */
 .garden-scene.night{
   background:
-    linear-gradient(180deg,#0e1936 0%,#1a2847 35%,#3a3560 52%,#7fb85b 55%,#a8d582 100%);
+    linear-gradient(to bottom, #1a2040 0%, #1a2040 55%, #5a8c5a 55%, #5a8c5a 100%);
 }
 /* Grass lip highlight (subtle horizon line) */
 .garden-scene::before{
@@ -249,8 +286,12 @@ html,body{height:100%;}
   background:#6fa754;
   opacity:0.4;
   z-index:1;
+  transition:background .6s;
 }
-/* Subtle grass texture: tiny tufts via radial gradients */
+.garden-scene.dusk::before{background:#4a7a3a;opacity:0.5;}
+.garden-scene.night::before{background:#2a4a2a;opacity:0.6;}
+/* Subtle grass texture: tiny tufts via radial gradients.
+   Color matches the grass color of each phase. */
 .garden-scene::after{
   content:'';
   position:absolute;
@@ -276,6 +317,13 @@ html,body{height:100%;}
   z-index:2;
 }
 .gdecor svg{display:block;width:100%;height:100%;}
+
+/* Firefly dots — drift at night, small yellow glowing circles */
+.firefly{position:absolute;width:5px;height:5px;border-radius:50%;background:#fff6a8;box-shadow:0 0 6px 2px #ffe066,0 0 12px 4px rgba(255,224,102,0.4);pointer-events:none;z-index:2;animation:firefly-drift 6s ease-in-out infinite;}
+@keyframes firefly-drift{0%,100%{opacity:0;transform:translate(0,0);}20%{opacity:1;}50%{opacity:0.8;transform:translate(14px,-10px);}80%{opacity:0.5;}}
+/* Bird silhouettes (dusk) — simple V-shape */
+.bird-silh{position:absolute;pointer-events:none;z-index:2;opacity:0.75;animation:bird-glide 8s linear infinite;}
+@keyframes bird-glide{0%{transform:translateX(-20px);}100%{transform:translateX(40px);}}
 
 @media (min-width:900px){
   /* Desktop garden: wider but less tall — keeps garden-to-sky ratio sane */
@@ -470,19 +518,79 @@ body.theme-paper .btn-full{border:2px solid #333;border-radius:6px;box-shadow:2p
 
 /* Pokemon theme — 皮卡丘風：亮黃 + 精靈球紅 + 深藍字 */
 body.theme-pokemon{--bg:#fffbe6;--card:#fff7d1;--card-alt:#fff2b2;--green:#ffd700;--green-light:#c69000;--green-dark:#b38400;--blue:#ee1515;--blue-light:#c41818;--blue-dark:#a01010;--gold:#ff9a00;--text:#1a3a8a;--text-dim:#7a5c00;--line:#c6900030;}
-body.theme-pokemon .c-card{border:3px solid #ffd700;box-shadow:0 3px 0 #c69000;border-radius:18px;}
+/* Soft Pokéball pattern wash on the page background */
+body.theme-pokemon{
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(238,21,21,0.08) 0 14px, transparent 15px),
+    radial-gradient(circle at 85% 72%, rgba(238,21,21,0.06) 0 10px, transparent 11px),
+    radial-gradient(circle at 68% 14%, rgba(255,215,0,0.10) 0 22px, transparent 23px),
+    radial-gradient(circle at 22% 86%, rgba(255,215,0,0.08) 0 18px, transparent 19px);
+  background-attachment:fixed;
+}
+body.theme-pokemon .c-card{border:3px solid #ffd700;box-shadow:0 3px 0 #c69000;border-radius:18px;position:relative;}
 body.theme-pokemon .c-card.sit{background:#fffde0;border-color:#ffd700;}
 body.theme-pokemon .c-card.water{background:#fff5e8;border-color:#ee1515;}
-body.theme-pokemon .btn-full.green-alt{background:linear-gradient(135deg,#ffd700,#ff9a00) !important;box-shadow:0 3px 0 #b38400;color:#1a3a8a !important;border-radius:14px;}
-body.theme-pokemon .btn-full.blue{background:linear-gradient(135deg,#ee1515,#c41818) !important;box-shadow:0 3px 0 #a01010;color:#fff !important;border-radius:14px;}
+/* Tiny Pokéball in the corner of each card */
+body.theme-pokemon .c-card::before{
+  content:'';position:absolute;top:-8px;right:12px;width:22px;height:22px;border-radius:50%;
+  background:
+    linear-gradient(180deg,#ee1515 0 50%,#fff 50% 100%),
+    radial-gradient(circle,#fff 2px,#1a1a1a 2.5px 3.5px,transparent 4px) center/100% 100% no-repeat;
+  border:1.5px solid #1a1a1a;box-shadow:0 2px 0 #a01010,inset 0 -3px 0 rgba(0,0,0,0.1);
+  z-index:3;pointer-events:none;
+}
+body.theme-pokemon .c-card::after{
+  content:'';position:absolute;top:-1px;right:22px;width:2px;height:6px;background:#1a1a1a;z-index:2;pointer-events:none;
+}
+body.theme-pokemon .btn-full.green-alt{background:linear-gradient(135deg,#ffd700,#ff9a00) !important;box-shadow:0 3px 0 #b38400;color:#1a3a8a !important;border-radius:14px;font-weight:900;}
+body.theme-pokemon .btn-full.blue{background:linear-gradient(135deg,#ee1515,#c41818) !important;box-shadow:0 3px 0 #a01010;color:#fff !important;border-radius:14px;font-weight:900;}
+/* Electric-glow on sit timer */
+body.theme-pokemon .sit-se .timer-num{color:#b38400;text-shadow:0 0 8px #ffd700,0 2px 0 #fff,2px 0 0 #fff,-2px 0 0 #fff,0 -2px 0 #fff;}
+body.theme-pokemon .water-se .big .n{color:#ee1515;text-shadow:0 2px 0 #fff,2px 0 0 #fff,-2px 0 0 #fff,0 -2px 0 #fff;}
+/* Stage emoji gets a zappy glow */
+body.theme-pokemon .mascot-perch svg{filter:drop-shadow(0 0 8px rgba(255,215,0,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.2));}
+/* Speech bubble: pokémon dex style */
+body.theme-pokemon .mascot-speech{background:linear-gradient(180deg,#fff 0 50%,#fffde0 100%);border:2px solid #1a3a8a;color:#1a3a8a;border-radius:10px;font-weight:800;}
+body.theme-pokemon .mascot-speech::after{background:#fff;border-right:2px solid #1a3a8a;border-bottom:2px solid #1a3a8a;}
 
 /* Mario theme — 馬力歐風：天藍 + 馬力歐紅 + 吊帶藍 + 金幣黃 */
 body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;--green-light:#a61912;--green-dark:#7a1209;--blue:#1e5fdc;--blue-light:#0b3a9c;--blue-dark:#052670;--gold:#ffcd00;--text:#3d1a0a;--text-dim:#6b4520;--line:#7a120930;}
-body.theme-mario .c-card{border:3px solid #3d1a0a;box-shadow:3px 3px 0 #3d1a0a;border-radius:8px;}
+/* Cloud-speckled sky background (SMB world 1-1 vibe) */
+body.theme-mario{
+  background-image:
+    radial-gradient(ellipse at 15% 20%, rgba(255,255,255,0.7) 0 30px, transparent 45px),
+    radial-gradient(ellipse at 78% 15%, rgba(255,255,255,0.55) 0 24px, transparent 36px),
+    radial-gradient(ellipse at 45% 85%, rgba(255,255,255,0.4) 0 28px, transparent 44px),
+    linear-gradient(180deg,#b8e0f7 0%,#d8eff8 100%);
+  background-attachment:fixed;
+}
+body.theme-mario .c-card{border:3px solid #3d1a0a;box-shadow:3px 3px 0 #3d1a0a;border-radius:8px;position:relative;}
 body.theme-mario .c-card.sit{background:#fef0e0;border-color:#e52521;}
 body.theme-mario .c-card.water{background:#e8f3ff;border-color:#1e5fdc;}
-body.theme-mario .btn-full.green-alt{background:linear-gradient(135deg,#e52521,#a61912) !important;box-shadow:0 3px 0 #3d1a0a;color:#fff !important;border-radius:8px;}
-body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9c) !important;box-shadow:0 3px 0 #3d1a0a;color:#ffcd00 !important;border-radius:8px;}
+/* ? block in corner of each card */
+body.theme-mario .c-card::before{
+  content:'?';position:absolute;top:-10px;right:12px;width:22px;height:22px;
+  display:flex;align-items:center;justify-content:center;
+  background:#ffcd00;color:#3d1a0a;font-weight:900;font-size:15px;
+  border:2px solid #3d1a0a;border-radius:3px;box-shadow:2px 2px 0 #3d1a0a,inset 2px 2px 0 #ffe566,inset -2px -2px 0 #e89a0f;
+  font-family:'Press Start 2P','Fredoka',monospace;z-index:3;pointer-events:none;
+}
+body.theme-mario .btn-full{font-weight:900;letter-spacing:0.3px;}
+body.theme-mario .btn-full.green-alt{background:linear-gradient(135deg,#e52521,#a61912) !important;box-shadow:0 3px 0 #3d1a0a;color:#fff !important;border-radius:8px;border:2px solid #3d1a0a;}
+body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9c) !important;box-shadow:0 3px 0 #3d1a0a;color:#ffcd00 !important;border-radius:8px;border:2px solid #3d1a0a;}
+/* Pixelated chunky timer with dark outline */
+body.theme-mario .sit-se .timer-num{color:#e52521;text-shadow:0 2px 0 #3d1a0a,2px 0 0 #3d1a0a,-2px 0 0 #3d1a0a,0 -2px 0 #3d1a0a,2px 2px 0 #3d1a0a,3px 3px 0 rgba(0,0,0,0.3);font-family:'Fredoka',sans-serif;}
+body.theme-mario .water-se .big .n{color:#1e5fdc;text-shadow:0 2px 0 #3d1a0a,2px 0 0 #3d1a0a,-2px 0 0 #3d1a0a,0 -2px 0 #3d1a0a;}
+/* Brick pattern on the meta-ribbon (looks like underground bricks) */
+body.theme-mario .mascot-meta{background:
+  repeating-linear-gradient(0deg,#3d1a0a 0 2px,#7a1209 2px 14px),
+  #3d1a0a;
+  border:2px solid #3d1a0a;box-shadow:2px 2px 0 #000;}
+body.theme-mario .mascot-meta .mm-row{color:#ffcd00;font-weight:900;}
+body.theme-mario .mascot-meta .mm-pet{color:#73c4fe;font-weight:800;}
+/* Speech bubble: blocky */
+body.theme-mario .mascot-speech{background:#fef6e4;border:2px solid #3d1a0a;color:#3d1a0a;border-radius:6px;box-shadow:2px 2px 0 #3d1a0a;font-weight:900;}
+body.theme-mario .mascot-speech::after{background:#fef6e4;border-right:2px solid #3d1a0a;border-bottom:2px solid #3d1a0a;}
 
 /* Paper & neon themes: buttons have thicker borders/shadows, nudge badge up so it doesn't overlap */
 @media (min-width:900px){
@@ -1717,7 +1825,8 @@ const FIXED_OBJECTS=[
 ];
 // Distance considered "same spot" — both X and Y must be within these to count as collision
 // 8% of 800 = 64px (x), 8% of 350 = 28px (y)
-const COLLIDE_X=64, COLLIDE_Y=28;
+// Widened for better visual spacing — was 64/28, now ~11% of reference grid
+const COLLIDE_X=88, COLLIDE_Y=38;
 
 function isColliding(x,y){
   // Check against fixed objects
@@ -2188,9 +2297,16 @@ function renderTimer(){
 
 function renderGarden(){
   const scenes=[document.getElementById('gardenScene'),document.getElementById('gardenSceneMobile')];
-  // Determine time of day: 6am-6pm = day, else = night
+  // Determine time phase: 7-17 = day, 17-19 = dusk, 19-7 = night
+  // (Early dawn 5-7am gets folded into 'night' — user said dawn is rarely used)
   const hr=new Date().getHours();
-  const isNight=hr<6||hr>=18;
+  let phase;
+  if(hr>=7 && hr<17) phase='day';
+  else if(hr>=17 && hr<19) phase='dusk';
+  else phase='night';
+  const isNight=(phase==='night');
+  const isDusk=(phase==='dusk');
+  const isDay=(phase==='day');
   // Migrate old garden items:
   // (1) y < 230 = placed in sky (old zones bug) → move to grass
   // (2) x < 200 = in new forbidden zone (sun/swing area) → move right
@@ -2245,8 +2361,10 @@ function renderGarden(){
   scenes.forEach(scene=>{
     if(!scene)return;
     const isMobile=scene.id==='gardenSceneMobile';
-    // Day/night CSS class (controls bg gradient)
-    scene.classList.toggle('night',isNight);
+    // Phase CSS class (controls flat bg color — day is default, no class)
+    scene.classList.remove('night','dusk');
+    if(isNight)scene.classList.add('night');
+    else if(isDusk)scene.classList.add('dusk');
     // Clear any existing children (no more rect children to preserve — bg is CSS now)
     scene.innerHTML='';
 
@@ -2273,10 +2391,11 @@ function renderGarden(){
     // Helper: build an absolute-positioned SVG element
     // xp/yp = percentage anchor (0-100). Most items anchor at bottom-center.
     // anchor: 'bottom' (default) or 'center'
+    // Returns the element so callers can tweak/add children.
     const putItem=(xp,yp,w,h,symbolId,anchor)=>{
       const el=document.createElement('div');
       el.className='gdecor';
-      // Character pets (pikachu/mario adults) get floating animation
+      // Character pets (pikachu/mario adults) get a randomized pose — stable per scene render
       if(symbolId==='m-pikachu-adult'||symbolId==='m-mario-adult'){
         el.classList.add('float-char');
       }
@@ -2294,11 +2413,14 @@ function renderGarden(){
       el.style.height=h+'px';
       el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet"><use href="#${symbolId}" width="${w}" height="${h}"/></svg>`;
       scene.appendChild(el);
+      return el;
     };
 
-    // === SKY: Sun (day) or Moon + Stars (night) ===
-    // Sun/moon pinned to top-left corner with fixed px offsets (not %), so they
-    // never get clipped regardless of container height.
+    // === SKY: Sun (day/dusk) or Moon + Stars (night) ===
+    // Sun/moon positions vary by phase:
+    // - Day: high in upper-left (fixed px offset 12,12)
+    // - Dusk: low on the right, sinking toward horizon
+    // - Night: moon upper-left
     if(isNight){
       // Moon — pin to top-left, 12px from top and left edge
       const el=document.createElement('div');
@@ -2319,8 +2441,49 @@ function renderGarden(){
           putItem(xPct,yPct,sw,sw,s.t==='s'?'d-star':'d-stardot','center');
         }
       });
+      // Fireflies — 4 drifting glowing dots across the grass
+      const fireflies=[
+        {xp:20,yp:72,delay:0},
+        {xp:45,yp:80,delay:1.5},
+        {xp:68,yp:68,delay:3.0},
+        {xp:88,yp:82,delay:4.5},
+      ];
+      fireflies.forEach(f=>{
+        const el=document.createElement('div');
+        el.className='firefly';
+        el.style.left=f.xp+'%';
+        el.style.top=f.yp+'%';
+        el.style.animationDelay=f.delay+'s';
+        scene.appendChild(el);
+      });
+    }else if(isDusk){
+      // Dusk: sun low on the right, near horizon. Slightly larger & warmer-feeling
+      // (we reuse the same sprite — its internal gold color reads warm against orange sky)
+      const sw=Math.round(sizes.sun.w*1.05);
+      const sh=Math.round(sizes.sun.h*1.05);
+      const el=document.createElement('div');
+      el.className='gdecor';
+      // Position: right-center, just above horizon (~45% y)
+      el.style.right='18%';
+      el.style.top='42%';
+      el.style.width=sw+'px';
+      el.style.height=sh+'px';
+      el.innerHTML=`<svg viewBox="0 0 ${sw} ${sh}" preserveAspectRatio="xMidYMid meet"><use href="#d-sun" width="${sw}" height="${sh}"/></svg>`;
+      scene.appendChild(el);
+      // Bird silhouettes — 2 birds gliding in the sky (top third)
+      const birds=[{xp:30,yp:18,delay:0},{xp:55,yp:24,delay:2.5}];
+      birds.forEach(b=>{
+        const el=document.createElement('div');
+        el.className='bird-silh';
+        el.style.left=b.xp+'%';
+        el.style.top=b.yp+'%';
+        el.style.animationDelay=b.delay+'s';
+        // Simple V-shape silhouette
+        el.innerHTML=`<svg width="20" height="10" viewBox="0 0 20 10"><path d="M1 8 Q6 2 10 6 Q14 2 19 8" stroke="#2a1a1a" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`;
+        scene.appendChild(el);
+      });
     }else{
-      // Sun — pin to top-left, 12px from top and left edge
+      // Day: sun high-left, pinned 12px offset
       const el=document.createElement('div');
       el.className='gdecor';
       el.style.left='12px';
@@ -2331,17 +2494,19 @@ function renderGarden(){
       scene.appendChild(el);
     }
 
-    // === SKY DEPTH: distant hills at horizon + drifting clouds (day only) ===
-    // Hills sit just above the grass line for depth (y% ~ 52-55)
+    // === SKY DEPTH: distant hills at horizon + drifting clouds ===
+    // Day: hills + 3 clouds. Dusk: hills (slightly darker via opacity) + 1 cloud. Night: hills only, no clouds.
     if(!isNight){
       // Two overlapping hills for parallax feel
       putItem(18, 56, sizes.hill.w, sizes.hill.h, 'd-hill', 'bottom');
       putItem(72, 56, Math.round(sizes.hill.w*0.85), Math.round(sizes.hill.h*0.9), 'd-hill', 'bottom');
-      // Scattered clouds (top third only, avoid sun corner at left)
-      const clouds=[
-        {xp:38,  yp:14, sc:1.0},
-        {xp:62,  yp:22, sc:0.78},
-        {xp:86,  yp:10, sc:0.9},
+      // Clouds: fewer at dusk
+      const clouds=isDusk?[
+        {xp:16, yp:12, sc:0.85},
+      ]:[
+        {xp:38, yp:14, sc:1.0},
+        {xp:62, yp:22, sc:0.78},
+        {xp:86, yp:10, sc:0.9},
       ];
       clouds.forEach(c=>{
         const cw=Math.round(sizes.cloud.w*c.sc);
@@ -2368,6 +2533,18 @@ function renderGarden(){
     });
 
     // === PLANTS & PETS (sorted by y so front overlaps back) ===
+    // Depth scaling: items at back (y≈230) shrink to 0.78×, items at front (y≈350) stay at 1.0×.
+    // This creates clear Z-axis depth and prevents the garden feeling flat.
+    const depthScale=(y)=>{
+      const t=Math.max(0,Math.min(1,(y-230)/120)); // 0=back, 1=front
+      return 0.78+t*0.22; // 0.78 → 1.00
+    };
+    // Pose variants — deterministic per garden entry so the same pet keeps its pose across renders.
+    // Uses a hash of x+y+svg so it's stable without needing migration.
+    const poseFor=(g)=>{
+      const h=((g.x|0)*31 + (g.y|0)*7 + (g.svg||'').length*13) % 4;
+      return ['pose-a','pose-b','pose-c','pose-d'][h];
+    };
     const items=[...(S.garden||[])].sort((a,b)=>a.y-b.y);
     items.forEach(g=>{
       const xPct=(g.x/800)*100;
@@ -2380,7 +2557,47 @@ function renderGarden(){
       }else{
         sz=sizes.flower;
       }
-      putItem(xPct,yPct,sz.w,sz.h,g.svg,'bottom');
+      const ds=depthScale(g.y);
+      const dw=Math.round(sz.w*ds);
+      const dh=Math.round(sz.h*ds);
+      const el=putItem(xPct,yPct,dw,dh,g.svg,'bottom');
+      // Character pet accessories: pose + signature flourishes
+      const isPika=g.svg==='m-pikachu-adult';
+      const isMario=g.svg==='m-mario-adult';
+      if(el && (isPika||isMario)){
+        const pose=poseFor(g);
+        // Drop the generic float, use pose-specific animation (float-char = pose-a)
+        if(pose!=='pose-a'){
+          el.classList.remove('float-char');
+          el.classList.add(pose);
+        }
+        // Sleep pose: add Zz indicator
+        if(pose==='pose-d'){
+          const zz=document.createElement('div');
+          zz.className='zz-indicator';
+          zz.textContent='Z';
+          zz.style.fontSize=Math.round(dh*0.35)+'px';
+          el.appendChild(zz);
+        }
+        // Signature flourish: Pikachu=sparks, Mario=coins
+        if(isPika){
+          el.classList.add('has-sparks');
+          ['s1','s2','s3'].forEach(cls=>{
+            const sp=document.createElement('div');
+            sp.className='spark '+cls;
+            sp.textContent='⚡';
+            sp.style.fontSize=Math.round(dh*0.3)+'px';
+            el.appendChild(sp);
+          });
+        }else if(isMario){
+          ['c1','c2'].forEach(cls=>{
+            const c=document.createElement('div');
+            c.className='coin '+cls;
+            c.innerHTML=`<svg viewBox="0 0 24 24"><use href="#d-coin"/></svg>`;
+            el.appendChild(c);
+          });
+        }
+      }
     });
   });
   // Update garden header sub
