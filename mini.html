@@ -135,6 +135,7 @@ let S=null;
 let fbUser=null,dbRef=null;
 let tid=null;
 let pendingActivity=null;
+let recentActs=[];
 
 function defS(){return{
   thresh:30,todayStand:0,todayWater:0,
@@ -324,8 +325,13 @@ function handleStandup(){
   saveSync();
   
   if(showCard){
-    // Show activity card
-    pendingActivity=ACTS[Math.floor(Math.random()*ACTS.length)];
+    // Pick activity avoiding recent 5
+    const history=Math.min(5,ACTS.length-1);
+    let idx,tries=0;
+    do{idx=Math.floor(Math.random()*ACTS.length);tries++;}while(recentActs.includes(idx)&&tries<20);
+    recentActs.push(idx);
+    if(recentActs.length>history)recentActs.shift();
+    pendingActivity=ACTS[idx];
     document.getElementById('actTxt').textContent=pendingActivity;
     document.getElementById('actInline').classList.add('show');
     document.getElementById('actDone').style.display='';
