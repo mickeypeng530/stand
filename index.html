@@ -527,7 +527,7 @@ body.theme-pokemon{
     radial-gradient(circle at 22% 86%, rgba(255,215,0,0.08) 0 18px, transparent 19px);
   background-attachment:fixed;
 }
-body.theme-pokemon .c-card{border:3px solid #ffd700;box-shadow:0 3px 0 #c69000;border-radius:18px;position:relative;}
+body.theme-pokemon .c-card{border:3px solid #ffd700;box-shadow:0 3px 0 #c69000;border-radius:18px;position:relative;overflow:visible;}
 body.theme-pokemon .c-card.sit{background:#fffde0;border-color:#ffd700;}
 body.theme-pokemon .c-card.water{background:#fff5e8;border-color:#ee1515;}
 /* Tiny Pokéball in the corner of each card */
@@ -564,7 +564,7 @@ body.theme-mario{
     linear-gradient(180deg,#b8e0f7 0%,#d8eff8 100%);
   background-attachment:fixed;
 }
-body.theme-mario .c-card{border:3px solid #3d1a0a;box-shadow:3px 3px 0 #3d1a0a;border-radius:8px;position:relative;}
+body.theme-mario .c-card{border:3px solid #3d1a0a;box-shadow:3px 3px 0 #3d1a0a;border-radius:8px;position:relative;overflow:visible;}
 body.theme-mario .c-card.sit{background:#fef0e0;border-color:#e52521;}
 body.theme-mario .c-card.water{background:#e8f3ff;border-color:#1e5fdc;}
 /* ? block in corner of each card */
@@ -587,6 +587,7 @@ body.theme-mario .mascot-meta{background:
   #3d1a0a;
   border:2px solid #3d1a0a;box-shadow:2px 2px 0 #000;}
 body.theme-mario .mascot-meta .mm-row{color:#ffcd00;font-weight:900;}
+body.theme-mario .mascot-meta .mm-row .stg{color:#ffcd00;font-weight:800;}
 body.theme-mario .mascot-meta .mm-pet{color:#73c4fe;font-weight:800;}
 /* Speech bubble: blocky */
 body.theme-mario .mascot-speech{background:#fef6e4;border:2px solid #3d1a0a;color:#3d1a0a;border-radius:6px;box-shadow:2px 2px 0 #3d1a0a;font-weight:900;}
@@ -598,6 +599,12 @@ body.theme-mario .mascot-speech::after{background:#fef6e4;border-right:2px solid
   body.theme-neon .mascot-meta,
   body.theme-pokemon .mascot-meta,
   body.theme-mario .mascot-meta{bottom:98px;}
+}
+
+/* Mobile: Pokemon / Mario themes have thick borders/decorations — trim padding + border to save space */
+@media (max-width:899px){
+  body.theme-pokemon .c-card,
+  body.theme-mario .c-card{padding:6px 12px;border-width:2px;}
 }
 
 /* Edit last-stand modal */
