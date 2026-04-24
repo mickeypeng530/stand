@@ -1219,6 +1219,10 @@ import{getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged,signOut}fro
 import{getDatabase,ref,update,get,onValue}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import{getStorage,ref as storageRef,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
+// DOM element cache — lazy-init on first use, then reuse (defined early so all code can use it)
+const _domCache={};
+function $id(id){return _domCache[id]??=document.getElementById(id);}
+
 const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-scheduler-f752b.firebaseapp.com",databaseURL:"https://case-scheduler-f752b-default-rtdb.firebaseio.com",projectId:"case-scheduler-f752b",storageBucket:"case-scheduler-f752b.firebasestorage.app",messagingSenderId:"703006186929",appId:"1:703006186929:web:57ac5b059678005455f190"};
 const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),fbStorage=getStorage(fbApp),prov=new GoogleAuthProvider();
 let fbUser=null,dbRef=null;
@@ -1792,9 +1796,6 @@ const MSGS={
 
 // ===== HELPERS =====
 function now(){return Date.now();}
-// DOM element cache — lazy-init on first use, then reuse
-const _domCache={};
-function $id(id){return _domCache[id]??=document.getElementById(id);}
 function fmtTimer(sec){
   if(sec<0)sec=0;
   const m=Math.floor(sec/60),s=sec%60;
