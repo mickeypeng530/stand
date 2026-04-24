@@ -610,6 +610,57 @@ body.theme-mario .mascot-speech::after{background:#fef6e4;border-right:2px solid
   body.theme-mario .c-head{padding-top:4px;padding-right:34px;}
 }
 
+/* ========== SNACK COUNTER (零食計數器) ========== */
+.snack-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-top:12px;}
+.snack-card.over-limit{border-color:#ef5350;background:linear-gradient(180deg,#2a0f0f 0%,var(--card) 100%);}
+body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card.over-limit,body.theme-tama .snack-card.over-limit,body.theme-paper .snack-card.over-limit{background:linear-gradient(180deg,#ffe0e0 0%,var(--card) 100%);}
+.sk-head{display:flex;align-items:center;gap:8px;font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;}
+.sk-head .sk-ic{font-size:18px;}
+.sk-head .sk-sub{flex:1;text-align:right;font-size:calc(11px * var(--fs));color:var(--text-dim);font-weight:500;}
+.sk-body{padding-top:6px;}
+.sk-nums{display:flex;align-items:baseline;gap:4px;margin-bottom:6px;}
+.sk-count{font-family:'Fredoka',monospace;font-size:calc(28px * var(--fs));font-weight:700;color:var(--green-light);line-height:1;}
+.snack-card.over-limit .sk-count{color:#ef5350;}
+.sk-slash{color:var(--text-dim);font-size:calc(16px * var(--fs));}
+.sk-limit{color:var(--text-dim);font-family:'Fredoka',monospace;font-size:calc(14px * var(--fs));font-weight:600;}
+.sk-candies{display:flex;align-items:center;gap:4px;min-height:24px;margin-bottom:8px;font-size:20px;flex-wrap:wrap;}
+.sk-candies .cd{font-size:22px;}
+.sk-candies .cd.over{filter:hue-rotate(-30deg) saturate(1.5);}
+.sk-candies .cd-extra{font-family:'Fredoka',monospace;font-size:calc(13px * var(--fs));color:#ef5350;font-weight:700;margin-left:4px;}
+.sk-btns{display:flex;gap:6px;align-items:center;}
+.sk-add{flex:1;background:linear-gradient(135deg,#ff9a55,#d96a35);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-family:inherit;font-weight:700;font-size:calc(14px * var(--fs));cursor:pointer;-webkit-appearance:none;appearance:none;}
+.sk-add:active{transform:scale(0.97);}
+.sk-undo{background:var(--card-alt);color:var(--text-dim);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-family:inherit;font-weight:700;font-size:calc(12px * var(--fs));cursor:pointer;-webkit-appearance:none;appearance:none;}
+.sk-undo:active{transform:scale(0.92);}
+.sk-pet{margin-top:8px;font-size:calc(12px * var(--fs));color:var(--gold);display:flex;align-items:center;gap:6px;}
+
+/* Desktop snack bar — horizontal between row-main and bottom-row */
+.snack-bar-desktop{display:none;}
+@media (min-width:900px){
+  .snack-bar-desktop{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 14px;margin:4px 0;flex:0 0 auto;}
+  .snack-bar-desktop.over-limit{border-color:#ef5350;background:linear-gradient(90deg,#3a1515 0%,var(--card) 40%);}
+  body:not([class*="theme-"]) .snack-bar-desktop.over-limit,body.theme-kawaii .snack-bar-desktop.over-limit,body.theme-tama .snack-bar-desktop.over-limit,body.theme-paper .snack-bar-desktop.over-limit{background:linear-gradient(90deg,#ffe0e0 0%,var(--card) 40%);}
+  .snack-bar-desktop .sk-ic{font-size:20px;flex-shrink:0;}
+  .snack-bar-desktop .sk-title{font-weight:700;color:var(--green-light);font-size:calc(13px * var(--fs));flex-shrink:0;}
+  .snack-bar-desktop .sk-nums-inline{display:flex;align-items:baseline;gap:2px;flex-shrink:0;}
+  .snack-bar-desktop .sk-nums-inline .sk-count{font-size:calc(20px * var(--fs));}
+  .snack-bar-desktop .sk-nums-inline .sk-slash{font-size:calc(13px * var(--fs));}
+  .snack-bar-desktop .sk-nums-inline .sk-limit{font-size:calc(12px * var(--fs));}
+  .snack-bar-desktop .sk-candies-inline{min-height:24px;margin:0;flex:1;gap:2px;}
+  .snack-bar-desktop .sk-add-inline{flex:0 0 auto;padding:6px 14px;font-size:calc(12px * var(--fs));border-radius:8px;}
+  .snack-bar-desktop .sk-undo-inline{flex:0 0 auto;padding:5px 10px;font-size:calc(11px * var(--fs));border-radius:8px;}
+  .snack-bar-desktop .sk-pet-inline{margin:0;font-size:calc(11px * var(--fs));color:var(--gold);flex-shrink:0;}
+  /* Since we added a bar, reduce row-main max-height a bit to fit */
+  .row-main{flex:1 1 auto;}
+  .bottom-row{max-height:42%;}
+}
+
+/* Mobile snack card — display only inside viewGarden */
+.snack-card-mobile{display:none;}
+@media (max-width:899px){
+  .snack-card-mobile{display:block;margin-top:10px;}
+}
+
 /* Edit last-stand modal */
 .edit-overlay{position:fixed;inset:0;background:#000000aa;z-index:210;display:none;align-items:center;justify-content:center;padding:20px;}
 .edit-overlay.show{display:flex;}
@@ -806,6 +857,21 @@ body.theme-mario .mascot-speech::after{background:#fef6e4;border-right:2px solid
       </div>
     </div>
 
+    <!-- SNACK BAR (Desktop only: horizontal, between row-main and bottom-row) -->
+    <div class="snack-bar-desktop" id="snackBarDesktop">
+      <span class="sk-ic">🍪</span>
+      <span class="sk-title">今日零食</span>
+      <span class="sk-nums-inline">
+        <span class="sk-count" id="snackCountDesktop">0</span>
+        <span class="sk-slash">/</span>
+        <span class="sk-limit">3</span>
+      </span>
+      <span class="sk-candies sk-candies-inline" id="snackCandiesDesktop"></span>
+      <button class="sk-add sk-add-inline" id="snackAddDesktop">＋ 吃了一次</button>
+      <button class="sk-undo sk-undo-inline" id="snackUndoDesktop" title="-1（按錯時用）">−1</button>
+      <span class="sk-pet sk-pet-inline" id="snackPetDesktop">🐾 0/3天</span>
+    </div>
+
     <!-- BOTTOM ROW (Desktop only: Garden + History) -->
     <div class="bottom-row">
       <div class="garden-scene-wrap" id="gardenWrap">
@@ -865,6 +931,23 @@ body.theme-mario .mascot-speech::after{background:#fef6e4;border-right:2px solid
         <div class="dq-content">
           <div class="dq-status" id="gardenStatusMobile">花園裡有 0 位住客</div>
           <div class="dq-quote" id="dailyQuoteMobile">慢慢來，每一次起身都在長成更好的你 🌱</div>
+        </div>
+      </div>
+      <!-- Snack counter (mobile view) -->
+      <div class="snack-card snack-card-mobile" id="snackCardMobile">
+        <div class="sk-head"><span class="sk-ic">🍪</span>今日零食<span class="sk-sub" id="snackSubMobile">目標：每天 ≤ 3 次</span></div>
+        <div class="sk-body">
+          <div class="sk-nums">
+            <span class="sk-count" id="snackCountMobile">0</span>
+            <span class="sk-slash">/</span>
+            <span class="sk-limit">3</span>
+          </div>
+          <div class="sk-candies" id="snackCandiesMobile"></div>
+          <div class="sk-btns">
+            <button class="sk-add" id="snackAddMobile">＋ 吃了一次</button>
+            <button class="sk-undo" id="snackUndoMobile" title="-1（按錯時用）">−1</button>
+          </div>
+          <div class="sk-pet" id="snackPetMobile">🐾 寵物：尚未孵化 0/3天</div>
         </div>
       </div>
     </div>
@@ -1159,6 +1242,9 @@ function defS(){return{
   sitGoalMetToday:false,waterGoalMetToday:false,
   // Pet species (determined when egg hatches): 'original' | 'pikachu' (sit) | 'mario' (water)
   sitPetSpecies:'original',waterPetSpecies:'original',
+  // Snack counter: 零食計數器
+  todaySnack:0,totalSnacks:0,snackLimit:3,snackGoalMetToday:true,
+  snackPetDays:0,snackPetSpecies:'original', // 'jigglypuff' or 'mushroom' when hatched
 };}
 
 function loadL(){
@@ -1169,7 +1255,7 @@ function loadL(){
       if(d.lastDate&&d.lastDate!==today){
         // Snapshot yesterday into history
         if(!d.history||Array.isArray(d.history))d.history={};
-        if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday){
+        if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday||d.todaySnack>0){
           const LONGEST_WARN=45*60;
           d.history[d.lastDate]={
             water:d.todayWater||0,
@@ -1179,7 +1265,8 @@ function loadL(){
             workTimeSec:d.sessionSecTotal||0,
             longestSitSec:d.longestSit||0,
             rested:d.restToday||false,
-            overLongSit:(d.longestSit||0)>=LONGEST_WARN
+            overLongSit:(d.longestSit||0)>=LONGEST_WARN,
+            snack:d.todaySnack||0
           };
         }
         const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);
@@ -1189,18 +1276,30 @@ function loadL(){
         d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;
         d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
         d.sitGoalMetToday=false;d.waterGoalMetToday=false;
+        // Snack: award pet day if yesterday's count was within limit, then reset
+        const snackLimit=d.snackLimit||3;
+        const snackMet=(d.todaySnack||0)<=snackLimit;
+        if(snackMet){
+          d.snackPetDays=(d.snackPetDays||0)+1;
+          // Record that a snack pet levelup check is needed after load
+          d._pendingSnackLevelCheck=true;
+        }
+        d.todaySnack=0;d.snackGoalMetToday=true;
         d._rolledOver=true;
       }
       if(!d.history||Array.isArray(d.history))d.history={};
       if(!Array.isArray(d.garden))d.garden=[];
-      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays'].forEach(k=>{if(!d[k])d[k]=0;});
+      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays','todaySnack','totalSnacks','snackPetDays'].forEach(k=>{if(!d[k])d[k]=0;});
       if(!d.thresh)d.thresh=30;
+      if(!d.snackLimit)d.snackLimit=3;
       if(!d.theme||!THEMES.includes(d.theme))d.theme='default';
       if(typeof d.soundOn!=='boolean')d.soundOn=true;
       if(typeof d.sitGoalMetToday!=='boolean')d.sitGoalMetToday=false;
       if(typeof d.waterGoalMetToday!=='boolean')d.waterGoalMetToday=false;
+      if(typeof d.snackGoalMetToday!=='boolean')d.snackGoalMetToday=true;
       if(!d.sitPetSpecies)d.sitPetSpecies='original';
       if(!d.waterPetSpecies)d.waterPetSpecies='original';
+      if(!d.snackPetSpecies)d.snackPetSpecies='original';
       // Remove fontScale from cloud state (device-local only now)
       delete d.fontScale;
       return d;
@@ -1557,14 +1656,17 @@ function renderAll(){
   const wMl=$id('wMl');
   if(wMl)wMl.textContent=`≈ ${Math.round(wVal*ML)} ml · ${wVal>=W_GOAL?'今日已完成 ✅':'目標 '+W_GOAL+' 杯'}`;
   renderCups();
+  // Snack counter
+  renderSnack();
   // Quote + garden status (both desktop and mobile duplicates)
   const quote=getDailyQuote();
   const q=$id('dailyQuote');if(q)q.textContent=quote;
   const qm=$id('dailyQuoteMobile');if(qm)qm.textContent=quote;
   const total=(S.garden||[]).length;
   const sitN=(S.garden||[]).filter(g=>g.type==='sit').length;
-  const wN=total-sitN;
-  const statusHtml=`共 ${total} 棵 · 🪑 ${sitN} · 💧 ${wN}`;
+  const wN=(S.garden||[]).filter(g=>g.type==='water').length;
+  const snackN=(S.garden||[]).filter(g=>g.type==='snack').length;
+  const statusHtml=snackN>0?`共 ${total} 位 · 🪑 ${sitN} · 💧 ${wN} · 🍪 ${snackN}`:`共 ${total} 棵 · 🪑 ${sitN} · 💧 ${wN}`;
   const gs=$id('gardenStatus');if(gs)gs.innerHTML=statusHtml;
   const gsm=$id('gardenStatusMobile');if(gsm)gsm.innerHTML=statusHtml;
   // History
@@ -2126,6 +2228,75 @@ function doWater(){
   saveSync();
 }
 
+// ===== SNACK COUNTER =====
+function doSnack(){
+  S.todaySnack=(S.todaySnack||0)+1;
+  S.totalSnacks=(S.totalSnacks||0)+1;
+  checkSnackGoal();
+  renderSnack();
+  saveSync();
+}
+
+function undoSnack(){
+  if((S.todaySnack||0)<=0){showToast('今天還沒有零食紀錄');return;}
+  S.todaySnack=Math.max(0,(S.todaySnack||0)-1);
+  S.totalSnacks=Math.max(0,(S.totalSnacks||0)-1);
+  checkSnackGoal();
+  renderSnack();
+  saveSync();
+}
+
+// Render snack UI (both mobile card and desktop bar)
+function renderSnack(){
+  const cnt=S.todaySnack||0;
+  const limit=S.snackLimit||3;
+  const overLimit=cnt>limit;
+  // Update counts
+  const cntMobile=$id('snackCountMobile');
+  const cntDesktop=$id('snackCountDesktop');
+  if(cntMobile)cntMobile.textContent=cnt;
+  if(cntDesktop)cntDesktop.textContent=cnt;
+  // Toggle over-limit class
+  const mobileCard=$id('snackCardMobile');
+  const desktopBar=$id('snackBarDesktop');
+  if(mobileCard)mobileCard.classList.toggle('over-limit',overLimit);
+  if(desktopBar)desktopBar.classList.toggle('over-limit',overLimit);
+  // Render candies (up to 5, extra uses +N)
+  const candiesHtml=(()=>{
+    if(cnt===0)return '';
+    const visible=Math.min(5,cnt);
+    let html='';
+    for(let i=0;i<visible;i++){
+      const isOver=i>=limit;
+      html+=`<span class="cd${isOver?' over':''}">${isOver?'🔴':'🍬'}</span>`;
+    }
+    if(cnt>5){
+      html+=`<span class="cd-extra">+${cnt-5}</span>`;
+    }
+    return html;
+  })();
+  const cMobile=$id('snackCandiesMobile');
+  const cDesktop=$id('snackCandiesDesktop');
+  if(cMobile)cMobile.innerHTML=candiesHtml;
+  if(cDesktop)cDesktop.innerHTML=candiesHtml;
+  // Pet progress
+  const days=S.snackPetDays||0;
+  const species=S.snackPetSpecies||'original';
+  let petText;
+  if(days>=PET_ADULT_THRESHOLD){
+    petText='🏡 已進駐花園';
+  }else if(days>=PET_BABY_THRESHOLD){
+    const n=species==='jigglypuff'?'胖丁':(species==='mushroom'?'洋菇':'寶寶');
+    petText=`🐣 ${n} ${days}/${PET_ADULT_THRESHOLD}天`;
+  }else{
+    petText=`🥚 ${days}/${PET_BABY_THRESHOLD}天`;
+  }
+  const pMobile=$id('snackPetMobile');
+  const pDesktop=$id('snackPetDesktop');
+  if(pMobile)pMobile.textContent=`🐾 寵物：${petText}`;
+  if(pDesktop)pDesktop.textContent=`🐾 ${petText}`;
+}
+
 // ===== SEED SYSTEM =====
 function addSeedXP(type,xp){
   const idxKey=type==='sit'?'sitStageIdx':'waterStageIdx';
@@ -2183,9 +2354,29 @@ function checkPetGoals(){
   }
 }
 
+// Called when snack count changes — re-evaluate snackGoalMetToday flag (pet day awarded at rollover)
+function checkSnackGoal(){
+  const limit=S.snackLimit||3;
+  const cnt=S.todaySnack||0;
+  const wasMet=S.snackGoalMetToday;
+  S.snackGoalMetToday=cnt<=limit;
+  // Just now exceeded limit
+  if(wasMet&&!S.snackGoalMetToday){
+    showToast('🍪 超過今日上限了',false);
+  }
+}
+
+// Award snack pet day at rollover if goal was met yesterday
+function awardSnackPetDayIfGoalMet(){
+  if(S.snackGoalMetToday){
+    S.snackPetDays=(S.snackPetDays||0)+1;
+    checkPetLevelUp('snack');
+  }
+}
+
 function checkPetLevelUp(type){
-  const daysKey=type==='sit'?'sitPetDays':'waterPetDays';
-  const speciesKey=type==='sit'?'sitPetSpecies':'waterPetSpecies';
+  const daysKey=type==='sit'?'sitPetDays':(type==='water'?'waterPetDays':'snackPetDays');
+  const speciesKey=type==='sit'?'sitPetSpecies':(type==='water'?'waterPetSpecies':'snackPetSpecies');
   const days=S[daysKey]||0;
   // Just reached adult — retire to garden with species-specific svg
   if(days===PET_ADULT_THRESHOLD){
@@ -2193,17 +2384,23 @@ function checkPetLevelUp(type){
     let svg;
     if(type==='sit'){
       svg=species==='pikachu'?'m-pikachu-adult':'m-sprout-adult';
-    }else{
+    }else if(type==='water'){
       svg=species==='mario'?'m-mario-adult':'m-drop-adult';
+    }else{ // snack
+      svg=species==='jigglypuff'?'m-jigglypuff-adult':'m-mushroom-adult';
     }
-    const pos=randPos('back');
+    const pos=randPos(type==='water'?'front':'back');
     S.garden=S.garden||[];
     S.garden.push({type:type,svg:svg,source:'pet',x:pos.x,y:pos.y,at:now()});
     S[daysKey]=0; // reset for next round (new egg)
     S[speciesKey]='original'; // reset species (new egg = not-yet-decided)
-    const nameMap={original:(type==='sit'?'芽芽':'水滴滴'),pikachu:'皮卡丘',mario:'馬力歐'};
-    const n=nameMap[species];
-    const emoji=type==='sit'?'🌿':'💧';
+    const nameMap={
+      original:(type==='sit'?'芽芽':(type==='water'?'水滴滴':'糖糖')),
+      pikachu:'皮卡丘',mario:'馬力歐',
+      jigglypuff:'胖丁',mushroom:'洋菇'
+    };
+    const n=nameMap[species]||'寵物';
+    const emoji=type==='sit'?'🌿':(type==='water'?'💧':'🍪');
     celebrate('🏡',`${n} 長大了！`,`已搬進花園，新的蛋開始孵化 ${emoji}`);
     beep();
   }else if(days===PET_BABY_THRESHOLD){
@@ -2212,11 +2409,17 @@ function checkPetLevelUp(type){
     let species;
     if(type==='sit'){
       species=rand?'pikachu':'original';
-    }else{
+    }else if(type==='water'){
       species=rand?'mario':'original';
+    }else{ // snack — jigglypuff or mushroom
+      species=rand?'jigglypuff':'mushroom';
     }
     S[speciesKey]=species;
-    const nameMap={original:(type==='sit'?'芽芽':'水滴滴'),pikachu:'皮卡丘',mario:'馬力歐'};
+    const nameMap={
+      original:(type==='sit'?'芽芽':(type==='water'?'水滴滴':'糖糖')),
+      pikachu:'皮卡丘',mario:'馬力歐',
+      jigglypuff:'胖丁',mushroom:'洋菇'
+    };
     const n=nameMap[species];
     celebrate('🐣',`${n} 孵化了！`,'繼續照顧，再 5 天就能長大');
   }
@@ -2461,8 +2664,8 @@ function renderGarden(){
     const putItem=(xp,yp,w,h,symbolId,anchor)=>{
       const el=document.createElement('div');
       el.className='gdecor';
-      // Character pets (pikachu/mario adults) get a randomized pose — stable per scene render
-      if(symbolId==='m-pikachu-adult'||symbolId==='m-mario-adult'){
+      // Character pets (pikachu/mario/jigglypuff/mushroom adults) get a randomized pose — stable per scene render
+      if(symbolId==='m-pikachu-adult'||symbolId==='m-mario-adult'||symbolId==='m-jigglypuff-adult'||symbolId==='m-mushroom-adult'){
         el.classList.add('float-char');
       }
       // Percentage positioning
@@ -2630,7 +2833,9 @@ function renderGarden(){
       // Character pet accessories: pose + signature flourishes
       const isPika=g.svg==='m-pikachu-adult';
       const isMario=g.svg==='m-mario-adult';
-      if(el && (isPika||isMario)){
+      const isJiggly=g.svg==='m-jigglypuff-adult';
+      const isMushroom=g.svg==='m-mushroom-adult';
+      if(el && (isPika||isMario||isJiggly||isMushroom)){
         const pose=poseFor(g);
         // Drop the generic float, use pose-specific animation (float-char = pose-a)
         if(pose!=='pose-a'){
@@ -2834,6 +3039,10 @@ window.finishDoing=function(){
 $id('startWorkBtn').addEventListener('click',()=>window.startWork());
 $id('standBtn').addEventListener('click',()=>window.handleStandup());
 $id('waterBtn').addEventListener('click',doWater);
+const snackAddM=$id('snackAddMobile');if(snackAddM)snackAddM.addEventListener('click',doSnack);
+const snackAddD=$id('snackAddDesktop');if(snackAddD)snackAddD.addEventListener('click',doSnack);
+const snackUndoM=$id('snackUndoMobile');if(snackUndoM)snackUndoM.addEventListener('click',undoSnack);
+const snackUndoD=$id('snackUndoDesktop');if(snackUndoD)snackUndoD.addEventListener('click',undoSnack);
 $id('btnSound').addEventListener('click',()=>{
   S.soundOn=!S.soundOn;
   $id('btnSound').textContent=S.soundOn?'開啟':'靜音';
@@ -3160,6 +3369,11 @@ $id('musicBtn').addEventListener('click',async()=>{
 // ===== INIT =====
 applySessionUI();
 resumeSessionIfNeeded();
+// If a snack pet day was awarded at rollover (in loadL), check for baby/adult promotion now
+if(S._pendingSnackLevelCheck){
+  delete S._pendingSnackLevelCheck;
+  checkPetLevelUp('snack');
+}
 renderAll();
 </script>
 </body>
