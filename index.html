@@ -223,28 +223,49 @@ html,body{height:100%;}
 .garden-head{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text);}
 .garden-head .gsub{margin-left:auto;font-size:10px;color:var(--text-dim);font-weight:400;}
 /* Garden: HTML-based scene with absolute-positioned decorations */
-/* HORIZON_PCT = 70% (top of grass). Sky = 0-70%, grass = 70-100% */
+/* HORIZON_PCT = 55% (top of grass). Sky = 0-55%, grass = 55-100% */
 .garden-scene{
   position:relative;
   width:100%;
-  aspect-ratio:16/12;  /* Mobile: tall scene for more grass space (1.5x) */
+  aspect-ratio:16/11;  /* Mobile: taller scene, but less sky, more garden */
   border-radius:10px;
   overflow:hidden;
-  background:linear-gradient(180deg,#cfe8f5 0%,#cfe8f5 70%,#a8d582 70%,#a8d582 100%);
+  /* Layered sky gradient: warm dawn glow near horizon for day */
+  background:
+    linear-gradient(180deg,#b9e0ef 0%,#d6eef3 35%,#fce5b5 52%,#b5d97a 55%,#a8d582 100%);
   transition:background .6s;
 }
 .garden-scene.night{
-  background:linear-gradient(180deg,#1a2847 0%,#1a2847 70%,#a8d582 70%,#a8d582 100%);
+  background:
+    linear-gradient(180deg,#0e1936 0%,#1a2847 35%,#3a3560 52%,#7fb85b 55%,#a8d582 100%);
 }
 /* Grass lip highlight (subtle horizon line) */
 .garden-scene::before{
   content:'';
   position:absolute;
   left:0;right:0;
-  top:70%;
-  height:3px;
-  background:#8ec46e;
+  top:55%;
+  height:2px;
+  background:#6fa754;
+  opacity:0.4;
+  z-index:1;
+}
+/* Subtle grass texture: tiny tufts via radial gradients */
+.garden-scene::after{
+  content:'';
+  position:absolute;
+  left:0;right:0;top:55%;bottom:0;
+  background:
+    radial-gradient(ellipse 4px 2px at 15% 30%, #8ec46e 55%, transparent 60%),
+    radial-gradient(ellipse 4px 2px at 35% 65%, #8ec46e 55%, transparent 60%),
+    radial-gradient(ellipse 4px 2px at 58% 25%, #8ec46e 55%, transparent 60%),
+    radial-gradient(ellipse 4px 2px at 78% 55%, #8ec46e 55%, transparent 60%),
+    radial-gradient(ellipse 4px 2px at 92% 40%, #8ec46e 55%, transparent 60%),
+    radial-gradient(ellipse 4px 2px at 5% 75%, #8ec46e 55%, transparent 60%),
+    radial-gradient(ellipse 4px 2px at 45% 85%, #8ec46e 55%, transparent 60%),
+    radial-gradient(ellipse 4px 2px at 68% 92%, #8ec46e 55%, transparent 60%);
   opacity:0.5;
+  pointer-events:none;
   z-index:1;
 }
 /* Decoration base class */
@@ -257,8 +278,8 @@ html,body{height:100%;}
 .gdecor svg{display:block;width:100%;height:100%;}
 
 @media (min-width:900px){
-  /* Desktop garden: aspect ratio stays to preserve proportions */
-  .garden-scene{aspect-ratio:16/5;}
+  /* Desktop garden: wider but less tall — keeps garden-to-sky ratio sane */
+  .garden-scene{aspect-ratio:16/6;}
 }
 
 .garden-caption{display:flex;gap:8px;font-size:calc(13px * var(--fs));color:var(--text-dim);justify-content:space-between;padding:6px 4px;flex-wrap:wrap;}
@@ -497,7 +518,7 @@ body.theme-mario .btn-full.blue{background:linear-gradient(135deg,#1e5fdc,#0b3a9
 /* Portrait desktop screens (e.g. EIZO medical displays — tall aspect) */
 @media (orientation:portrait) and (min-width:900px){
   .c-card{padding:18px 24px;}
-  .garden-scene{aspect-ratio:16/8;}
+  .garden-scene{aspect-ratio:16/9;}
   .bottom-row{max-height:55%;}
 }
 </style>
@@ -947,7 +968,7 @@ function petStageOf(days){
 // Garden placement zones (y in SVG viewBox 0-350)
 // Grass starts at y=230. y values represent where the item's BASE (feet) sits.
 const GARDEN_ZONES={
-  back:  {yMin:238,yMax:315},  // trees, adult pets — wide range so trees can be near or far
+  back:  {yMin:235,yMax:300},  // trees, adult pets — wide range so trees can be near or far
   mid:   {yMin:265,yMax:285},  // medium plants, succulents
   front: {yMin:295,yMax:325},  // flowers, tulips — front of frame, closer
 };
@@ -1686,12 +1707,13 @@ function fireNotif(text){
 }
 // Fixed decorations that plants should avoid colliding with
 // These are in the 800×350 reference coords
+// Coords match the 0-800 × 0-350 reference grid used by renderGarden's mapY.
 const FIXED_OBJECTS=[
-  {x:100, y:245, label:'swing'},    // 鞦韆 x=12.5%
-  {x:260, y:314, label:'pond'},     // 池塘 x=32.5%
-  {x:618, y:245, label:'sign'},     // 木牌 x=77.3%
-  {x:49,  y:322, label:'rockL'},    // 左石頭
-  {x:737, y:328, label:'rockR'},    // 右石頭
+  {x:64,  y:260, label:'swing'},    // 鞦韆 xp=8%
+  {x:200, y:330, label:'rockL'},    // 左石頭 xp=25%
+  {x:384, y:320, label:'pond'},     // 池塘 xp=48%
+  {x:656, y:260, label:'sign'},     // 木牌 xp=82%
+  {x:736, y:325, label:'rockR'},    // 右石頭 xp=92%
 ];
 // Distance considered "same spot" — both X and Y must be within these to count as collision
 // 8% of 800 = 64px (x), 8% of 350 = 28px (y)
@@ -2229,18 +2251,23 @@ function renderGarden(){
     scene.innerHTML='';
 
     // Size factors for different device types
-    // Base sizes defined in pixels; mobile scales them 0.8 to fit more items over time
+    // Density-aware scaling: when garden gets crowded, fixed decor shrinks slightly
+    const itemCount=(S.garden||[]).length;
+    const densityScale=itemCount>10?0.88:(itemCount>6?0.94:1.0);
+    const sz=(w,h)=>({w:Math.round(w*densityScale),h:Math.round(h*densityScale)});
     const sizes={
-      sun:       isMobile?{w:38,h:38}:{w:60,h:60},
-      moon:      isMobile?{w:32,h:40}:{w:50,h:60},
-      star:      isMobile?{mult:1.0}:{mult:1.0},
-      rock:      isMobile?{w:26,h:16}:{w:40,h:24},
-      pond:      isMobile?{w:56,h:22}:{w:90,h:36},
-      sign:      isMobile?{w:26,h:36}:{w:40,h:52},
-      swing:     isMobile?{w:46,h:46}:{w:70,h:70},
-      tree:      isMobile?{w:26,h:34}:{w:43,h:56},
-      flower:    isMobile?{w:27,h:36}:{w:43,h:56},
-      pet:       isMobile?{w:42,h:50}:{w:62,h:74},
+      sun:       isMobile?sz(38,38):sz(56,56),
+      moon:      isMobile?sz(32,40):sz(46,56),
+      star:      {mult:1.0},
+      cloud:     isMobile?{w:70,h:28}:{w:110,h:44},
+      hill:      isMobile?{w:260,h:60}:{w:440,h:95},
+      rock:      isMobile?sz(22,13):sz(34,20),
+      pond:      isMobile?sz(48,19):sz(76,30),
+      sign:      isMobile?sz(22,30):sz(34,44),
+      swing:     isMobile?sz(40,40):sz(60,60),
+      tree:      isMobile?sz(26,34):sz(44,58),
+      flower:    isMobile?sz(27,36):sz(44,58),
+      pet:       isMobile?sz(42,50):sz(62,74),
     };
 
     // Helper: build an absolute-positioned SVG element
@@ -2285,10 +2312,10 @@ function renderGarden(){
       // Stars — scatter across sky (y% < 65, above horizon at 70%)
       STARS.forEach(s=>{
         const xPct=(s.x/800)*100;
-        const yPct=(s.y/350)*100;
+        // Compress original y (0-200 sky area in old coords) into new sky range 2-48%
+        const yPct=(s.y/200)*46+2;
         const sw=s.w*sizes.star.mult;
-        // Only render stars in the sky area (above horizon at 70%)
-        if(yPct<65){
+        if(yPct<50){
           putItem(xPct,yPct,sw,sw,s.t==='s'?'d-star':'d-stardot','center');
         }
       });
@@ -2304,18 +2331,37 @@ function renderGarden(){
       scene.appendChild(el);
     }
 
+    // === SKY DEPTH: distant hills at horizon + drifting clouds (day only) ===
+    // Hills sit just above the grass line for depth (y% ~ 52-55)
+    if(!isNight){
+      // Two overlapping hills for parallax feel
+      putItem(18, 56, sizes.hill.w, sizes.hill.h, 'd-hill', 'bottom');
+      putItem(72, 56, Math.round(sizes.hill.w*0.85), Math.round(sizes.hill.h*0.9), 'd-hill', 'bottom');
+      // Scattered clouds (top third only, avoid sun corner at left)
+      const clouds=[
+        {xp:38,  yp:14, sc:1.0},
+        {xp:62,  yp:22, sc:0.78},
+        {xp:86,  yp:10, sc:0.9},
+      ];
+      clouds.forEach(c=>{
+        const cw=Math.round(sizes.cloud.w*c.sc);
+        const ch=Math.round(sizes.cloud.h*c.sc);
+        putItem(c.xp, c.yp, cw, ch, 'd-cloud', 'center');
+      });
+    }
+
     // === GROUND: static decorations (rocks, pond, sign, swing) ===
-    // Horizon line is at 70% of container height.
-    // Convert old coords (230=sky/grass boundary in 350-high grid = 65.7%) to new 70% system.
-    // groundY_new = 70 + ((oldY - 230) / (350 - 230)) * 30
-    const mapY=(oldY)=>70+((oldY-230)/120)*30;
+    // Horizon line is at 55% of container height (was 70%).
+    // Map old y (230–350 range) to new (55–100 range): groundY_new = 55 + ((oldY-230)/120)*45
+    const mapY=(oldY)=>55+((oldY-230)/120)*45;
+    // Repositioned for better spread across x and y; pond moved right-center;
+    // swing anchored far-left (below sun), sign far-right (below cloud), rocks tucked near corners.
     const groundItems=[
-      // xp (0-100), oldBaseY (in 0-350 coord), symbol, size
-      {xp:(49/800)*100,  oldY:322, id:'rock',    sz:sizes.rock},
-      {xp:(737/800)*100, oldY:328, id:'rock',    sz:sizes.rock},
-      {xp:(260/800)*100, oldY:314, id:'d-pond',  sz:sizes.pond},
-      {xp:(618/800)*100, oldY:245, id:'d-sign',  sz:sizes.sign},
-      {xp:(100/800)*100, oldY:245, id:'d-swing', sz:sizes.swing},
+      {xp:8,  oldY:260, id:'d-swing', sz:sizes.swing},  // left side, near but below sun
+      {xp:25, oldY:330, id:'rock',    sz:sizes.rock},   // front-left rock
+      {xp:48, oldY:320, id:'d-pond',  sz:sizes.pond},   // center-front pond
+      {xp:92, oldY:325, id:'rock',    sz:sizes.rock},   // front-right rock
+      {xp:82, oldY:260, id:'d-sign',  sz:sizes.sign},   // right side sign
     ];
     groundItems.forEach(g=>{
       putItem(g.xp,mapY(g.oldY),g.sz.w,g.sz.h,g.id,'bottom');
