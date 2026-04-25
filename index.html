@@ -177,29 +177,51 @@ html,body{height:100%;}
 /* pose-d: sleep — gentle breathe + tilted head */
 .gdecor.pose-d svg{animation:pose-breathe 3.5s ease-in-out infinite;transform-origin:50% 100%;}
 @keyframes pose-breathe{0%,100%{transform:rotate(-6deg) scale(1);}50%{transform:rotate(-6deg) scale(1.03);}}
-/* Walk: outer wrapper class — X drift + occasional pause; faces direction (mirror) */
-.gdecor.walking{animation:walk-stroll 18s ease-in-out infinite;}
+/* pose-cycle: auto-rotate through all 4 poses on the inner svg, ~32s per full cycle */
+.gdecor.pose-cycle svg{animation:pose-cycle 32s ease-in-out infinite;transform-origin:50% 100%;}
+@keyframes pose-cycle{
+  /* 0-25%: float (pose-a) */
+  0%{transform:translateY(0);}
+  12%{transform:translateY(-4px);}
+  25%{transform:translateY(0);}
+  /* 25-50%: sway (pose-b) */
+  30%{transform:rotate(-3deg) translateY(0);}
+  37%{transform:rotate(3deg) translateY(-3px);}
+  44%{transform:rotate(-3deg) translateY(0);}
+  50%{transform:rotate(0) translateY(0);}
+  /* 50-75%: hop (pose-c) */
+  62%{transform:translateY(0) scaleY(1);}
+  68%{transform:translateY(-8px) scaleY(1.05);}
+  72%{transform:translateY(-2px) scaleY(0.95);}
+  75%{transform:translateY(0) scaleY(1);}
+  /* 75-100%: breathe/sleep (pose-d) */
+  82%{transform:rotate(-6deg) scale(1);}
+  90%{transform:rotate(-6deg) scale(1.03);}
+  100%{transform:rotate(0) scale(1);}
+}
+/* Walk: outer wrapper class — slow X drift + occasional pause; faces direction (mirror) */
+.gdecor.walking{animation:walk-stroll 60s ease-in-out infinite;}
 @keyframes walk-stroll{
   0%{transform:translateX(0) scaleX(1);}
   20%{transform:translateX(28px) scaleX(1);}    /* walking right */
-  25%{transform:translateX(28px) scaleX(1);}    /* pause */
-  35%{transform:translateX(40px) scaleX(1);}
+  28%{transform:translateX(28px) scaleX(1);}    /* pause */
+  40%{transform:translateX(40px) scaleX(1);}
   50%{transform:translateX(0) scaleX(-1);}      /* walking left, flip */
-  65%{transform:translateX(-32px) scaleX(-1);}
-  70%{transform:translateX(-32px) scaleX(-1);}  /* pause */
-  85%{transform:translateX(-20px) scaleX(-1);}
+  68%{transform:translateX(-32px) scaleX(-1);}
+  76%{transform:translateX(-32px) scaleX(-1);}  /* pause */
+  88%{transform:translateX(-20px) scaleX(-1);}
   100%{transform:translateX(0) scaleX(1);}
 }
-/* Walk variant 2 — different timing/range (per pet variation) */
-.gdecor.walking-b{animation:walk-stroll-b 22s ease-in-out infinite;}
+/* Walk variant 2 — different timing/range */
+.gdecor.walking-b{animation:walk-stroll-b 75s ease-in-out infinite;}
 @keyframes walk-stroll-b{
   0%{transform:translateX(0) scaleX(1);}
-  15%{transform:translateX(20px) scaleX(1);}
-  30%{transform:translateX(35px) scaleX(1);}
-  35%{transform:translateX(35px) scaleX(1);}    /* pause */
-  55%{transform:translateX(-15px) scaleX(-1);}
+  18%{transform:translateX(20px) scaleX(1);}
+  32%{transform:translateX(35px) scaleX(1);}
+  40%{transform:translateX(35px) scaleX(1);}    /* pause */
+  56%{transform:translateX(-15px) scaleX(-1);}
   72%{transform:translateX(-30px) scaleX(-1);}
-  78%{transform:translateX(-30px) scaleX(-1);}  /* pause */
+  80%{transform:translateX(-30px) scaleX(-1);}  /* pause */
   100%{transform:translateX(0) scaleX(1);}
 }
 /* Sleep Zz indicator */
@@ -2907,7 +2929,7 @@ function renderGarden(){
       const dw=Math.round(sz.w*ds);
       const dh=Math.round(sz.h*ds);
       const el=putItem(xPct,yPct,dw,dh,g.svg,'bottom');
-      // Adult pet accessories: pose + signature flourishes + walking
+      // Adult pet accessories: cycle 4 poses + walking + signature flourishes
       const isPika=g.svg==='m-pikachu-adult';
       const isMario=g.svg==='m-mario-adult';
       const isJiggly=g.svg==='m-jigglypuff-adult';
@@ -2916,13 +2938,13 @@ function renderGarden(){
       const isDrop=g.svg==='m-drop-adult';
       const isAdultPet=isPika||isMario||isJiggly||isMushroom||isSprout||isDrop;
       if(el && isAdultPet){
-        const pose=poseFor(g);
-        // Drop the generic float, use pose-specific animation (float-char = pose-a)
-        if(pose!=='pose-a'){
-          el.classList.remove('float-char');
-          el.classList.add(pose);
-        }
-        // Wrap inner el in a walking outer wrapper — outer X-shifts (walks), inner does pose
+        // Replace generic float with auto-cycling pose (rotates through float/sway/hop/sleep)
+        el.classList.remove('float-char');
+        el.classList.add('pose-cycle');
+        // Stagger animation start so multiple pets don't sync up
+        const phaseDelay=((g.x+g.y)*7)%32;
+        el.style.animationDelay=`-${phaseDelay}s`;
+        // Wrap inner el in a walking outer wrapper — outer X-shifts (walks), inner does poses
         // Use 2 walk variants for variety: alternate by hash of x position
         const useVariantB=(g.x+g.y)%2===0;
         const walkParent=document.createElement('div');
@@ -2933,20 +2955,14 @@ function renderGarden(){
         walkParent.style.width=el.style.width;
         walkParent.style.height=el.style.height;
         walkParent.style.zIndex=el.style.zIndex||'';
+        // Stagger walk start too
+        walkParent.style.animationDelay=`-${(phaseDelay*2)%60}s`;
         // Move inner el's positioning to wrapper, reset el's position
         el.style.left='0';el.style.top='0';
         // Move el inside wrapper
         el.parentNode.removeChild(el);
         walkParent.appendChild(el);
         scene.appendChild(walkParent);
-        // Sleep pose: add Zz indicator
-        if(pose==='pose-d'){
-          const zz=document.createElement('div');
-          zz.className='zz-indicator';
-          zz.textContent='Z';
-          zz.style.fontSize=Math.round(dh*0.35)+'px';
-          el.appendChild(zz);
-        }
         // Signature flourish: Pikachu=sparks, Mario=coins
         if(isPika){
           el.classList.add('has-sparks');
