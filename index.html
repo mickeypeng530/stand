@@ -177,6 +177,31 @@ html,body{height:100%;}
 /* pose-d: sleep — gentle breathe + tilted head */
 .gdecor.pose-d svg{animation:pose-breathe 3.5s ease-in-out infinite;transform-origin:50% 100%;}
 @keyframes pose-breathe{0%,100%{transform:rotate(-6deg) scale(1);}50%{transform:rotate(-6deg) scale(1.03);}}
+/* Walk: outer wrapper class — X drift + occasional pause; faces direction (mirror) */
+.gdecor.walking{animation:walk-stroll 18s ease-in-out infinite;}
+@keyframes walk-stroll{
+  0%{transform:translateX(0) scaleX(1);}
+  20%{transform:translateX(28px) scaleX(1);}    /* walking right */
+  25%{transform:translateX(28px) scaleX(1);}    /* pause */
+  35%{transform:translateX(40px) scaleX(1);}
+  50%{transform:translateX(0) scaleX(-1);}      /* walking left, flip */
+  65%{transform:translateX(-32px) scaleX(-1);}
+  70%{transform:translateX(-32px) scaleX(-1);}  /* pause */
+  85%{transform:translateX(-20px) scaleX(-1);}
+  100%{transform:translateX(0) scaleX(1);}
+}
+/* Walk variant 2 — different timing/range (per pet variation) */
+.gdecor.walking-b{animation:walk-stroll-b 22s ease-in-out infinite;}
+@keyframes walk-stroll-b{
+  0%{transform:translateX(0) scaleX(1);}
+  15%{transform:translateX(20px) scaleX(1);}
+  30%{transform:translateX(35px) scaleX(1);}
+  35%{transform:translateX(35px) scaleX(1);}    /* pause */
+  55%{transform:translateX(-15px) scaleX(-1);}
+  72%{transform:translateX(-30px) scaleX(-1);}
+  78%{transform:translateX(-30px) scaleX(-1);}  /* pause */
+  100%{transform:translateX(0) scaleX(1);}
+}
 /* Sleep Zz indicator */
 .gdecor .zz-indicator{position:absolute;top:-8%;right:-12%;font-size:40%;color:#fff;font-weight:900;text-shadow:0 1px 2px rgba(0,0,0,0.5);animation:zz-rise 2.4s ease-out infinite;}
 @keyframes zz-rise{0%{opacity:0;transform:translate(0,4px) scale(0.6);}20%{opacity:1;}100%{opacity:0;transform:translate(6px,-16px) scale(1.1);}}
@@ -324,6 +349,17 @@ html,body{height:100%;}
 /* Bird silhouettes (dusk) — simple V-shape */
 .bird-silh{position:absolute;pointer-events:none;z-index:2;opacity:0.75;animation:bird-glide 8s linear infinite;}
 @keyframes bird-glide{0%{transform:translateX(-20px);}100%{transform:translateX(40px);}}
+.butterfly{position:absolute;pointer-events:none;z-index:3;animation:butterfly-flit 12s ease-in-out infinite;}
+@keyframes butterfly-flit{
+  0%{transform:translate(0,0) rotate(-3deg);}
+  20%{transform:translate(20px,-12px) rotate(8deg);}
+  40%{transform:translate(40px,4px) rotate(-5deg);}
+  60%{transform:translate(20px,-8px) rotate(10deg);}
+  80%{transform:translate(-10px,6px) rotate(-8deg);}
+  100%{transform:translate(0,0) rotate(-3deg);}
+}
+.butterfly svg{animation:butterfly-flap 0.4s ease-in-out infinite alternate;transform-origin:center;}
+@keyframes butterfly-flap{from{transform:scaleX(1);}to{transform:scaleX(0.5);}}
 
 @media (min-width:900px){
   /* Desktop garden: wider but less tall — keeps garden-to-sky ratio sane */
@@ -2691,8 +2727,9 @@ function renderGarden(){
     const putItem=(xp,yp,w,h,symbolId,anchor)=>{
       const el=document.createElement('div');
       el.className='gdecor';
-      // Character pets (pikachu/mario/jigglypuff/mushroom adults) get a randomized pose — stable per scene render
-      if(symbolId==='m-pikachu-adult'||symbolId==='m-mario-adult'||symbolId==='m-jigglypuff-adult'||symbolId==='m-mushroom-adult'){
+      // Adult pets get animation + walking
+      const isAdultPet=symbolId==='m-pikachu-adult'||symbolId==='m-mario-adult'||symbolId==='m-jigglypuff-adult'||symbolId==='m-mushroom-adult'||symbolId==='m-sprout-adult'||symbolId==='m-drop-adult';
+      if(isAdultPet){
         el.classList.add('float-char');
       }
       // Percentage positioning
@@ -2753,17 +2790,18 @@ function renderGarden(){
         scene.appendChild(el);
       });
     }else if(isDusk){
-      // Dusk: sun low on the right, near horizon. Slightly larger & warmer-feeling
-      // (we reuse the same sprite — its internal gold color reads warm against orange sky)
+      // Dusk: sun setting at horizon, half below ground (use clip-path to hide bottom)
       const sw=Math.round(sizes.sun.w*1.05);
       const sh=Math.round(sizes.sun.h*1.05);
       const el=document.createElement('div');
       el.className='gdecor';
-      // Position: right-center, just above horizon (~45% y)
+      // Position: right side, sun's center at horizon line (55%)
       el.style.right='18%';
-      el.style.top='42%';
+      el.style.top=`calc(55% - ${Math.round(sh/2)}px)`;
       el.style.width=sw+'px';
       el.style.height=sh+'px';
+      // Clip the bottom half (everything below center horizontal line)
+      el.style.clipPath='inset(0 0 50% 0)';
       el.innerHTML=`<svg viewBox="0 0 ${sw} ${sh}" preserveAspectRatio="xMidYMid meet"><use href="#d-sun" width="${sw}" height="${sh}"/></svg>`;
       scene.appendChild(el);
       // Bird silhouettes — 2 birds gliding in the sky (top third)
@@ -2788,6 +2826,18 @@ function renderGarden(){
       el.style.height=sizes.sun.h+'px';
       el.innerHTML=`<svg viewBox="0 0 ${sizes.sun.w} ${sizes.sun.h}" preserveAspectRatio="xMidYMid meet"><use href="#d-sun" width="${sizes.sun.w}" height="${sizes.sun.h}"/></svg>`;
       scene.appendChild(el);
+      // Daytime butterflies — 2 yellow butterflies fluttering around mid garden
+      const butterflies=[{xp:30,yp:42,delay:0},{xp:65,yp:38,delay:1.8}];
+      butterflies.forEach(b=>{
+        const el=document.createElement('div');
+        el.className='butterfly';
+        el.style.left=b.xp+'%';
+        el.style.top=b.yp+'%';
+        el.style.animationDelay=b.delay+'s';
+        // Yellow butterfly SVG (small, two wings)
+        el.innerHTML=`<svg width="18" height="14" viewBox="0 0 18 14"><ellipse cx="6" cy="7" rx="5" ry="6" fill="#ffd54f" opacity="0.9"/><ellipse cx="12" cy="7" rx="5" ry="6" fill="#ffd54f" opacity="0.9"/><ellipse cx="6" cy="7" rx="2.5" ry="3" fill="#ffeb8a"/><ellipse cx="12" cy="7" rx="2.5" ry="3" fill="#ffeb8a"/><line x1="9" y1="3" x2="9" y2="11" stroke="#5a3a1a" stroke-width="1.2"/></svg>`;
+        scene.appendChild(el);
+      });
     }
 
     // === SKY DEPTH: distant hills at horizon + drifting clouds ===
@@ -2857,18 +2907,38 @@ function renderGarden(){
       const dw=Math.round(sz.w*ds);
       const dh=Math.round(sz.h*ds);
       const el=putItem(xPct,yPct,dw,dh,g.svg,'bottom');
-      // Character pet accessories: pose + signature flourishes
+      // Adult pet accessories: pose + signature flourishes + walking
       const isPika=g.svg==='m-pikachu-adult';
       const isMario=g.svg==='m-mario-adult';
       const isJiggly=g.svg==='m-jigglypuff-adult';
       const isMushroom=g.svg==='m-mushroom-adult';
-      if(el && (isPika||isMario||isJiggly||isMushroom)){
+      const isSprout=g.svg==='m-sprout-adult';
+      const isDrop=g.svg==='m-drop-adult';
+      const isAdultPet=isPika||isMario||isJiggly||isMushroom||isSprout||isDrop;
+      if(el && isAdultPet){
         const pose=poseFor(g);
         // Drop the generic float, use pose-specific animation (float-char = pose-a)
         if(pose!=='pose-a'){
           el.classList.remove('float-char');
           el.classList.add(pose);
         }
+        // Wrap inner el in a walking outer wrapper — outer X-shifts (walks), inner does pose
+        // Use 2 walk variants for variety: alternate by hash of x position
+        const useVariantB=(g.x+g.y)%2===0;
+        const walkParent=document.createElement('div');
+        walkParent.className=useVariantB?'gdecor walking-b':'gdecor walking';
+        walkParent.style.position='absolute';
+        walkParent.style.left=el.style.left;
+        walkParent.style.top=el.style.top;
+        walkParent.style.width=el.style.width;
+        walkParent.style.height=el.style.height;
+        walkParent.style.zIndex=el.style.zIndex||'';
+        // Move inner el's positioning to wrapper, reset el's position
+        el.style.left='0';el.style.top='0';
+        // Move el inside wrapper
+        el.parentNode.removeChild(el);
+        walkParent.appendChild(el);
+        scene.appendChild(walkParent);
         // Sleep pose: add Zz indicator
         if(pose==='pose-d'){
           const zz=document.createElement('div');
