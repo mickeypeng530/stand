@@ -87,7 +87,7 @@ html,body{height:100%;}
   /* === Mobile compact: tighter vertical spacing only (no internal shrink) === */
   .main{padding:4px 8px 62px;}
   #viewHome .row-main{gap:5px;}
-  .c-card{padding:8px 14px;min-height:0;}
+  .c-card{padding:6px 14px;min-height:0;}
 }
 @media (min-width:900px){
   .main{padding:16px 20px;padding-bottom:16px;min-height:0;height:calc(100vh - 52px);}
@@ -659,10 +659,10 @@ body.theme-mario .mascot-speech::after{background:#fef6e4;border-right:2px solid
   body.theme-mario .mascot-meta{bottom:98px;}
 }
 
-/* Mobile: Pokemon / Mario themes have thick borders/decorations — trim padding + border to save space */
+/* Mobile: Pokemon / Mario themes have thick borders/decorations — trim border + adjust title for corner decor */
 @media (max-width:899px){
   body.theme-pokemon .c-card,
-  body.theme-mario .c-card{padding:6px 12px;border-width:2px;}
+  body.theme-mario .c-card{border-width:2px;}
   /* Push the title row (「久坐追蹤」/「喝水追蹤」) down so it clears the corner decoration */
   body.theme-pokemon .c-head,
   body.theme-mario .c-head{padding-top:4px;padding-right:34px;}
