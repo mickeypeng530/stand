@@ -2578,28 +2578,30 @@ function updateWaterCountdown(){
   if(!wMl)return;
   const wVal=S.todayWater||0;
   const ml=Math.round(wVal*ML);
+  // Build goal status part
   let goalPart;
   if(wVal>W_GOAL){
     goalPart=`已超過目標 +${(wVal-W_GOAL).toFixed(1)} 杯 🌊`;
   }else if(wVal>=W_GOAL){
     goalPart='今日已完成 ✅';
   }else{
-    const lastAt=S.lastWaterRemindAt||0;
-    if(lastAt>0){
-      const remainSec=Math.floor(W_INT-(now()-lastAt)/1000);
-      if(remainSec>0){
-        const m=Math.floor(remainSec/60),h=Math.floor(m/60),mm=m%60;
-        goalPart=h>0?`下次提醒 ${h}h ${mm}m`:`下次提醒 ${mm}m`;
-      }else{
-        const overSec=-remainSec;
-        const om=Math.floor(overSec/60),oh=Math.floor(om/60),omm=om%60;
-        goalPart=oh>0?`已 ${oh}h ${omm}m 沒喝 ⚠️`:`已 ${om}m 沒喝 ⚠️`;
-      }
+    goalPart='目標 '+W_GOAL+' 杯';
+  }
+  // Build countdown part (always shown)
+  let countdownPart='';
+  const lastAt=S.lastWaterRemindAt||0;
+  if(lastAt>0){
+    const remainSec=Math.floor(W_INT-(now()-lastAt)/1000);
+    if(remainSec>0){
+      const m=Math.floor(remainSec/60),h=Math.floor(m/60),mm=m%60;
+      countdownPart=h>0?`下次提醒 ${h}h ${mm}m`:`下次提醒 ${mm}m`;
     }else{
-      goalPart='目標 '+W_GOAL+' 杯';
+      const overSec=-remainSec;
+      const om=Math.floor(overSec/60),oh=Math.floor(om/60),omm=om%60;
+      countdownPart=oh>0?`已 ${oh}h ${omm}m 沒喝 ⚠️`:`已 ${om}m 沒喝 ⚠️`;
     }
   }
-  wMl.textContent=`≈ ${ml} ml · ${goalPart}`;
+  wMl.textContent=countdownPart?`≈ ${ml} ml · ${goalPart} · ${countdownPart}`:`≈ ${ml} ml · ${goalPart}`;
 }
 
 function renderTimer(){
