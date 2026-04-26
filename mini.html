@@ -357,13 +357,14 @@ function handleStandup(){
 }
 
 function doWater(){
-  if((S.todayWater||0)>=12){toast('今天喝滿了');return;}
-  S.todayWater=Math.min(12,(S.todayWater||0)+0.5);
+  S.todayWater=(S.todayWater||0)+0.5;
   S.totalWater=(S.totalWater||0)+0.5;
+  S.lastWaterRemindAt=Date.now();
   const isWhole=Number.isInteger(S.todayWater);
-  const xp=isWhole?1.5:0.5;
+  const within=S.todayWater<=12;
+  const xp=(isWhole&&within)?1.5:0.5;
   addSeedXP('water',xp);
-  if(isWhole)toast(`🥛 整杯 +${xp} XP`);
+  if(isWhole&&within)toast(`🥛 整杯 +${xp} XP`);
   checkPetGoals();
   render();saveSync();
 }
