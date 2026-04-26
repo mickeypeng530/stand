@@ -88,8 +88,6 @@ html,body{height:100%;}
   .main{padding:4px 8px 62px;}
   #viewHome .row-main{gap:5px;}
   .c-card{padding:6px 14px;min-height:0;}
-  .c-button-slot{padding-top:4px;}
-  .btn-full{padding:7px 16px;}
   .water-se .ml{font-size:calc(12px * var(--fs));}
 }
 @media (min-width:900px){
@@ -144,6 +142,11 @@ html,body{height:100%;}
 .btn-full.green-alt{background:linear-gradient(135deg,#81c784,var(--green-dark)) !important;box-shadow:0 3px 12px #66bb6a22;}
 .btn-full.blue{background:linear-gradient(135deg,var(--blue),var(--blue-dark)) !important;box-shadow:0 3px 12px #42a5f522;}
 .btn-full .xp{display:inline-block;background:#ffffff22;border-radius:6px;padding:2px 7px;font-size:calc(11px * var(--fs));font-weight:400;margin-left:6px;}
+@media (max-width:899px){
+  /* Override base rules — must come AFTER base .btn-full and .c-button-slot */
+  .btn-full{padding:7px 16px;}
+  .c-button-slot{padding-top:4px;}
+}
 .btn-stop{background:var(--card-alt) !important;border:1px solid var(--line);color:var(--text-dim) !important;padding:0 18px;border-radius:12px;font-family:inherit;font-size:calc(18px * var(--fs));cursor:pointer;flex-shrink:0;-webkit-appearance:none;appearance:none;}
 .btn-stop:hover{color:var(--red) !important;border-color:var(--red);}
 .btn-stop:active{transform:scale(0.95);}
