@@ -1701,6 +1701,8 @@ window.setThresh=function(m){
   m=+m;
   S.thresh=m;
   applyThresh(m);
+  // Update subtitle / progress bar immediately
+  renderTimer();
   saveSync();
 };
 document.querySelectorAll('.sit-thresh .tp').forEach(b=>{
@@ -1726,8 +1728,7 @@ function renderAll(){
   if(tbT)tbT.textContent=fmtHr(totalSS()||0);
   // Water number + cups
   $id('wNum').textContent=wStr;
-  const wMl=$id('wMl');
-  if(wMl)wMl.textContent=`≈ ${Math.round(wVal*ML)} ml · ${wVal>=W_GOAL?'今日已完成 ✅':'目標 '+W_GOAL+' 杯'}`;
+  updateWaterCountdown();
   renderCups();
   // Snack counter
   renderSnack();
@@ -2127,13 +2128,7 @@ function tick(){
   const sit=currentSitSec();
   if(sit>(S.longestSit||0))S.longestSit=sit;
   S.sessionSecTotal=totalSS();
-  // Water reminder every W_INT (2h) seconds
-  if(S.lastWaterRemindAt&&(now()-S.lastWaterRemindAt)/1000>=W_INT){
-    S.lastWaterRemindAt=now();
-    showToast('💧 別忘了喝水～');
-    fireNotif('💧 該喝水了！');
-    beep();
-  }
+  // Water reminder: countdown shown in UI only (no popup/notification)
   // Alert when past threshold
   const threshSec=(S.thresh||30)*60;
   if(sit>=threshSec&&!S.alerted){
@@ -2295,17 +2290,21 @@ function applySessionUI(){
 }
 
 // Water action — each click = half a cup (75ml)
-// Bonus: reaching an integer cup count gives +1 XP extra (whole-cup bonus)
+// Bonus: reaching an integer cup count gives +1 XP extra (whole-cup bonus, only up to 12)
 function doWater(){
-  if((S.todayWater||0)>=12){showToast('今天已經喝滿 12 杯了 🌊');return;}
-  S.todayWater=Math.min(12,(S.todayWater||0)+0.5);
+  S.todayWater=(S.todayWater||0)+0.5;
   S.totalWater=(S.totalWater||0)+0.5;
-  // Check if this click landed on a whole cup (integer)
+  // Reset water reminder countdown — every drink restarts the 2h timer
+  S.lastWaterRemindAt=now();
+  // Whole-cup bonus only up to 12 (the daily goal); past that, no bonus
   const isWholeCup=Number.isInteger(S.todayWater);
-  const xpGain=isWholeCup?1.5:0.5;
+  const withinGoal=S.todayWater<=12;
+  const xpGain=(isWholeCup&&withinGoal)?1.5:0.5;
   addSeedXP('water',xpGain);
-  if(isWholeCup){
+  if(isWholeCup&&withinGoal){
     showToast(`🥛 整杯 +${xpGain} XP bonus！`);
+  }else if(S.todayWater===12.5){
+    showToast('已達 12 杯目標，額外的水繼續記錄 💧');
   }
   checkPetGoals();
   triggerMascot('water');
@@ -2574,6 +2573,35 @@ function updatePetMascots(){
 }
 
 // ===== TIMER RENDER =====
+function updateWaterCountdown(){
+  const wMl=$id('wMl');
+  if(!wMl)return;
+  const wVal=S.todayWater||0;
+  const ml=Math.round(wVal*ML);
+  let goalPart;
+  if(wVal>W_GOAL){
+    goalPart=`已超過目標 +${(wVal-W_GOAL).toFixed(1)} 杯 🌊`;
+  }else if(wVal>=W_GOAL){
+    goalPart='今日已完成 ✅';
+  }else{
+    const lastAt=S.lastWaterRemindAt||0;
+    if(lastAt>0){
+      const remainSec=Math.floor(W_INT-(now()-lastAt)/1000);
+      if(remainSec>0){
+        const m=Math.floor(remainSec/60),h=Math.floor(m/60),mm=m%60;
+        goalPart=h>0?`下次提醒 ${h}h ${mm}m`:`下次提醒 ${mm}m`;
+      }else{
+        const overSec=-remainSec;
+        const om=Math.floor(overSec/60),oh=Math.floor(om/60),omm=om%60;
+        goalPart=oh>0?`已 ${oh}h ${omm}m 沒喝 ⚠️`:`已 ${om}m 沒喝 ⚠️`;
+      }
+    }else{
+      goalPart='目標 '+W_GOAL+' 杯';
+    }
+  }
+  wMl.textContent=`≈ ${ml} ml · ${goalPart}`;
+}
+
 function renderTimer(){
   const sit=currentSitSec();
   const threshSec=(S.thresh||30)*60;
@@ -2642,6 +2670,7 @@ function renderTimer(){
       badge.style.display='none';
     }
   }
+  updateWaterCountdown();
 }
 
 // ===== GARDEN RENDERER =====
@@ -3488,6 +3517,8 @@ if(S._pendingSnackLevelCheck){
   checkPetLevelUp('snack');
 }
 renderAll();
+// Update water countdown every 30s (works regardless of session state)
+setInterval(updateWaterCountdown,30000);
 </script>
 </body>
 </html>
