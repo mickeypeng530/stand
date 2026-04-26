@@ -276,7 +276,7 @@ html,body{height:100%;}
 .water-se .big{display:flex;align-items:baseline;justify-content:center;gap:4px;margin:4px 0;}
 .water-se .big .n{font-family:'Fredoka',monospace;font-size:calc(54px * var(--fs));font-weight:700;color:var(--blue-light);line-height:1;}
 .water-se .big .t{font-size:calc(20px * var(--fs));color:var(--text-dim);}
-.water-se .ml{font-size:calc(13px * var(--fs));color:var(--text-dim);}
+.water-se .ml{font-size:calc(13px * var(--fs));color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .cups-row{display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:10px;margin-right:-96px;}
 .cup{aspect-ratio:0.85;position:relative;border-radius:0 0 6px 6px;border:2px solid #ffffff30;border-top:none;background:var(--card-alt);overflow:hidden;cursor:pointer;min-height:28px;}
 .cup::before{content:'';position:absolute;top:0;left:-2px;right:-2px;height:2px;background:#ffffff20;border-radius:2px 2px 0 0;}
@@ -2578,30 +2578,30 @@ function updateWaterCountdown(){
   if(!wMl)return;
   const wVal=S.todayWater||0;
   const ml=Math.round(wVal*ML);
-  // Build goal status part
+  // Goal status (concise)
   let goalPart;
   if(wVal>W_GOAL){
-    goalPart=`已超過目標 +${(wVal-W_GOAL).toFixed(1)} 杯 🌊`;
+    goalPart=`+${(wVal-W_GOAL).toFixed(1)} 杯 🌊`;
   }else if(wVal>=W_GOAL){
-    goalPart='今日已完成 ✅';
+    goalPart='已達標 ✅';
   }else{
-    goalPart='目標 '+W_GOAL+' 杯';
+    goalPart=W_GOAL+' 杯目標';
   }
-  // Build countdown part (always shown)
+  // Countdown (concise)
   let countdownPart='';
   const lastAt=S.lastWaterRemindAt||0;
   if(lastAt>0){
     const remainSec=Math.floor(W_INT-(now()-lastAt)/1000);
     if(remainSec>0){
       const m=Math.floor(remainSec/60),h=Math.floor(m/60),mm=m%60;
-      countdownPart=h>0?`下次提醒 ${h}h ${mm}m`:`下次提醒 ${mm}m`;
+      countdownPart=h>0?`再 ${h}h${mm}m`:`再 ${mm}m`;
     }else{
       const overSec=-remainSec;
       const om=Math.floor(overSec/60),oh=Math.floor(om/60),omm=om%60;
-      countdownPart=oh>0?`已 ${oh}h ${omm}m 沒喝 ⚠️`:`已 ${om}m 沒喝 ⚠️`;
+      countdownPart=oh>0?`已 ${oh}h${omm}m ⚠️`:`已 ${om}m ⚠️`;
     }
   }
-  wMl.textContent=countdownPart?`≈ ${ml} ml · ${goalPart} · ${countdownPart}`:`≈ ${ml} ml · ${goalPart}`;
+  wMl.textContent=countdownPart?`${ml}ml · ${goalPart} · ${countdownPart}`:`${ml}ml · ${goalPart}`;
 }
 
 function renderTimer(){
