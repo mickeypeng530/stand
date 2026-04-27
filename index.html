@@ -424,6 +424,9 @@ html,body{height:100%;}
 .hist-row .hr-v.ok{color:var(--green-light);}
 .hist-row .hr-v.bad{color:var(--red);}
 .hist-row .hr-rest{color:var(--text-dim);font-style:italic;}
+.hist-row .hr-edit-hint{margin-left:auto;color:var(--text-dim);font-size:calc(11px * var(--fs));opacity:0.5;}
+.hist-row:hover{background:var(--card-alt);filter:brightness(1.1);}
+.hist-row:hover .hr-edit-hint{opacity:1;}
 .hist-empty{text-align:center;color:var(--text-dim);padding:14px 0;font-size:calc(12px * var(--fs));}
 .daily-quote{margin-top:8px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;}
 .daily-quote .dq-icon{font-size:calc(26px * var(--fs));flex-shrink:0;animation:quote-sway 4s ease-in-out infinite;}
@@ -753,6 +756,8 @@ body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card
 .edit-warn{font-size:calc(11px * var(--fs));color:var(--red);margin:4px 0 12px;min-height:16px;}
 .edit-btns{display:flex;gap:8px;margin-top:12px;}
 .edit-btn{flex:1;padding:10px;border-radius:10px;border:none;font-family:inherit;font-weight:700;font-size:calc(13px * var(--fs));cursor:pointer;-webkit-appearance:none;appearance:none;}
+.edit-btn.delete{background:#7a1209;color:#fff;}
+.edit-btn.delete:active{transform:scale(0.97);}
 .edit-btn.del{background:#ef535020;color:var(--red);border:1px solid #ef535044;}
 .edit-btn.cancel{background:var(--card-alt);color:var(--text-dim);}
 .edit-btn.ok{background:linear-gradient(135deg,#81c784,var(--green-dark));color:#fff;}
@@ -1139,6 +1144,54 @@ body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card
   </div>
 </div>
 
+<!-- Edit history modal — for editing a past day's record -->
+<div class="edit-overlay" id="editHistOverlay">
+  <div class="edit-card">
+    <div class="edit-title">✏️ 編輯歷史紀錄</div>
+    <div class="edit-info" id="ehDateInfo">— 紀錄日期 —</div>
+    <div class="edit-row">
+      <label>🪑 站起次數</label>
+      <input type="number" id="ehStand" min="0" max="99" step="1"/>
+    </div>
+    <div class="edit-row">
+      <label>💧 喝水杯數</label>
+      <input type="number" id="ehWater" min="0" max="30" step="0.5"/>
+    </div>
+    <div class="edit-row">
+      <label>⏱ 工作時間</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" id="ehHr" min="0" max="23" step="1" style="width:56px"/>
+        <span style="font-size:calc(12px * var(--fs));color:var(--text-dim);">h</span>
+        <input type="number" id="ehMin" min="0" max="59" step="1" style="width:56px"/>
+        <span style="font-size:calc(12px * var(--fs));color:var(--text-dim);">m</span>
+      </div>
+    </div>
+    <div class="edit-row">
+      <label>📌 最長久坐</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="number" id="ehLongHr" min="0" max="23" step="1" style="width:56px"/>
+        <span style="font-size:calc(12px * var(--fs));color:var(--text-dim);">h</span>
+        <input type="number" id="ehLongMin" min="0" max="59" step="1" style="width:56px"/>
+        <span style="font-size:calc(12px * var(--fs));color:var(--text-dim);">m</span>
+      </div>
+    </div>
+    <div class="edit-row">
+      <label>🍪 零食次數</label>
+      <input type="number" id="ehSnack" min="0" max="99" step="1"/>
+    </div>
+    <div class="edit-row">
+      <label>😴 休息日</label>
+      <input type="checkbox" id="ehRested" style="width:20px;height:20px;cursor:pointer;"/>
+    </div>
+    <div class="edit-warn" id="ehWarn"></div>
+    <div class="edit-btns">
+      <button class="edit-btn delete" onclick="window.deleteEditHistory()">🗑 刪除</button>
+      <button class="edit-btn cancel" onclick="window.closeEditHistoryModal()">取消</button>
+      <button class="edit-btn ok" onclick="window.saveEditHistory()">✓ 儲存</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 // ===== DAILY LUCKY QUOTES =====
 const QUOTES=[
@@ -1326,46 +1379,55 @@ function defS(){return{
   snackPetDays:0,snackPetSpecies:'original', // 'jigglypuff' or 'mushroom' when hatched
 };}
 
+// Rollover today's data into history if lastDate has changed.
+// Returns true if rolled over.
+function maybeRollover(d){
+  d=d||S;
+  const today=new Date().toDateString();
+  if(!d.lastDate||d.lastDate===today)return false;
+  // Snapshot yesterday into history
+  if(!d.history||Array.isArray(d.history))d.history={};
+  if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday||d.todaySnack>0){
+    const LONGEST_WARN=45*60;
+    d.history[d.lastDate]={
+      water:d.todayWater||0,
+      waterMl:(d.todayWater||0)*ML,
+      stands:d.todayStand||0,
+      sessions:d.sessionsToday||0,
+      workTimeSec:d.sessionSecTotal||0,
+      longestSitSec:d.longestSit||0,
+      rested:d.restToday||false,
+      overLongSit:(d.longestSit||0)>=LONGEST_WARN,
+      snack:d.todaySnack||0
+    };
+  }
+  const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);
+  if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
+  else if(diff>1)d.streak=0;
+  d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;
+  d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;
+  d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
+  d.sitGoalMetToday=false;d.waterGoalMetToday=false;
+  // Snack: award pet day if yesterday's count was within limit, then reset
+  const snackLimit=d.snackLimit||3;
+  const snackMet=(d.todaySnack||0)<=snackLimit;
+  if(snackMet){
+    d.snackPetDays=(d.snackPetDays||0)+1;
+    d._pendingSnackLevelCheck=true;
+  }
+  d.todaySnack=0;d.snackGoalMetToday=true;
+  d._rolledOver=true;
+  return true;
+}
+
 function loadL(){
   try{
     const d=JSON.parse(localStorage.getItem('health_v6'));
     if(d){
-      const today=new Date().toDateString();
-      if(d.lastDate&&d.lastDate!==today){
-        // Snapshot yesterday into history
-        if(!d.history||Array.isArray(d.history))d.history={};
-        if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday||d.todaySnack>0){
-          const LONGEST_WARN=45*60;
-          d.history[d.lastDate]={
-            water:d.todayWater||0,
-            waterMl:(d.todayWater||0)*ML,
-            stands:d.todayStand||0,
-            sessions:d.sessionsToday||0,
-            workTimeSec:d.sessionSecTotal||0,
-            longestSitSec:d.longestSit||0,
-            rested:d.restToday||false,
-            overLongSit:(d.longestSit||0)>=LONGEST_WARN,
-            snack:d.todaySnack||0
-          };
-        }
-        const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);
-        if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
-        else if(diff>1)d.streak=0;
-        d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;
-        d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;
-        d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
-        d.sitGoalMetToday=false;d.waterGoalMetToday=false;
-        // Snack: award pet day if yesterday's count was within limit, then reset
-        const snackLimit=d.snackLimit||3;
-        const snackMet=(d.todaySnack||0)<=snackLimit;
-        if(snackMet){
-          d.snackPetDays=(d.snackPetDays||0)+1;
-          // Record that a snack pet levelup check is needed after load
-          d._pendingSnackLevelCheck=true;
-        }
-        d.todaySnack=0;d.snackGoalMetToday=true;
-        d._rolledOver=true;
-      }
+      // NOTE: Do NOT auto-rollover here. Rollover is deferred until after cloudPull
+      // completes (so we use the latest data, not stale localStorage).
+      // For users without cloud (not logged in), rollover will trigger after init when
+      // we know there's no cloud data — see the init logic below.
       if(!d.history||Array.isArray(d.history))d.history={};
       if(!Array.isArray(d.garden))d.garden=[];
       ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays','todaySnack','totalSnacks','snackPetDays'].forEach(k=>{if(!d[k])d[k]=0;});
@@ -1453,6 +1515,8 @@ onAuthStateChanged(fbAuth,async u=>{
         for(const k of Object.keys(c)){
           S[k]=c[k];
         }
+        // Check rollover after merge
+        const rolled=maybeRollover(S);
         // Refresh lastCloudSnap so our next diff compares against the merged state
         lastCloudSnap=JSON.parse(JSON.stringify(S));
         saveLocal();
@@ -1461,6 +1525,7 @@ onAuthStateChanged(fbAuth,async u=>{
           if(S.inSession)resumeSessionIfNeeded();
         }
         renderAll();
+        if(rolled)cloudSave();
       }
     });
   }else{
@@ -1543,6 +1608,8 @@ async function cloudPull(firstPull){
       for(const k of Object.keys(c)){
         S[k]=c[k];
       }
+      // Now that we have the latest data, check if we crossed midnight (rollover yesterday)
+      const rolled=maybeRollover(S);
       // Snapshot this state — it's what's currently in cloud
       lastCloudSnap=JSON.parse(JSON.stringify(S));
       saveLocal();
@@ -1552,7 +1619,12 @@ async function cloudPull(firstPull){
         if(S.inSession)resumeSessionIfNeeded();
       }
       renderAll();
+      // If rolled over, save the rolled state back to cloud (history snapshot + reset today)
+      if(rolled)cloudSave();
     }else if(firstPull){
+      // Cloud has nothing or is older — but we should still roll over local data if needed
+      maybeRollover(S);
+      saveLocal();
       await cloudSave();
     }
   }catch(e){console.warn('cloudPull err',e);}
@@ -1907,20 +1979,21 @@ function renderHistory(){
       html+=`<div class="hist-list">`;
       records.forEach(r=>{
         if(r.rested){
-          html+=`<div class="hist-row"><span class="hr-date">${fmtDate(r.date)}</span><span class="hr-rest">😴 休息日</span></div>`;
+          html+=`<div class="hist-row" data-edit-date="${r.date}"><span class="hr-date">${fmtDate(r.date)}</span><span class="hr-rest">😴 休息日</span><span class="hr-edit-hint">✏️</span></div>`;
         }else{
           const wCls=colorCls('water',r.water||0);
           const sCls=colorCls('stand',r.stands||0);
           const lCls=colorCls('longest',r.longestSitSec||0);
           const snLimit=S.snackLimit||3;
           const snCls=(r.snack||0)>snLimit?'bad':'';
-          html+=`<div class="hist-row">
+          html+=`<div class="hist-row" data-edit-date="${r.date}">
             <span class="hr-date">${fmtDate(r.date)}</span>
             <span class="hr-item">💧<span class="hr-v ${wCls}">${r.water||0}</span></span>
             <span class="hr-item">🪑<span class="hr-v ${sCls}">${r.stands||0}</span></span>
             <span class="hr-item">⏱<span class="hr-v">${fmtHr(r.workTimeSec||0)}</span></span>
             <span class="hr-item">📌<span class="hr-v ${lCls}">${fmtHr(r.longestSitSec||0)}</span>${r.overLongSit?'⚠️':''}</span>
             <span class="hr-item">🍪<span class="hr-v ${snCls}">${r.snack||0}</span></span>
+            <span class="hr-edit-hint">✏️</span>
           </div>`;
         }
       });
@@ -1931,6 +2004,14 @@ function renderHistory(){
   if(body)body.innerHTML=html;
   const bodyM=$id('histBodyMobile');
   if(bodyM)bodyM.innerHTML=html;
+  // Wire up click-to-edit on rows
+  [body,bodyM].forEach(c=>{
+    if(!c)return;
+    c.querySelectorAll('.hist-row[data-edit-date]').forEach(row=>{
+      row.style.cursor='pointer';
+      row.addEventListener('click',()=>openEditHistoryModal(row.dataset.editDate));
+    });
+  });
 }
 
 // ===== CUPS (water tracker) =====
@@ -3430,6 +3511,90 @@ $id('editTodayOverlay').addEventListener('click',(e)=>{
   if(e.target.id==='editTodayOverlay')window.closeEditTodayModal();
 });
 
+// ===== EDIT HISTORY MODAL =====
+let _editHistDate=null;
+
+window.openEditHistoryModal=function(dateKey){
+  _editHistDate=dateKey;
+  const r=(S.history||{})[dateKey]||{};
+  $id('ehDateInfo').textContent='紀錄日期：'+dateKey;
+  $id('ehStand').value=r.stands||0;
+  $id('ehWater').value=r.water||0;
+  const sec=r.workTimeSec||0;
+  $id('ehHr').value=Math.floor(sec/3600);
+  $id('ehMin').value=Math.floor((sec%3600)/60);
+  const lsec=r.longestSitSec||0;
+  $id('ehLongHr').value=Math.floor(lsec/3600);
+  $id('ehLongMin').value=Math.floor((lsec%3600)/60);
+  $id('ehSnack').value=r.snack||0;
+  $id('ehRested').checked=!!r.rested;
+  $id('ehWarn').textContent='';
+  $id('editHistOverlay').classList.add('show');
+};
+function openEditHistoryModal(d){window.openEditHistoryModal(d);}
+
+window.closeEditHistoryModal=function(){
+  $id('editHistOverlay').classList.remove('show');
+  _editHistDate=null;
+};
+
+window.saveEditHistory=function(){
+  if(!_editHistDate)return;
+  const stand=Math.max(0,Math.min(99,Math.round(+$id('ehStand').value||0)));
+  let water=+$id('ehWater').value||0;
+  water=Math.max(0,Math.min(30,Math.round(water*2)/2));
+  const hr=Math.max(0,Math.min(23,Math.round(+$id('ehHr').value||0)));
+  const min=Math.max(0,Math.min(59,Math.round(+$id('ehMin').value||0)));
+  const lHr=Math.max(0,Math.min(23,Math.round(+$id('ehLongHr').value||0)));
+  const lMin=Math.max(0,Math.min(59,Math.round(+$id('ehLongMin').value||0)));
+  const snack=Math.max(0,Math.min(99,Math.round(+$id('ehSnack').value||0)));
+  const rested=$id('ehRested').checked;
+  const workSec=hr*3600+min*60;
+  const longestSec=lHr*3600+lMin*60;
+  const LONGEST_WARN=45*60;
+  if(!S.history)S.history={};
+  // If editing today's date, also update live state
+  if(_editHistDate===S.lastDate){
+    S.todayStand=stand;
+    S.todayWater=water;
+    S.sessionSecTotal=workSec;
+    S.longestSit=longestSec;
+    S.restToday=rested;
+    S.todaySnack=snack;
+    S.sitGoalMetToday=stand>=S_GOAL;
+    S.waterGoalMetToday=water>=W_STREAK;
+  }
+  S.history[_editHistDate]={
+    stands:stand,
+    water:water,
+    waterMl:water*ML,
+    workTimeSec:workSec,
+    longestSitSec:longestSec,
+    sessions:(S.history[_editHistDate]||{}).sessions||1,
+    snack:snack,
+    rested:rested,
+    overLongSit:longestSec>=LONGEST_WARN
+  };
+  closeEditHistoryModal();
+  showToast(`✓ 已更新 ${_editHistDate.slice(0,10)} 紀錄`);
+  renderAll();
+  saveSync();
+};
+
+window.deleteEditHistory=function(){
+  if(!_editHistDate)return;
+  if(!confirm(`確定刪除 ${_editHistDate} 的紀錄？`))return;
+  if(S.history)delete S.history[_editHistDate];
+  closeEditHistoryModal();
+  showToast(`🗑 已刪除 ${_editHistDate.slice(0,10)} 紀錄`);
+  renderAll();
+  saveSync();
+};
+
+$id('editHistOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='editHistOverlay')window.closeEditHistoryModal();
+});
+
 // ===== BACKGROUND MUSIC =====
 const MUSIC_TRACKS=['River.mp3','Canon.mp3'];
 let musicTrackIdx=0;
@@ -3535,6 +3700,17 @@ if(S._pendingSnackLevelCheck){
 renderAll();
 // Update water countdown every 30s (works regardless of session state)
 setInterval(updateWaterCountdown,30000);
+// Fallback rollover: if cloudPull doesn't fire within 5 seconds (offline / not logged in),
+// do local-only rollover so date-based logic still works
+setTimeout(()=>{
+  if(!dbRef||!fbUser){
+    // Not authenticated — do local-only rollover
+    if(maybeRollover(S)){
+      saveLocal();
+      renderAll();
+    }
+  }
+},5000);
 </script>
 </body>
 </html>
