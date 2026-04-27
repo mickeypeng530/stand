@@ -3575,7 +3575,7 @@ window.saveEditHistory=function(){
     rested:rested,
     overLongSit:longestSec>=LONGEST_WARN
   };
-  closeEditHistoryModal();
+  window.closeEditHistoryModal();
   showToast(`✓ 已更新 ${_editHistDate.slice(0,10)} 紀錄`);
   renderAll();
   saveSync();
@@ -3585,7 +3585,7 @@ window.deleteEditHistory=function(){
   if(!_editHistDate)return;
   if(!confirm(`確定刪除 ${_editHistDate} 的紀錄？`))return;
   if(S.history)delete S.history[_editHistDate];
-  closeEditHistoryModal();
+  window.closeEditHistoryModal();
   showToast(`🗑 已刪除 ${_editHistDate.slice(0,10)} 紀錄`);
   renderAll();
   saveSync();
