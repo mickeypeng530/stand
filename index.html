@@ -3605,6 +3605,7 @@ window.closeEditHistoryModal=function(){
 window.saveEditHistory=function(){
   try{
     if(!_editHistDate){alert('沒有選定日期 (no date)');return;}
+    const dateKey=_editHistDate;  // capture before close clears it
     const stand=Math.max(0,Math.min(99,Math.round(+$id('ehStand').value||0)));
     let water=+$id('ehWater').value||0;
     water=Math.max(0,Math.min(30,Math.round(water*2)/2));
@@ -3618,7 +3619,7 @@ window.saveEditHistory=function(){
     const longestSec=lHr*3600+lMin*60;
     const LONGEST_WARN=45*60;
     if(!S.history)S.history={};
-    if(_editHistDate===S.lastDate){
+    if(dateKey===S.lastDate){
       S.todayStand=stand;
       S.todayWater=water;
       S.sessionSecTotal=workSec;
@@ -3628,19 +3629,19 @@ window.saveEditHistory=function(){
       S.sitGoalMetToday=stand>=S_GOAL;
       S.waterGoalMetToday=water>=W_STREAK;
     }
-    S.history[_editHistDate]={
+    S.history[dateKey]={
       stands:stand,
       water:water,
       waterMl:water*ML,
       workTimeSec:workSec,
       longestSitSec:longestSec,
-      sessions:(S.history[_editHistDate]||{}).sessions||1,
+      sessions:(S.history[dateKey]||{}).sessions||1,
       snack:snack,
       rested:rested,
       overLongSit:longestSec>=LONGEST_WARN
     };
     window.closeEditHistoryModal();
-    showToast(`✓ 已更新 ${_editHistDate.slice(0,10)} 紀錄`);
+    showToast(`✓ 已更新 ${dateKey.slice(0,10)} 紀錄`);
     renderAll();
     saveSync();
   }catch(err){
@@ -3651,10 +3652,11 @@ window.saveEditHistory=function(){
 
 window.deleteEditHistory=function(){
   if(!_editHistDate)return;
-  if(!confirm(`確定刪除 ${_editHistDate} 的紀錄？`))return;
-  if(S.history)delete S.history[_editHistDate];
+  const dateKey=_editHistDate;  // capture before close clears it
+  if(!confirm(`確定刪除 ${dateKey} 的紀錄？`))return;
+  if(S.history)delete S.history[dateKey];
   window.closeEditHistoryModal();
-  showToast(`🗑 已刪除 ${_editHistDate.slice(0,10)} 紀錄`);
+  showToast(`🗑 已刪除 ${dateKey.slice(0,10)} 紀錄`);
   renderAll();
   saveSync();
 };
