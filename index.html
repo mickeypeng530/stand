@@ -1449,7 +1449,48 @@ function loadL(){
   return defS();
 }
 function saveLocal(){localStorage.setItem('health_v6',JSON.stringify(S));}
-function saveSync(){saveLocal();cloudSave();}
+// PROTECTION LAYER 3: backup tracking
+let _saveCounter=0;
+let _lastBackupAt=0;
+
+function saveSync(){
+  saveLocal();
+  cloudSave();
+  // Backup every ~50 saves (≈ once a day for typical use)
+  _saveCounter++;
+  if(_saveCounter>=50){
+    _saveCounter=0;
+    backupToCloud('every-50-saves');
+  }
+}
+
+async function backupToCloud(reason){
+  if(!dbRef||!fbUser)return;
+  try{
+    const ts=Date.now();
+    const backupRef=ref(fbDb,`health-tracker-backups/${fbUser.uid}/${ts}`);
+    const snap={...S,_backupAt:ts,_backupReason:reason};
+    await update(backupRef,snap);
+    _lastBackupAt=ts;
+    console.log('[backup]',reason,'@',new Date(ts).toLocaleString());
+    // Cleanup: keep only last 14 backups
+    const allBackupsRef=ref(fbDb,`health-tracker-backups/${fbUser.uid}`);
+    const allSnap=await get(allBackupsRef);
+    if(allSnap.exists()){
+      const keys=Object.keys(allSnap.val()).sort();
+      const KEEP=14;
+      if(keys.length>KEEP){
+        const toDelete={};
+        for(let i=0;i<keys.length-KEEP;i++){
+          toDelete[keys[i]]=null;
+        }
+        await update(allBackupsRef,toDelete);
+      }
+    }
+  }catch(e){
+    console.warn('[backup] failed',e);
+  }
+}
 
 window.S=loadL();
 
@@ -1549,22 +1590,45 @@ async function cloudSave(){
   try{
     S.updatedAt=Date.now();
     const patch={updatedAt:S.updatedAt};
+    // Multi-path update: history changes use per-day paths so we never overwrite the whole history
+    const multiPath={};  // key = full path, value = data
     if(lastCloudSnap){
-      // Only send fields that changed (prevents overwriting other devices' data)
+      // Only send fields that changed
       for(const k of Object.keys(S)){
         const a=JSON.stringify(S[k]);
         const b=JSON.stringify(lastCloudSnap[k]);
-        if(a!==b)patch[k]=S[k];
+        if(a===b)continue;
+        if(k==='history'){
+          // Diff history child-by-child
+          const oldH=lastCloudSnap.history||{};
+          const newH=S.history||{};
+          // Added or changed days
+          for(const day of Object.keys(newH)){
+            if(JSON.stringify(newH[day])!==JSON.stringify(oldH[day])){
+              multiPath[`history/${day}`]=newH[day];
+            }
+          }
+          // Removed days
+          for(const day of Object.keys(oldH)){
+            if(!(day in newH))multiPath[`history/${day}`]=null;
+          }
+        }else{
+          patch[k]=S[k];
+        }
       }
-      if(Object.keys(patch).length===1){
+      if(Object.keys(patch).length===1&&Object.keys(multiPath).length===0){
         // Only updatedAt changed (no real data change) — skip write
         return;
       }
     }else{
-      // First write: send everything
+      // First write: send everything (including whole history)
       Object.assign(patch,S);
     }
     await update(dbRef,patch);
+    // If we have per-day history changes, send them via multi-path update
+    if(Object.keys(multiPath).length>0){
+      await update(dbRef,multiPath);
+    }
     // Snapshot after successful write (deep copy)
     lastCloudSnap=JSON.parse(JSON.stringify(S));
     setSyncChip('cloud','已同步');
@@ -3539,46 +3603,50 @@ window.closeEditHistoryModal=function(){
 };
 
 window.saveEditHistory=function(){
-  if(!_editHistDate)return;
-  const stand=Math.max(0,Math.min(99,Math.round(+$id('ehStand').value||0)));
-  let water=+$id('ehWater').value||0;
-  water=Math.max(0,Math.min(30,Math.round(water*2)/2));
-  const hr=Math.max(0,Math.min(23,Math.round(+$id('ehHr').value||0)));
-  const min=Math.max(0,Math.min(59,Math.round(+$id('ehMin').value||0)));
-  const lHr=Math.max(0,Math.min(23,Math.round(+$id('ehLongHr').value||0)));
-  const lMin=Math.max(0,Math.min(59,Math.round(+$id('ehLongMin').value||0)));
-  const snack=Math.max(0,Math.min(99,Math.round(+$id('ehSnack').value||0)));
-  const rested=$id('ehRested').checked;
-  const workSec=hr*3600+min*60;
-  const longestSec=lHr*3600+lMin*60;
-  const LONGEST_WARN=45*60;
-  if(!S.history)S.history={};
-  // If editing today's date, also update live state
-  if(_editHistDate===S.lastDate){
-    S.todayStand=stand;
-    S.todayWater=water;
-    S.sessionSecTotal=workSec;
-    S.longestSit=longestSec;
-    S.restToday=rested;
-    S.todaySnack=snack;
-    S.sitGoalMetToday=stand>=S_GOAL;
-    S.waterGoalMetToday=water>=W_STREAK;
+  try{
+    if(!_editHistDate){alert('沒有選定日期 (no date)');return;}
+    const stand=Math.max(0,Math.min(99,Math.round(+$id('ehStand').value||0)));
+    let water=+$id('ehWater').value||0;
+    water=Math.max(0,Math.min(30,Math.round(water*2)/2));
+    const hr=Math.max(0,Math.min(23,Math.round(+$id('ehHr').value||0)));
+    const min=Math.max(0,Math.min(59,Math.round(+$id('ehMin').value||0)));
+    const lHr=Math.max(0,Math.min(23,Math.round(+$id('ehLongHr').value||0)));
+    const lMin=Math.max(0,Math.min(59,Math.round(+$id('ehLongMin').value||0)));
+    const snack=Math.max(0,Math.min(99,Math.round(+$id('ehSnack').value||0)));
+    const rested=$id('ehRested').checked;
+    const workSec=hr*3600+min*60;
+    const longestSec=lHr*3600+lMin*60;
+    const LONGEST_WARN=45*60;
+    if(!S.history)S.history={};
+    if(_editHistDate===S.lastDate){
+      S.todayStand=stand;
+      S.todayWater=water;
+      S.sessionSecTotal=workSec;
+      S.longestSit=longestSec;
+      S.restToday=rested;
+      S.todaySnack=snack;
+      S.sitGoalMetToday=stand>=S_GOAL;
+      S.waterGoalMetToday=water>=W_STREAK;
+    }
+    S.history[_editHistDate]={
+      stands:stand,
+      water:water,
+      waterMl:water*ML,
+      workTimeSec:workSec,
+      longestSitSec:longestSec,
+      sessions:(S.history[_editHistDate]||{}).sessions||1,
+      snack:snack,
+      rested:rested,
+      overLongSit:longestSec>=LONGEST_WARN
+    };
+    window.closeEditHistoryModal();
+    showToast(`✓ 已更新 ${_editHistDate.slice(0,10)} 紀錄`);
+    renderAll();
+    saveSync();
+  }catch(err){
+    alert('儲存錯誤：'+err.message);
+    console.error('saveEditHistory error:',err);
   }
-  S.history[_editHistDate]={
-    stands:stand,
-    water:water,
-    waterMl:water*ML,
-    workTimeSec:workSec,
-    longestSitSec:longestSec,
-    sessions:(S.history[_editHistDate]||{}).sessions||1,
-    snack:snack,
-    rested:rested,
-    overLongSit:longestSec>=LONGEST_WARN
-  };
-  window.closeEditHistoryModal();
-  showToast(`✓ 已更新 ${_editHistDate.slice(0,10)} 紀錄`);
-  renderAll();
-  saveSync();
 };
 
 window.deleteEditHistory=function(){
@@ -3700,6 +3768,35 @@ if(S._pendingSnackLevelCheck){
 renderAll();
 // Update water countdown every 30s (works regardless of session state)
 setInterval(updateWaterCountdown,30000);
+
+// PROTECTION LAYER 1: Detect day rollover even if tab stays open across midnight.
+// Without this, a tab open since yesterday will keep S.lastDate stale until reload.
+function checkDayRollover(){
+  // Check if rollover would happen
+  const today=new Date().toDateString();
+  const willRollover=S.lastDate&&S.lastDate!==today;
+  if(willRollover){
+    // Backup BEFORE rollover so yesterday's full state is preserved in cloud
+    if(dbRef)backupToCloud('day-rollover-pre');
+  }
+  if(maybeRollover(S)){
+    if(S._pendingSnackLevelCheck){
+      delete S._pendingSnackLevelCheck;
+      checkPetLevelUp('snack');
+    }
+    saveLocal();
+    if(dbRef)cloudSave();
+    renderAll();
+    showToast('🌅 跨日：昨日已歸檔，新的一天開始');
+  }
+}
+// Check every 5 minutes
+setInterval(checkDayRollover,5*60*1000);
+// Check whenever tab becomes visible (most common rollover trigger)
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden)checkDayRollover();
+});
+
 // Fallback rollover: if cloudPull doesn't fire within 5 seconds (offline / not logged in),
 // do local-only rollover so date-based logic still works
 setTimeout(()=>{
