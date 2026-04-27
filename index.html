@@ -2468,8 +2468,8 @@ function checkPetLevelUp(type){
   const daysKey=type==='sit'?'sitPetDays':(type==='water'?'waterPetDays':'snackPetDays');
   const speciesKey=type==='sit'?'sitPetSpecies':(type==='water'?'waterPetSpecies':'snackPetSpecies');
   const days=S[daysKey]||0;
-  // Just reached adult — retire to garden with species-specific svg
-  if(days===PET_ADULT_THRESHOLD){
+  // Just reached or exceeded adult threshold — retire to garden with species-specific svg
+  if(days>=PET_ADULT_THRESHOLD){
     const species=S[speciesKey]||'original';
     let svg;
     if(type==='sit'){
@@ -3524,6 +3524,14 @@ if(S._pendingSnackLevelCheck){
   delete S._pendingSnackLevelCheck;
   checkPetLevelUp('snack');
 }
+// Auto-recover: if any pet has reached adult threshold but wasn't promoted (e.g. mini.html
+// updated days but didn't run checkPetLevelUp), trigger the promotion now.
+['sit','water','snack'].forEach(type=>{
+  const daysKey=type==='sit'?'sitPetDays':(type==='water'?'waterPetDays':'snackPetDays');
+  if((S[daysKey]||0)>=PET_ADULT_THRESHOLD){
+    checkPetLevelUp(type);
+  }
+});
 renderAll();
 // Update water countdown every 30s (works regardless of session state)
 setInterval(updateWaterCountdown,30000);
