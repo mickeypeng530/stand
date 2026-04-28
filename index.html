@@ -2704,6 +2704,11 @@ function tick(){
   const sit=currentSitSec();
   if(sit>(S.longestSit||0))S.longestSit=sit;
   S.sessionSecTotal=totalSS();
+  // Trigger over45 count once per session — when sit first crosses 45m
+  if(sit>=LONGEST_WARN_SEC&&!S._over45TriggeredThisSession){
+    S._over45TriggeredThisSession=true;
+    S.over45CountToday=(S.over45CountToday||0)+1;
+  }
   // Water reminder: countdown shown in UI only (no popup/notification)
   // Alert when past threshold
   const threshSec=(S.thresh||30)*60;
@@ -2732,7 +2737,7 @@ window.startWork=function(){
   const n=now();
   S.inSession=true;
   S.sitStartAt=n;S.sessionStartAt=n;S.sessionAccum=S.sessionSecTotal||0;
-  S.lastWaterRemindAt=n;S.alerted=false;
+  S.lastWaterRemindAt=n;S.alerted=false;S._over45TriggeredThisSession=false;
   S.sessionsToday=(S.sessionsToday||0)+1;
   applySessionUI();
   startTick();
@@ -2757,6 +2762,7 @@ window.stopWork=function(){
 function resetSit(){
   S.sitStartAt=now();
   S.alerted=false;
+  S._over45TriggeredThisSession=false;
 }
 
 // Called when user confirms standing up
@@ -2821,10 +2827,6 @@ window.handleStandup=function(){
   }
   S.sessionSecTotal=totalSS();
   if(sat>(S.longestSit||0))S.longestSit=sat;
-  // Track ≥ 45m sit count for health metrics
-  if(sat>=LONGEST_WARN_SEC){
-    S.over45CountToday=(S.over45CountToday||0)+1;
-  }
   S.inSession=false;
   S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
   S.lastStand=snap;
@@ -4175,6 +4177,10 @@ processPendingRolloverEffects();
 // Set garden period start if missing (first time)
 if(!S._gardenPeriodStart){
   S._gardenPeriodStart=S.firstUseAt||Date.now();
+}
+// Backfill over45CountToday if longestSit ≥ 45m but count is 0 (e.g. tick missed it before this feature was added)
+if((S.longestSit||0)>=LONGEST_WARN_SEC&&(S.over45CountToday||0)===0){
+  S.over45CountToday=1;
 }
 // Auto-recover: if any pet has reached adult threshold but wasn't promoted (e.g. mini.html
 // updated days but didn't run checkPetLevelUp), trigger the promotion now.
