@@ -429,9 +429,13 @@ html,body{height:100%;}
 .hist-row:hover .hr-edit-hint{opacity:1;}
 .hist-empty{text-align:center;color:var(--text-dim);padding:14px 0;font-size:calc(12px * var(--fs));}
 .hist-rest-note{font-size:calc(11px * var(--fs));color:var(--text-dim);text-align:center;margin:4px 0 8px;}
-.goal-info-card{background:var(--card-alt);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:8px;}
-.gi-title{font-size:calc(11px * var(--fs));color:var(--text-dim);font-weight:700;margin-bottom:4px;}
-.gi-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:calc(11px * var(--fs));color:var(--text);}
+.goal-info-card{background:var(--card-alt);border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin-bottom:8px;}
+.gi-title{font-size:calc(11px * var(--fs));color:var(--text-dim);font-weight:700;margin-bottom:0;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;}
+.gi-title:hover{color:var(--text);}
+.gi-arrow{font-size:9px;transition:transform .15s;}
+.goal-info-card.expanded .gi-arrow{transform:rotate(90deg);}
+.gi-grid{display:none;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:calc(11px * var(--fs));color:var(--text);margin-top:6px;}
+.goal-info-card.expanded .gi-grid{display:grid;}
 .hist-group-row{font-weight:600;}
 /* Garden history cards */
 .garden-history-card{background:var(--card-alt);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
@@ -2229,9 +2233,12 @@ function renderHistRange(range){
   const snCls=snMet===dayCount&&dayCount>0?'ok':(snMet*2<dayCount?'bad':'');
   const sitCls=sitMet===dayCount&&dayCount>0?'ok':(sitMet*2<dayCount?'bad':'');
   const restNote=agg.restCount>0?`（${agg.totalCount} 天中 ${agg.restCount} 天休息）`:'';
-  // Goal info card (shown above stats)
-  let html=`<div class="goal-info-card">
-    <div class="gi-title">📐 健康目標</div>
+  // Goal info card (click to expand; collapsed by default)
+  let html=`<div class="goal-info-card" id="goalInfoCard">
+    <div class="gi-title" onclick="window.toggleGoalCard(event)">
+      <span class="gi-arrow">▶</span>
+      📐 健康目標
+    </div>
     <div class="gi-grid">
       <div>🪑 站起 ≥ ${S_GOAL} 次/日</div>
       <div>💧 喝水 ≥ ${W_STREAK} 杯/日</div>
@@ -2414,7 +2421,13 @@ function fmtDateFull(ts){
   return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
 }
 
-// Show snapshot of an archived garden in a modal
+// Toggle goal info card (collapsed by default each session — not persisted)
+window.toggleGoalCard=function(e){
+  e?.stopPropagation();
+  const cards=document.querySelectorAll('.goal-info-card');
+  cards.forEach(c=>c.classList.toggle('expanded'));
+};
+
 window.showSnapshot=function(monthKey){
   const a=(S.gardenArchive||{})[monthKey];
   if(!a||!a.items){alert('沒有 snapshot');return;}
