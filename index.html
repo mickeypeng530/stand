@@ -2813,6 +2813,7 @@ window.handleStandup=function(){
     prevGoalMet:!!S.sitGoalMetToday,
     prevSessionTotal:S.sessionSecTotal||0,
     prevLongest:S.longestSit||0,
+    prevOver45:S.over45CountToday||0,
     prevPetSpecies:S.sitPetSpecies||'original',
     prevGardenLen:(S.garden||[]).length,
     day:new Date().toDateString(),
@@ -3890,6 +3891,7 @@ function rollbackLastStand(){
   S.sitGoalMetToday=ls.prevGoalMet;
   S.sessionSecTotal=ls.prevSessionTotal;
   S.longestSit=ls.prevLongest;
+  if(typeof ls.prevOver45==='number')S.over45CountToday=ls.prevOver45;
   S.sitPetSpecies=ls.prevPetSpecies;
 }
 
@@ -3911,6 +3913,7 @@ function applyStandWithDuration(newSat,sitStart,sitEnd){
     prevGoalMet:!!S.sitGoalMetToday,
     prevSessionTotal:S.sessionSecTotal||0,
     prevLongest:S.longestSit||0,
+    prevOver45:S.over45CountToday||0,
     prevPetSpecies:S.sitPetSpecies||'original',
     prevGardenLen:(S.garden||[]).length,
     day:new Date().toDateString(),
@@ -3924,6 +3927,10 @@ function applyStandWithDuration(newSat,sitStart,sitEnd){
   // Add sit duration to session total (as if session was that long)
   S.sessionSecTotal=(S.sessionSecTotal||0)+newSat;
   if(newSat>(S.longestSit||0))S.longestSit=newSat;
+  // Count this episode toward over45 if it qualifies
+  if(newSat>=LONGEST_WARN_SEC){
+    S.over45CountToday=(S.over45CountToday||0)+1;
+  }
   S.lastStand=snap;
 }
 
@@ -3976,6 +3983,10 @@ window.saveEditToday=function(){
   S.sessionSecTotal=hr*3600+min*60;
   S.longestSit=lHr*3600+lMin*60;
   S.todayWater=water;
+  // Sync over45 count: if longest ≥ 45m, ensure at least 1 over45 episode counted
+  if(S.longestSit>=LONGEST_WARN_SEC&&(S.over45CountToday||0)===0){
+    S.over45CountToday=1;
+  }
   // Recompute goal-met flags (affects streak logic) but DO NOT advance pet days
   // (pet days already counted, we don't reapply)
   S.sitGoalMetToday=stand>=S_GOAL;
@@ -4043,7 +4054,14 @@ window.saveEditHistory=function(){
       S.todaySnack=snack;
       S.sitGoalMetToday=stand>=S_GOAL;
       S.waterGoalMetToday=water>=W_STREAK;
+      // Sync over45 with new longest
+      if(longestSec>=LONGEST_WARN&&(S.over45CountToday||0)===0){
+        S.over45CountToday=1;
+      }
     }
+    // Preserve existing over45Count from history; if longest ≥ 45m and existing count is 0, set to 1
+    const prevOver45=(S.history[dateKey]||{}).over45Count||0;
+    const finalOver45=longestSec>=LONGEST_WARN?Math.max(prevOver45,1):prevOver45;
     S.history[dateKey]={
       stands:stand,
       water:water,
@@ -4053,7 +4071,8 @@ window.saveEditHistory=function(){
       sessions:(S.history[dateKey]||{}).sessions||1,
       snack:snack,
       rested:rested,
-      overLongSit:longestSec>=LONGEST_WARN
+      overLongSit:longestSec>=LONGEST_WARN,
+      over45Count:finalOver45
     };
     window.closeEditHistoryModal();
     showToast(`✓ 已更新 ${dateKey.slice(0,10)} 紀錄`);
