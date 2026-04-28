@@ -889,6 +889,10 @@ body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card
         <button class="sbtn" id="btnHistEditToggle">關閉</button>
       </div>
       <div class="menu-row">
+        <span class="menu-text">🗓 自動歸檔花園</span>
+        <button class="sbtn" id="btnAutoArchiveToggle">已開啟</button>
+      </div>
+      <div class="menu-row">
         <span class="menu-text">📦 立即歸檔花園</span>
         <button class="sbtn" id="btnArchiveGarden">歸檔</button>
       </div>
@@ -1455,13 +1459,14 @@ function maybeRollover(d){
   d.todaySnack=0;d.snackGoalMetToday=true;
   // Cross-month: archive garden plants (keep pet adults)
   // Cross-year: also clear pet adults
-  const oldDate=new Date(d.lastDate||today);
-  const newDate=new Date(today);
-  const crossMonth=oldDate.getMonth()!==newDate.getMonth()||oldDate.getFullYear()!==newDate.getFullYear();
-  const crossYear=oldDate.getFullYear()!==newDate.getFullYear();
-  // Note: actual archiving is done in the calling context (after this function returns)
-  // because archiveGardenPeriod uses S directly. We flag it here.
-  if(crossMonth)d._pendingGardenArchive=crossYear?'year':'month';
+  // User can disable auto-archive via advanced toggle
+  if(!d.autoArchiveDisabled){
+    const oldDate=new Date(d.lastDate||today);
+    const newDate=new Date(today);
+    const crossMonth=oldDate.getMonth()!==newDate.getMonth()||oldDate.getFullYear()!==newDate.getFullYear();
+    const crossYear=oldDate.getFullYear()!==newDate.getFullYear();
+    if(crossMonth)d._pendingGardenArchive=crossYear?'year':'month';
+  }
   d._rolledOver=true;
   return true;
 }
@@ -1851,6 +1856,22 @@ $id('btnHistEditToggle')?.addEventListener('click',()=>{
   showToast(S.histEditEnabled?'✏️ 歷史編輯已開啟':'🔒 歷史編輯已關閉');
 });
 applyHistEditToggleUI();
+
+// Auto-archive toggle (advanced) — default ON; user can disable
+function applyAutoArchiveToggleUI(){
+  const btn=$id('btnAutoArchiveToggle');
+  if(!btn)return;
+  const off=!!S.autoArchiveDisabled;
+  btn.textContent=off?'已關閉':'已開啟';
+  btn.classList.toggle('on',!off);
+}
+$id('btnAutoArchiveToggle')?.addEventListener('click',()=>{
+  S.autoArchiveDisabled=!S.autoArchiveDisabled;
+  applyAutoArchiveToggleUI();
+  saveSync();
+  showToast(S.autoArchiveDisabled?'🗓 自動歸檔已關閉':'🗓 自動歸檔已開啟');
+});
+applyAutoArchiveToggleUI();
 
 $id('btnArchiveGarden')?.addEventListener('click',()=>window.archiveGardenNow());
 
@@ -3196,6 +3217,98 @@ function renderTimer(){
 // Each item's SVG retains its natural aspect ratio regardless of container size.
 // Positions use percentages so items move with container, but sizes use px (fixed).
 
+// Renders the sky/atmosphere layer — phase-dependent: day (sun, butterflies, clouds, hills),
+// dusk (sinking sun, birds, hills, fewer clouds), night (moon, stars, fireflies)
+function renderGardenSky(scene, ctx){
+  const {phase, sizes, putItem, STARS}=ctx;
+  const isNight=(phase==='night');
+  const isDusk=(phase==='dusk');
+
+  if(isNight){
+    // Moon — pin to top-left, 12px from top and left edge
+    const el=document.createElement('div');
+    el.className='gdecor';
+    el.style.left='12px';
+    el.style.top='12px';
+    el.style.width=sizes.moon.w+'px';
+    el.style.height=sizes.moon.h+'px';
+    el.innerHTML=`<svg viewBox="0 0 ${sizes.moon.w} ${sizes.moon.h}" preserveAspectRatio="xMidYMid meet"><use href="#d-moon" width="${sizes.moon.w}" height="${sizes.moon.h}"/></svg>`;
+    scene.appendChild(el);
+    // Stars — scatter across sky (above horizon)
+    STARS.forEach(s=>{
+      const xPct=(s.x/800)*100;
+      const yPct=(s.y/200)*46+2;
+      const sw=s.w*sizes.star.mult;
+      if(yPct<50)putItem(xPct,yPct,sw,sw,s.t==='s'?'d-star':'d-stardot','center');
+    });
+    // Fireflies — 4 drifting glowing dots across the grass
+    [{xp:20,yp:72,delay:0},{xp:45,yp:80,delay:1.5},{xp:68,yp:68,delay:3.0},{xp:88,yp:82,delay:4.5}].forEach(f=>{
+      const el=document.createElement('div');
+      el.className='firefly';
+      el.style.left=f.xp+'%';
+      el.style.top=f.yp+'%';
+      el.style.animationDelay=f.delay+'s';
+      scene.appendChild(el);
+    });
+  }else if(isDusk){
+    // Dusk: sun setting at horizon, clip bottom half so it appears half below ground
+    const sw=Math.round(sizes.sun.w*1.05);
+    const sh=Math.round(sizes.sun.h*1.05);
+    const el=document.createElement('div');
+    el.className='gdecor';
+    el.style.right='18%';
+    el.style.top=`calc(55% - ${Math.round(sh/2)}px)`;
+    el.style.width=sw+'px';
+    el.style.height=sh+'px';
+    el.style.clipPath='inset(0 0 50% 0)';
+    el.innerHTML=`<svg viewBox="0 0 ${sw} ${sh}" preserveAspectRatio="xMidYMid meet"><use href="#d-sun" width="${sw}" height="${sh}"/></svg>`;
+    scene.appendChild(el);
+    // Bird silhouettes gliding in upper sky
+    [{xp:30,yp:18,delay:0},{xp:55,yp:24,delay:2.5}].forEach(b=>{
+      const el=document.createElement('div');
+      el.className='bird-silh';
+      el.style.left=b.xp+'%';
+      el.style.top=b.yp+'%';
+      el.style.animationDelay=b.delay+'s';
+      el.innerHTML=`<svg width="20" height="10" viewBox="0 0 20 10"><path d="M1 8 Q6 2 10 6 Q14 2 19 8" stroke="#2a1a1a" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`;
+      scene.appendChild(el);
+    });
+  }else{
+    // Day: sun upper-left + butterflies in mid-air
+    const el=document.createElement('div');
+    el.className='gdecor';
+    el.style.left='12px';
+    el.style.top='12px';
+    el.style.width=sizes.sun.w+'px';
+    el.style.height=sizes.sun.h+'px';
+    el.innerHTML=`<svg viewBox="0 0 ${sizes.sun.w} ${sizes.sun.h}" preserveAspectRatio="xMidYMid meet"><use href="#d-sun" width="${sizes.sun.w}" height="${sizes.sun.h}"/></svg>`;
+    scene.appendChild(el);
+    [{xp:30,yp:42,delay:0},{xp:65,yp:38,delay:1.8}].forEach(b=>{
+      const el=document.createElement('div');
+      el.className='butterfly';
+      el.style.left=b.xp+'%';
+      el.style.top=b.yp+'%';
+      el.style.animationDelay=b.delay+'s';
+      el.innerHTML=`<svg width="18" height="14" viewBox="0 0 18 14"><ellipse cx="6" cy="7" rx="5" ry="6" fill="#ffd54f" opacity="0.9"/><ellipse cx="12" cy="7" rx="5" ry="6" fill="#ffd54f" opacity="0.9"/><ellipse cx="6" cy="7" rx="2.5" ry="3" fill="#ffeb8a"/><ellipse cx="12" cy="7" rx="2.5" ry="3" fill="#ffeb8a"/><line x1="9" y1="3" x2="9" y2="11" stroke="#5a3a1a" stroke-width="1.2"/></svg>`;
+      scene.appendChild(el);
+    });
+  }
+
+  // Sky depth: distant hills + drifting clouds (skip clouds at night)
+  if(!isNight){
+    putItem(18, 56, sizes.hill.w, sizes.hill.h, 'd-hill', 'bottom');
+    putItem(72, 56, Math.round(sizes.hill.w*0.85), Math.round(sizes.hill.h*0.9), 'd-hill', 'bottom');
+    const clouds=isDusk?[{xp:16,yp:12,sc:0.85}]:[
+      {xp:38,yp:14,sc:1.0},
+      {xp:62,yp:22,sc:0.78},
+      {xp:86,yp:10,sc:0.9},
+    ];
+    clouds.forEach(c=>{
+      putItem(c.xp,c.yp,Math.round(sizes.cloud.w*c.sc),Math.round(sizes.cloud.h*c.sc),'d-cloud','center');
+    });
+  }
+}
+
 function renderGarden(){
   const scenes=[$id('gardenScene'),$id('gardenSceneMobile')];
   // Determine time phase: 7-17 = day, 17-19 = dusk, 19-7 = night
@@ -3319,116 +3432,8 @@ function renderGarden(){
     };
 
     // === SKY: Sun (day/dusk) or Moon + Stars (night) ===
-    // Sun/moon positions vary by phase:
-    // - Day: high in upper-left (fixed px offset 12,12)
-    // - Dusk: low on the right, sinking toward horizon
-    // - Night: moon upper-left
-    if(isNight){
-      // Moon — pin to top-left, 12px from top and left edge
-      const el=document.createElement('div');
-      el.className='gdecor';
-      el.style.left='12px';
-      el.style.top='12px';
-      el.style.width=sizes.moon.w+'px';
-      el.style.height=sizes.moon.h+'px';
-      el.innerHTML=`<svg viewBox="0 0 ${sizes.moon.w} ${sizes.moon.h}" preserveAspectRatio="xMidYMid meet"><use href="#d-moon" width="${sizes.moon.w}" height="${sizes.moon.h}"/></svg>`;
-      scene.appendChild(el);
-      // Stars — scatter across sky (y% < 65, above horizon at 70%)
-      STARS.forEach(s=>{
-        const xPct=(s.x/800)*100;
-        // Compress original y (0-200 sky area in old coords) into new sky range 2-48%
-        const yPct=(s.y/200)*46+2;
-        const sw=s.w*sizes.star.mult;
-        if(yPct<50){
-          putItem(xPct,yPct,sw,sw,s.t==='s'?'d-star':'d-stardot','center');
-        }
-      });
-      // Fireflies — 4 drifting glowing dots across the grass
-      const fireflies=[
-        {xp:20,yp:72,delay:0},
-        {xp:45,yp:80,delay:1.5},
-        {xp:68,yp:68,delay:3.0},
-        {xp:88,yp:82,delay:4.5},
-      ];
-      fireflies.forEach(f=>{
-        const el=document.createElement('div');
-        el.className='firefly';
-        el.style.left=f.xp+'%';
-        el.style.top=f.yp+'%';
-        el.style.animationDelay=f.delay+'s';
-        scene.appendChild(el);
-      });
-    }else if(isDusk){
-      // Dusk: sun setting at horizon, half below ground (use clip-path to hide bottom)
-      const sw=Math.round(sizes.sun.w*1.05);
-      const sh=Math.round(sizes.sun.h*1.05);
-      const el=document.createElement('div');
-      el.className='gdecor';
-      // Position: right side, sun's center at horizon line (55%)
-      el.style.right='18%';
-      el.style.top=`calc(55% - ${Math.round(sh/2)}px)`;
-      el.style.width=sw+'px';
-      el.style.height=sh+'px';
-      // Clip the bottom half (everything below center horizontal line)
-      el.style.clipPath='inset(0 0 50% 0)';
-      el.innerHTML=`<svg viewBox="0 0 ${sw} ${sh}" preserveAspectRatio="xMidYMid meet"><use href="#d-sun" width="${sw}" height="${sh}"/></svg>`;
-      scene.appendChild(el);
-      // Bird silhouettes — 2 birds gliding in the sky (top third)
-      const birds=[{xp:30,yp:18,delay:0},{xp:55,yp:24,delay:2.5}];
-      birds.forEach(b=>{
-        const el=document.createElement('div');
-        el.className='bird-silh';
-        el.style.left=b.xp+'%';
-        el.style.top=b.yp+'%';
-        el.style.animationDelay=b.delay+'s';
-        // Simple V-shape silhouette
-        el.innerHTML=`<svg width="20" height="10" viewBox="0 0 20 10"><path d="M1 8 Q6 2 10 6 Q14 2 19 8" stroke="#2a1a1a" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>`;
-        scene.appendChild(el);
-      });
-    }else{
-      // Day: sun high-left, pinned 12px offset
-      const el=document.createElement('div');
-      el.className='gdecor';
-      el.style.left='12px';
-      el.style.top='12px';
-      el.style.width=sizes.sun.w+'px';
-      el.style.height=sizes.sun.h+'px';
-      el.innerHTML=`<svg viewBox="0 0 ${sizes.sun.w} ${sizes.sun.h}" preserveAspectRatio="xMidYMid meet"><use href="#d-sun" width="${sizes.sun.w}" height="${sizes.sun.h}"/></svg>`;
-      scene.appendChild(el);
-      // Daytime butterflies — 2 yellow butterflies fluttering around mid garden
-      const butterflies=[{xp:30,yp:42,delay:0},{xp:65,yp:38,delay:1.8}];
-      butterflies.forEach(b=>{
-        const el=document.createElement('div');
-        el.className='butterfly';
-        el.style.left=b.xp+'%';
-        el.style.top=b.yp+'%';
-        el.style.animationDelay=b.delay+'s';
-        // Yellow butterfly SVG (small, two wings)
-        el.innerHTML=`<svg width="18" height="14" viewBox="0 0 18 14"><ellipse cx="6" cy="7" rx="5" ry="6" fill="#ffd54f" opacity="0.9"/><ellipse cx="12" cy="7" rx="5" ry="6" fill="#ffd54f" opacity="0.9"/><ellipse cx="6" cy="7" rx="2.5" ry="3" fill="#ffeb8a"/><ellipse cx="12" cy="7" rx="2.5" ry="3" fill="#ffeb8a"/><line x1="9" y1="3" x2="9" y2="11" stroke="#5a3a1a" stroke-width="1.2"/></svg>`;
-        scene.appendChild(el);
-      });
-    }
-
-    // === SKY DEPTH: distant hills at horizon + drifting clouds ===
-    // Day: hills + 3 clouds. Dusk: hills (slightly darker via opacity) + 1 cloud. Night: hills only, no clouds.
-    if(!isNight){
-      // Two overlapping hills for parallax feel
-      putItem(18, 56, sizes.hill.w, sizes.hill.h, 'd-hill', 'bottom');
-      putItem(72, 56, Math.round(sizes.hill.w*0.85), Math.round(sizes.hill.h*0.9), 'd-hill', 'bottom');
-      // Clouds: fewer at dusk
-      const clouds=isDusk?[
-        {xp:16, yp:12, sc:0.85},
-      ]:[
-        {xp:38, yp:14, sc:1.0},
-        {xp:62, yp:22, sc:0.78},
-        {xp:86, yp:10, sc:0.9},
-      ];
-      clouds.forEach(c=>{
-        const cw=Math.round(sizes.cloud.w*c.sc);
-        const ch=Math.round(sizes.cloud.h*c.sc);
-        putItem(c.xp, c.yp, cw, ch, 'd-cloud', 'center');
-      });
-    }
+    // Sun/moon, stars, fireflies, butterflies, birds, clouds, hills — all the sky/atmosphere
+    renderGardenSky(scene, {phase, sizes, putItem, STARS});
 
     // === GROUND: static decorations (rocks, pond, sign, swing) ===
     // Horizon line is at 55% of container height (was 70%).
@@ -4122,17 +4127,8 @@ $id('musicBtn').addEventListener('click',async()=>{
 // ===== INIT =====
 applySessionUI();
 resumeSessionIfNeeded();
-// If a snack pet day was awarded at rollover (in loadL), check for baby/adult promotion now
-if(S._pendingSnackLevelCheck){
-  delete S._pendingSnackLevelCheck;
-  checkPetLevelUp('snack');
-}
-// Process pending garden archive (set by maybeRollover at cross-month/year)
-if(S._pendingGardenArchive){
-  const mode=S._pendingGardenArchive;
-  delete S._pendingGardenArchive;
-  archiveGardenPeriod(mode==='year');
-}
+// Process any rollover side-effects flagged by maybeRollover (snack levelup, garden archive)
+processPendingRolloverEffects();
 // Set garden period start if missing (first time)
 if(!S._gardenPeriodStart){
   S._gardenPeriodStart=S.firstUseAt||Date.now();
@@ -4151,6 +4147,24 @@ setInterval(updateWaterCountdown,30000);
 
 // PROTECTION LAYER 1: Detect day rollover even if tab stays open across midnight.
 // Without this, a tab open since yesterday will keep S.lastDate stale until reload.
+// Process side-effects that maybeRollover() flagged via _pending* fields.
+// Called after rollover (init, checkDayRollover, fallback) so flags are handled in one place.
+// Returns array of toast strings to show (caller decides timing).
+function processPendingRolloverEffects(){
+  const toasts=[];
+  if(S._pendingSnackLevelCheck){
+    delete S._pendingSnackLevelCheck;
+    checkPetLevelUp('snack');
+  }
+  if(S._pendingGardenArchive){
+    const mode=S._pendingGardenArchive;
+    delete S._pendingGardenArchive;
+    archiveGardenPeriod(mode==='year');
+    toasts.push(mode==='year'?'🎊 跨年：花園歸檔，寵物全部退休':'📦 跨月：花園歸檔');
+  }
+  return toasts;
+}
+
 function checkDayRollover(){
   // Check if rollover would happen
   const today=new Date().toDateString();
@@ -4160,20 +4174,12 @@ function checkDayRollover(){
     if(dbRef)backupToCloud('day-rollover-pre');
   }
   if(maybeRollover(S)){
-    if(S._pendingSnackLevelCheck){
-      delete S._pendingSnackLevelCheck;
-      checkPetLevelUp('snack');
-    }
-    if(S._pendingGardenArchive){
-      const mode=S._pendingGardenArchive;
-      delete S._pendingGardenArchive;
-      archiveGardenPeriod(mode==='year');
-      showToast(mode==='year'?'🎊 跨年：花園歸檔，寵物全部退休':'📦 跨月：花園歸檔');
-    }
+    const archiveToasts=processPendingRolloverEffects();
     saveLocal();
     if(dbRef)cloudSave();
     renderAll();
     showToast('🌅 跨日：昨日已歸檔，新的一天開始');
+    archiveToasts.forEach(t=>setTimeout(()=>showToast(t),1500));
   }
 }
 // Check every 5 minutes
