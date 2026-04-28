@@ -429,6 +429,9 @@ html,body{height:100%;}
 .hist-row:hover .hr-edit-hint{opacity:1;}
 .hist-empty{text-align:center;color:var(--text-dim);padding:14px 0;font-size:calc(12px * var(--fs));}
 .hist-rest-note{font-size:calc(11px * var(--fs));color:var(--text-dim);text-align:center;margin:4px 0 8px;}
+.goal-info-card{background:var(--card-alt);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:8px;}
+.gi-title{font-size:calc(11px * var(--fs));color:var(--text-dim);font-weight:700;margin-bottom:4px;}
+.gi-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:calc(11px * var(--fs));color:var(--text);}
 .hist-group-row{font-weight:600;}
 /* Garden history cards */
 .garden-history-card{background:var(--card-alt);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
@@ -1418,6 +1421,8 @@ function defS(){return{
   // Snack counter: 零食計數器
   todaySnack:0,totalSnacks:0,snackLimit:3,snackGoalMetToday:true,
   snackPetDays:0,snackPetSpecies:'original', // 'jigglypuff' or 'mushroom' when hatched
+  // Health metrics
+  over45CountToday:0, // count of sit episodes ≥ 45min today
 };}
 
 // Rollover today's data into history if lastDate has changed.
@@ -1439,6 +1444,7 @@ function maybeRollover(d){
       longestSitSec:d.longestSit||0,
       rested:d.restToday||false,
       overLongSit:(d.longestSit||0)>=LONGEST_WARN,
+      over45Count:d.over45CountToday||0,
       snack:d.todaySnack||0
     };
   }
@@ -1446,7 +1452,7 @@ function maybeRollover(d){
   if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
   else if(diff>1)d.streak=0;
   d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;
-  d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;
+  d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;d.over45CountToday=0;
   d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
   d.sitGoalMetToday=false;d.waterGoalMetToday=false;
   // Snack: award pet day if yesterday's count was within limit, then reset
@@ -1482,7 +1488,7 @@ function loadL(){
       if(!d.history||Array.isArray(d.history))d.history={};
       if(!Array.isArray(d.garden))d.garden=[];
       if(!d.gardenArchive||typeof d.gardenArchive!=='object')d.gardenArchive={};
-      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays','todaySnack','totalSnacks','snackPetDays'].forEach(k=>{if(!d[k])d[k]=0;});
+      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays','todaySnack','totalSnacks','snackPetDays','over45CountToday'].forEach(k=>{if(!d[k])d[k]=0;});
       if(!d.thresh)d.thresh=30;
       if(!d.snackLimit)d.snackLimit=3;
       if(!d.theme||!THEMES.includes(d.theme))d.theme='default';
@@ -2011,6 +2017,7 @@ function todaySnapshot(){
     longestSitSec:S.longestSit||0,
     rested:S.restToday||false,
     overLongSit:(S.longestSit||0)>=LONGEST_WARN_SEC,
+    over45Count:S.over45CountToday||0,
     snack:S.todaySnack||0
   };
 }
@@ -2042,10 +2049,12 @@ function aggregateRecords(records){
   const total=records.length;
   const sum=(k)=>workdays.reduce((a,r)=>a+(r[k]||0),0);
   const snLimit=S.snackLimit||3;
+  const SIT_LIMIT=3; // 健康目標：每天 >45m 久坐 ≤ 3 次
   // Goal-met counts (from workdays only — rest days don't count toward fail)
   const standMetDays=workdays.filter(r=>(r.stands||0)>=S_GOAL).length;
   const waterMetDays=workdays.filter(r=>(r.water||0)>=W_STREAK).length;
   const snackMetDays=workdays.filter(r=>(r.snack||0)<=snLimit).length;
+  const sitHealthMetDays=workdays.filter(r=>(r.over45Count||0)<=SIT_LIMIT).length;
   return {
     count:workdays.length,
     totalCount:total,
@@ -2056,6 +2065,7 @@ function aggregateRecords(records){
     totalWorkSec:sum('workTimeSec'),
     totalSessions:sum('sessions'),
     totalSnack:sum('snack'),
+    totalOver45:sum('over45Count'),
     avgWater:sum('water')/n,
     avgWaterMl:sum('waterMl')/n,
     avgStands:sum('stands')/n,
@@ -2067,7 +2077,8 @@ function aggregateRecords(records){
     // Goal-met rates
     standMetDays:standMetDays,
     waterMetDays:waterMetDays,
-    snackMetDays:snackMetDays
+    snackMetDays:snackMetDays,
+    sitHealthMetDays:sitHealthMetDays
   };
 }
 
@@ -2191,14 +2202,15 @@ function renderHistDay(){
   const all=aggregateRecords(getAllRecords().filter(r=>r.date!==S.lastDate));
   const sCls=colorCls('stand',t.stands);
   const wCls=colorCls('water',t.water);
-  const lCls=colorCls('longest',t.longestSitSec);
   const snLimit=S.snackLimit||3;
   const snCls=t.snack>snLimit?'bad':(t.snack===0?'ok':'');
+  const SIT_LIMIT=3;
+  const sitCls=t.over45Count>SIT_LIMIT?'bad':(t.over45Count===0?'ok':'');
   return `<div class="hist-stats">
-    <div class="hstat ${sCls}"><div class="sv">${t.stands}</div><div class="sl">今日站起 ${all.count>0?'(均 '+all.avgStands.toFixed(1)+')':''}</div></div>
-    <div class="hstat ${wCls}"><div class="sv">${t.water}</div><div class="sl">今日喝水 ${all.count>0?'(均 '+all.avgWater.toFixed(1)+')':''}</div></div>
-    <div class="hstat"><div class="sv">${fmtHr(t.workTimeSec)}</div><div class="sl">工作時間 ${all.count>0?'(均 '+fmtHr(Math.round(all.avgWorkSec))+')':''}</div></div>
-    <div class="hstat ${lCls}"><div class="sv">${fmtHr(t.longestSitSec)}</div><div class="sl">最長久坐 ${t.overLongSit?'⚠️':''}</div></div>
+    <div class="hstat ${sCls}"><div class="sv">${t.stands}</div><div class="sl">🪑 今日站起 ${all.count>0?'(均 '+all.avgStands.toFixed(1)+')':''}</div></div>
+    <div class="hstat ${wCls}"><div class="sv">${t.water}</div><div class="sl">💧 今日喝水 ${all.count>0?'(均 '+all.avgWater.toFixed(1)+')':''}</div></div>
+    <div class="hstat"><div class="sv">${fmtHr(t.workTimeSec)}</div><div class="sl">⏱ 工作時間 ${all.count>0?'(均 '+fmtHr(Math.round(all.avgWorkSec))+')':''}</div></div>
+    <div class="hstat ${sitCls}"><div class="sv">${t.over45Count}</div><div class="sl">📌 >45m 次數 (最長 ${fmtHr(t.longestSitSec)})</div></div>
     <div class="hstat ${snCls}"><div class="sv">${t.snack}</div><div class="sl">🍪 零食 ${all.count>0?'(均 '+all.avgSnack.toFixed(1)+')':''}${t.snack>snLimit?' ⚠️':''}</div></div>
   </div>`;
 }
@@ -2210,16 +2222,28 @@ function renderHistRange(range){
   const agg=aggregateRecords(records);
   // Goal-rate stat cards (5 cells)
   const stMet=agg.standMetDays, wtMet=agg.waterMetDays, snMet=agg.snackMetDays;
+  const sitMet=agg.sitHealthMetDays;
   const dayCount=agg.count; // workdays only
   const stCls=stMet===dayCount&&dayCount>0?'ok':(stMet*2<dayCount?'bad':'');
   const wtCls=wtMet===dayCount&&dayCount>0?'ok':(wtMet*2<dayCount?'bad':'');
   const snCls=snMet===dayCount&&dayCount>0?'ok':(snMet*2<dayCount?'bad':'');
+  const sitCls=sitMet===dayCount&&dayCount>0?'ok':(sitMet*2<dayCount?'bad':'');
   const restNote=agg.restCount>0?`（${agg.totalCount} 天中 ${agg.restCount} 天休息）`:'';
-  let html=`<div class="hist-stats">
+  // Goal info card (shown above stats)
+  let html=`<div class="goal-info-card">
+    <div class="gi-title">📐 健康目標</div>
+    <div class="gi-grid">
+      <div>🪑 站起 ≥ ${S_GOAL} 次/日</div>
+      <div>💧 喝水 ≥ ${W_STREAK} 杯/日</div>
+      <div>📌 連續坐 < 45 分（每日 ≤ 3 次）</div>
+      <div>🍪 零食 ≤ ${S.snackLimit||3} 次/日</div>
+    </div>
+  </div>`;
+  html+=`<div class="hist-stats">
     <div class="hstat ${stCls}"><div class="sv">${stMet}/${dayCount}</div><div class="sl">🪑 站起達標 (均 ${agg.avgStands.toFixed(1)})</div></div>
     <div class="hstat ${wtCls}"><div class="sv">${wtMet}/${dayCount}</div><div class="sl">💧 喝水達標 (均 ${agg.avgWater.toFixed(1)})</div></div>
     <div class="hstat"><div class="sv">${fmtHr(Math.round(agg.avgWorkSec))}</div><div class="sl">⏱ 平均工時 (總 ${fmtHr(agg.totalWorkSec)})</div></div>
-    <div class="hstat ${agg.overLongCount>0?'bad':'ok'}"><div class="sv">${agg.overLongCount}</div><div class="sl">📌 久坐超標次數</div></div>
+    <div class="hstat ${sitCls}"><div class="sv">${sitMet}/${dayCount}</div><div class="sl">📌 久坐控制 (>45m × ${agg.totalOver45})</div></div>
     <div class="hstat ${snCls}"><div class="sv">${snMet}/${dayCount}</div><div class="sl">🍪 零食達標 (均 ${agg.avgSnack.toFixed(1)})</div></div>
   </div>`;
   if(restNote)html+=`<div class="hist-rest-note">${restNote}</div>`;
@@ -2245,6 +2269,7 @@ function renderHistRange(range){
 function renderDailyRows(records){
   const hint=S.histEditEnabled?'<span class="hr-edit-hint">✏️</span>':'';
   const snLimit=S.snackLimit||3;
+  const SIT_LIMIT=3;
   let html=`<div class="hist-list">`;
   records.forEach(r=>{
     if(r.rested){
@@ -2252,14 +2277,15 @@ function renderDailyRows(records){
     }else{
       const wCls=colorCls('water',r.water||0);
       const sCls=colorCls('stand',r.stands||0);
-      const lCls=colorCls('longest',r.longestSitSec||0);
+      const o45=r.over45Count||0;
+      const o45Cls=o45>SIT_LIMIT?'bad':(o45===0?'ok':'');
       const snCls=(r.snack||0)>snLimit?'bad':'';
       html+=`<div class="hist-row" data-edit-date="${r.date}">
         <span class="hr-date">${fmtDate(r.date)}</span>
         <span class="hr-item">💧<span class="hr-v ${wCls}">${r.water||0}</span></span>
         <span class="hr-item">🪑<span class="hr-v ${sCls}">${r.stands||0}</span></span>
         <span class="hr-item">⏱<span class="hr-v">${fmtHr(r.workTimeSec||0)}</span></span>
-        <span class="hr-item">📌<span class="hr-v ${lCls}">${fmtHr(r.longestSitSec||0)}</span>${r.overLongSit?'⚠️':''}</span>
+        <span class="hr-item">📌<span class="hr-v ${o45Cls}">${o45}</span>${r.overLongSit?'⚠️':''}</span>
         <span class="hr-item">🍪<span class="hr-v ${snCls}">${r.snack||0}</span></span>
         ${hint}
       </div>`;
@@ -2782,6 +2808,10 @@ window.handleStandup=function(){
   }
   S.sessionSecTotal=totalSS();
   if(sat>(S.longestSit||0))S.longestSit=sat;
+  // Track ≥ 45m sit count for health metrics
+  if(sat>=LONGEST_WARN_SEC){
+    S.over45CountToday=(S.over45CountToday||0)+1;
+  }
   S.inSession=false;
   S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
   S.lastStand=snap;
