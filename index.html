@@ -896,12 +896,28 @@ body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card
         <button class="sbtn" id="btnHistEditToggle">關閉</button>
       </div>
       <div class="menu-row">
+        <span class="menu-text">➕ 新增歷史紀錄</span>
+        <button class="sbtn" id="btnAddHistory">新增</button>
+      </div>
+      <div class="menu-row">
         <span class="menu-text">🗓 自動歸檔花園</span>
         <button class="sbtn" id="btnAutoArchiveToggle">已開啟</button>
       </div>
       <div class="menu-row">
         <span class="menu-text">📦 立即歸檔花園</span>
         <button class="sbtn" id="btnArchiveGarden">歸檔</button>
+      </div>
+      <div class="menu-row">
+        <span class="menu-text">🏷 裝置名稱</span>
+        <button class="sbtn" id="btnDeviceName">命名</button>
+      </div>
+      <div class="menu-row">
+        <span class="menu-text">📋 匯出 Sync Log</span>
+        <button class="sbtn" id="btnExportLog">匯出</button>
+      </div>
+      <div class="menu-row">
+        <span class="menu-text">🗑 清空 Sync Log</span>
+        <button class="sbtn" id="btnClearLog">清空</button>
       </div>
     </div>
   </div>
@@ -1398,6 +1414,109 @@ function petStageOf(days){
   return['蛋','egg'];
 }
 
+// ===== SYNC LOG (debug logger for sync events) =====
+// Records sync events to localStorage (NOT cloud-synced) for post-mortem debugging.
+// Detailed during high-risk windows, summary-only otherwise.
+const SYNC_LOG_KEY='sync_log_v1';
+const SYNC_LOG_MAX=500; // keep last N entries (~1 week of typical activity)
+// High-risk time windows (local hours): morning 7-10, evening 17-19, late night 22:30-2:00
+function isHighRiskTime(){
+  const now=new Date();
+  const h=now.getHours(),m=now.getMinutes();
+  if(h>=7&&h<10)return true;       // morning device switch
+  if(h>=17&&h<19)return true;      // evening home transition
+  if(h>=23||h<2)return true;       // late night cross-day risk
+  if(h===22&&m>=30)return true;    // 22:30+
+  return false;
+}
+// Get/create stable device ID
+function getDeviceId(){
+  let id=localStorage.getItem('device_id');
+  if(!id){
+    id='dev_'+Math.random().toString(36).slice(2,8);
+    localStorage.setItem('device_id',id);
+  }
+  return id;
+}
+function getDeviceName(){
+  return localStorage.getItem('device_name')||getDeviceId();
+}
+window.setDeviceName=function(name){
+  if(!name||name.trim().length===0){
+    localStorage.removeItem('device_name');
+    showToast('🏷 已清除裝置名稱');
+  }else{
+    localStorage.setItem('device_name',name.trim());
+    showToast('🏷 裝置已命名為 '+name.trim());
+  }
+  syncLog('DEVICE_RENAME',{name:name});
+};
+// Record event types — first 3 chars used as priority filter
+// PUL/LIS/MER/PUS = sync events (high-risk only unless flagged important)
+// ROL/EDI/ADD/BAC/INI/ERR = always recorded
+function syncLog(event,details){
+  try{
+    // Filter: in non-high-risk time, only record important events
+    const alwaysRecord=['ROLLOVER','INIT','ERROR','EDIT_HIST','ADD_HIST','BACKUP','DEVICE_RENAME','CONFLICT','LOG_EXPORT','LOG_CLEAR'];
+    if(!isHighRiskTime()&&!alwaysRecord.includes(event))return;
+    const log=JSON.parse(localStorage.getItem(SYNC_LOG_KEY)||'[]');
+    const ts=new Date().toISOString().replace('T',' ').slice(0,19);
+    log.push({t:ts,d:getDeviceName(),e:event,...details});
+    if(log.length>SYNC_LOG_MAX)log.splice(0,log.length-SYNC_LOG_MAX);
+    localStorage.setItem(SYNC_LOG_KEY,JSON.stringify(log));
+  }catch(e){console.warn('syncLog err',e);}
+}
+// Format S into a brief snapshot string
+function snapshotS(){
+  return {
+    lD:S.lastDate,
+    uA:S.updatedAt,
+    tS:S.todayStand||0,
+    tW:S.todayWater||0,
+    tSn:S.todaySnack||0,
+    histN:Object.keys(S.history||{}).length
+  };
+}
+function snapshotC(c){
+  return {
+    lD:c.lastDate,
+    uA:c.updatedAt,
+    tS:c.todayStand||0,
+    tW:c.todayWater||0,
+    histN:Object.keys(c.history||{}).length
+  };
+}
+// Export log as text (downloadable)
+window.exportSyncLog=function(){
+  try{
+    const log=JSON.parse(localStorage.getItem(SYNC_LOG_KEY)||'[]');
+    if(log.length===0){alert('沒有 log 紀錄');return;}
+    const lines=log.map(l=>{
+      const meta=Object.entries(l).filter(([k])=>!['t','d','e'].includes(k)).map(([k,v])=>`${k}=${typeof v==='object'?JSON.stringify(v):v}`).join(' ');
+      return `[${l.t}] [${l.d}] ${l.e} ${meta}`;
+    });
+    const text=`# Sync Log (${log.length} entries) — exported ${new Date().toLocaleString()}\n\n${lines.join('\n')}\n`;
+    syncLog('LOG_EXPORT',{count:log.length});
+    // Download as file
+    const blob=new Blob([text],{type:'text/plain'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`sync_log_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`📋 已匯出 ${log.length} 筆 log`);
+  }catch(e){alert('匯出失敗：'+e.message);}
+};
+window.clearSyncLog=function(){
+  if(!confirm('確定清空所有 sync log？'))return;
+  localStorage.removeItem(SYNC_LOG_KEY);
+  syncLog('LOG_CLEAR',{});
+  showToast('🗑 已清空 log');
+};
+
 // Garden placement zones (y in SVG viewBox 0-350)
 // Grass starts at y=230. y values represent where the item's BASE (feet) sits.
 const GARDEN_ZONES={
@@ -1435,11 +1554,13 @@ function maybeRollover(d){
   d=d||S;
   const today=new Date().toDateString();
   if(!d.lastDate||d.lastDate===today)return false;
+  // Capture old date BEFORE we mutate state below
+  const oldLastDate=d.lastDate;
   // Snapshot yesterday into history
   if(!d.history||Array.isArray(d.history))d.history={};
   if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday||d.todaySnack>0){
     const LONGEST_WARN=45*60;
-    d.history[d.lastDate]={
+    d.history[oldLastDate]={
       water:d.todayWater||0,
       waterMl:(d.todayWater||0)*ML,
       stands:d.todayStand||0,
@@ -1452,7 +1573,7 @@ function maybeRollover(d){
       snack:d.todaySnack||0
     };
   }
-  const diff=Math.floor((new Date(today)-new Date(d.lastDate))/864e5);
+  const diff=Math.floor((new Date(today)-new Date(oldLastDate))/864e5);
   if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
   else if(diff>1)d.streak=0;
   d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;
@@ -1467,11 +1588,9 @@ function maybeRollover(d){
     d._pendingSnackLevelCheck=true;
   }
   d.todaySnack=0;d.snackGoalMetToday=true;
-  // Cross-month: archive garden plants (keep pet adults)
-  // Cross-year: also clear pet adults
-  // User can disable auto-archive via advanced toggle
+  // Cross-month archive (use the OLD date, not the one we just reset to today)
   if(!d.autoArchiveDisabled){
-    const oldDate=new Date(d.lastDate||today);
+    const oldDate=new Date(oldLastDate);
     const newDate=new Date(today);
     const crossMonth=oldDate.getMonth()!==newDate.getMonth()||oldDate.getFullYear()!==newDate.getFullYear();
     const crossYear=oldDate.getFullYear()!==newDate.getFullYear();
@@ -1534,6 +1653,7 @@ async function backupToCloud(reason){
     const snap={...S,_backupAt:ts,_backupReason:reason};
     await update(backupRef,snap);
     _lastBackupAt=ts;
+    syncLog('BACKUP',{reason,histN:Object.keys(S.history||{}).length});
     console.log('[backup]',reason,'@',new Date(ts).toLocaleString());
     // Cleanup: keep only last 14 backups
     const allBackupsRef=ref(fbDb,`health-tracker-backups/${fbUser.uid}`);
@@ -1606,21 +1726,25 @@ onAuthStateChanged(fbAuth,async u=>{
     cloudListenerUnsub=onValue(dbRef,snap=>{
       if(!snap.exists())return;
       const c=snap.val();
-      const today=new Date().toDateString();
-      if(c.lastDate&&c.lastDate!==today&&c.lastDate!==null)return;
       if(!c.history||Array.isArray(c.history))c.history={};
       if(!Array.isArray(c.garden))c.garden=[];
       // Skip if this is our own recent write (prevent echo loops)
       if(c.updatedAt&&S.updatedAt&&c.updatedAt<=S.updatedAt)return;
-      if(isCloudNewer(c)){
+      const cloudNewer=isCloudNewer(c);
+      syncLog('LISTENER',{result:cloudNewer?'cloud_newer_merging':'local_newer_skip',cloud:snapshotC(c),local:snapshotS()});
+      if(cloudNewer){
         const wasInSession=S.inSession;
-        // Merge cloud fields into S (only fields that exist in cloud data)
+        const histBefore=Object.keys(S.history||{}).length;
         for(const k of Object.keys(c)){
           S[k]=c[k];
         }
-        // Check rollover after merge
+        const histAfter=Object.keys(S.history||{}).length;
+        if(histBefore!==histAfter)syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore,trigger:'listener'});
         const rolled=maybeRollover(S);
-        // Refresh lastCloudSnap so our next diff compares against the merged state
+        if(rolled){
+          syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'listener'});
+          processPendingRolloverEffects();
+        }
         lastCloudSnap=JSON.parse(JSON.stringify(S));
         saveLocal();
         if(S.inSession!==wasInSession||S.inSession){
@@ -1652,49 +1776,49 @@ async function cloudSave(){
   try{
     S.updatedAt=Date.now();
     const patch={updatedAt:S.updatedAt};
-    // Multi-path update: history changes use per-day paths so we never overwrite the whole history
-    const multiPath={};  // key = full path, value = data
+    const multiPath={};
+    let histChangedDays=0;
     if(lastCloudSnap){
-      // Only send fields that changed
       for(const k of Object.keys(S)){
         const a=JSON.stringify(S[k]);
         const b=JSON.stringify(lastCloudSnap[k]);
         if(a===b)continue;
         if(k==='history'){
-          // Diff history child-by-child
           const oldH=lastCloudSnap.history||{};
           const newH=S.history||{};
-          // Added or changed days
           for(const day of Object.keys(newH)){
             if(JSON.stringify(newH[day])!==JSON.stringify(oldH[day])){
               multiPath[`history/${day}`]=newH[day];
+              histChangedDays++;
             }
           }
-          // Removed days
           for(const day of Object.keys(oldH)){
-            if(!(day in newH))multiPath[`history/${day}`]=null;
+            if(!(day in newH)){
+              multiPath[`history/${day}`]=null;
+              histChangedDays++;
+            }
           }
         }else{
           patch[k]=S[k];
         }
       }
       if(Object.keys(patch).length===1&&Object.keys(multiPath).length===0){
-        // Only updatedAt changed (no real data change) — skip write
         return;
       }
     }else{
-      // First write: send everything (including whole history)
       Object.assign(patch,S);
+      histChangedDays=Object.keys(S.history||{}).length;
     }
+    const fieldsChanged=Object.keys(patch).filter(k=>k!=='updatedAt');
+    syncLog('PUSH',{fieldsChanged,histChangedDays,local:snapshotS()});
     await update(dbRef,patch);
-    // If we have per-day history changes, send them via multi-path update
     if(Object.keys(multiPath).length>0){
       await update(dbRef,multiPath);
     }
-    // Snapshot after successful write (deep copy)
     lastCloudSnap=JSON.parse(JSON.stringify(S));
     setSyncChip('cloud','已同步');
   }catch(e){
+    syncLog('ERROR',{where:'cloudSave',msg:e.message});
     console.warn('cloudSave err',e);
     setSyncChip('local','儲存失敗');
   }
@@ -1716,44 +1840,51 @@ async function cloudPull(firstPull){
   if(!dbRef)return;
   try{
     const snap=await get(dbRef);
-    if(!snap.exists()){if(firstPull)await cloudSave();return;}
-    const c=snap.val();
-    const today=new Date().toDateString();
-    // If cloud data is from a previous day, don't use it — push our (newer) local data up
-    if(c.lastDate&&c.lastDate!==today&&c.lastDate!==null){
+    if(!snap.exists()){
+      syncLog('PULL',{result:'cloud_empty',firstPull,local:snapshotS()});
       if(firstPull)await cloudSave();
       return;
     }
-    // Migrate history format if old (array)
+    const c=snap.val();
     if(!c.history||Array.isArray(c.history))c.history={};
     if(!Array.isArray(c.garden))c.garden=[];
+    const cloudNewer=isCloudNewer(c);
+    syncLog('PULL',{result:cloudNewer?'cloud_newer_merging':'local_newer_skip',firstPull,cloud:snapshotC(c),local:snapshotS()});
 
-    if(isCloudNewer(c)){
+    if(cloudNewer){
       const wasInSession=S.inSession;
-      // Merge only fields that exist in cloud (don't wipe device-local fields)
+      const histBefore=Object.keys(S.history||{}).length;
       for(const k of Object.keys(c)){
         S[k]=c[k];
       }
-      // Now that we have the latest data, check if we crossed midnight (rollover yesterday)
+      const histAfter=Object.keys(S.history||{}).length;
+      if(histBefore!==histAfter)syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore});
       const rolled=maybeRollover(S);
-      // Snapshot this state — it's what's currently in cloud
+      if(rolled){
+        syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'cloudPull'});
+        processPendingRolloverEffects();
+      }
       lastCloudSnap=JSON.parse(JSON.stringify(S));
       saveLocal();
-      // Sync session UI state
       if(S.inSession!==wasInSession||S.inSession){
         applySessionUI();
         if(S.inSession)resumeSessionIfNeeded();
       }
       renderAll();
-      // If rolled over, save the rolled state back to cloud (history snapshot + reset today)
       if(rolled)cloudSave();
     }else if(firstPull){
-      // Cloud has nothing or is older — but we should still roll over local data if needed
-      maybeRollover(S);
+      const rolled=maybeRollover(S);
+      if(rolled){
+        syncLog('ROLLOVER',{from:'local-only',to:S.lastDate,trigger:'cloudPull-local-newer'});
+        processPendingRolloverEffects();
+      }
       saveLocal();
       await cloudSave();
     }
-  }catch(e){console.warn('cloudPull err',e);}
+  }catch(e){
+    syncLog('ERROR',{where:'cloudPull',msg:e.message});
+    console.warn('cloudPull err',e);
+  }
 }
 
 // Re-pull when tab becomes visible (debounced) — fallback when realtime listener misses
@@ -1884,6 +2015,44 @@ $id('btnAutoArchiveToggle')?.addEventListener('click',()=>{
 applyAutoArchiveToggleUI();
 
 $id('btnArchiveGarden')?.addEventListener('click',()=>window.archiveGardenNow());
+
+// "新增歷史紀錄" — prompt for date, then open existing edit modal
+$id('btnAddHistory')?.addEventListener('click',()=>{
+  closeMenu();
+  const dateStr=prompt('輸入日期 (YYYY-MM-DD)：\n例如：2026-05-04','2026-05-04');
+  if(!dateStr)return;
+  const m=dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(!m){alert('日期格式錯誤，請用 YYYY-MM-DD（例如 2026-05-04）');return;}
+  const y=+m[1],mo=+m[2]-1,d=+m[3];
+  const date=new Date(y,mo,d);
+  if(isNaN(date)){alert('日期無效');return;}
+  const key=date.toDateString();
+  if(!S.histEditEnabled){
+    S.histEditEnabled=true;
+    applyHistEditToggleUI();
+    saveSync();
+  }
+  syncLog('ADD_HIST',{date:key});
+  window.openEditHistoryModal(key);
+});
+
+// Device naming
+$id('btnDeviceName')?.addEventListener('click',()=>{
+  closeMenu();
+  const cur=getDeviceName();
+  const name=prompt('裝置名稱（例如 home/hospital/phone）：\n（空白或取消會清除名稱，使用隨機 ID）',cur);
+  if(name===null)return; // cancel
+  window.setDeviceName(name);
+});
+// Export & clear log
+$id('btnExportLog')?.addEventListener('click',()=>{
+  closeMenu();
+  window.exportSyncLog();
+});
+$id('btnClearLog')?.addEventListener('click',()=>{
+  closeMenu();
+  window.clearSyncLog();
+});
 
 // ===== LOGIN BUTTON =====
 $id('loginBtn').addEventListener('click',()=>window.handleLogin());
@@ -4075,10 +4244,12 @@ window.saveEditHistory=function(){
       over45Count:finalOver45
     };
     window.closeEditHistoryModal();
+    syncLog('EDIT_HIST',{date:dateKey,stand,water,workSec,longestSec,snack});
     showToast(`✓ 已更新 ${dateKey.slice(0,10)} 紀錄`);
     renderAll();
     saveSync();
   }catch(err){
+    syncLog('ERROR',{where:'saveEditHistory',msg:err.message});
     alert('儲存錯誤：'+err.message);
     console.error('saveEditHistory error:',err);
   }
@@ -4189,6 +4360,7 @@ $id('musicBtn').addEventListener('click',async()=>{
 // (We still save the preference so we could resume if allowed in future.)
 
 // ===== INIT =====
+syncLog('INIT',{local:snapshotS(),hasFb:!!dbRef,session:S.inSession});
 applySessionUI();
 resumeSessionIfNeeded();
 // Process any rollover side-effects flagged by maybeRollover (snack levelup, garden archive)
