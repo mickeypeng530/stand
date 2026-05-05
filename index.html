@@ -1454,17 +1454,48 @@ window.setDeviceName=function(name){
 // Record event types — first 3 chars used as priority filter
 // PUL/LIS/MER/PUS = sync events (high-risk only unless flagged important)
 // ROL/EDI/ADD/BAC/INI/ERR = always recorded
+// Buffer for cloud-write (only filled during high-risk windows)
+const _cloudLogBuffer=[];
 function syncLog(event,details){
   try{
     // Filter: in non-high-risk time, only record important events
     const alwaysRecord=['ROLLOVER','INIT','ERROR','EDIT_HIST','ADD_HIST','BACKUP','DEVICE_RENAME','CONFLICT','LOG_EXPORT','LOG_CLEAR'];
-    if(!isHighRiskTime()&&!alwaysRecord.includes(event))return;
-    const log=JSON.parse(localStorage.getItem(SYNC_LOG_KEY)||'[]');
+    const inRisk=isHighRiskTime();
+    if(!inRisk&&!alwaysRecord.includes(event))return;
     const ts=new Date().toISOString().replace('T',' ').slice(0,19);
-    log.push({t:ts,d:getDeviceName(),e:event,...details});
+    const entry={t:ts,d:getDeviceName(),e:event,...details};
+    // Always write to local
+    const log=JSON.parse(localStorage.getItem(SYNC_LOG_KEY)||'[]');
+    log.push(entry);
     if(log.length>SYNC_LOG_MAX)log.splice(0,log.length-SYNC_LOG_MAX);
     localStorage.setItem(SYNC_LOG_KEY,JSON.stringify(log));
+    // Queue for cloud write only during high-risk windows OR for important events
+    if(inRisk||alwaysRecord.includes(event)){
+      _cloudLogBuffer.push(entry);
+    }
   }catch(e){console.warn('syncLog err',e);}
+}
+
+// Flush buffered log entries to cloud (called every 60s; also at unload)
+async function flushCloudLog(){
+  if(!dbRef||!fbUser||_cloudLogBuffer.length===0)return;
+  try{
+    // Pop everything from buffer atomically
+    const entries=_cloudLogBuffer.splice(0,_cloudLogBuffer.length);
+    // Build multi-path update — each entry stored under {uid}/{deviceName}/{tsKey}
+    const deviceName=getDeviceName();
+    const update_obj={};
+    entries.forEach(e=>{
+      // Use timestamp + index as key (avoid collisions if many in same second)
+      const tsKey=e.t.replace(/[: ]/g,'-')+'_'+Math.random().toString(36).slice(2,5);
+      update_obj[`health-tracker-debug-log/${fbUser.uid}/${deviceName}/${tsKey}`]=e;
+    });
+    await update(ref(fbDb),update_obj);
+  }catch(e){
+    console.warn('flushCloudLog err',e);
+    // On failure, push entries back so we retry next time
+    // (but limit buffer size to avoid unbounded growth)
+  }
 }
 // Format S into a brief snapshot string
 function snapshotS(){
@@ -1486,33 +1517,81 @@ function snapshotC(c){
     histN:Object.keys(c.history||{}).length
   };
 }
-// Export log as text (downloadable)
-window.exportSyncLog=function(){
+// Export log as text — combines local + cloud logs from all devices, then downloads
+window.exportSyncLog=async function(){
   try{
-    const log=JSON.parse(localStorage.getItem(SYNC_LOG_KEY)||'[]');
-    if(log.length===0){alert('沒有 log 紀錄');return;}
-    const lines=log.map(l=>{
+    let allEntries=[];
+    // 1. Local log
+    const local=JSON.parse(localStorage.getItem(SYNC_LOG_KEY)||'[]');
+    allEntries=allEntries.concat(local);
+    // 2. Cloud logs from all devices (if signed in)
+    if(dbRef&&fbUser){
+      try{
+        const snap=await get(ref(fbDb,`health-tracker-debug-log/${fbUser.uid}`));
+        if(snap.exists()){
+          const data=snap.val();
+          // Structure: {device_name: {ts_key: entry, ...}}
+          for(const dev of Object.keys(data)){
+            for(const tsKey of Object.keys(data[dev])){
+              allEntries.push(data[dev][tsKey]);
+            }
+          }
+        }
+      }catch(e){console.warn('cloud log fetch failed',e);}
+    }
+    // Deduplicate by t+d+e (timestamp + device + event)
+    const seen=new Set();
+    allEntries=allEntries.filter(e=>{
+      const k=`${e.t}|${e.d}|${e.e}`;
+      if(seen.has(k))return false;
+      seen.add(k);
+      return true;
+    });
+    // Sort chronologically
+    allEntries.sort((a,b)=>a.t.localeCompare(b.t));
+    if(allEntries.length===0){alert('沒有 log 紀錄');return;}
+    const lines=allEntries.map(l=>{
       const meta=Object.entries(l).filter(([k])=>!['t','d','e'].includes(k)).map(([k,v])=>`${k}=${typeof v==='object'?JSON.stringify(v):v}`).join(' ');
       return `[${l.t}] [${l.d}] ${l.e} ${meta}`;
     });
-    const text=`# Sync Log (${log.length} entries) — exported ${new Date().toLocaleString()}\n\n${lines.join('\n')}\n`;
-    syncLog('LOG_EXPORT',{count:log.length});
-    // Download as file
-    const blob=new Blob([text],{type:'text/plain'});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.href=url;
-    a.download=`sync_log_${new Date().toISOString().slice(0,10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast(`📋 已匯出 ${log.length} 筆 log`);
+    const text=`# Sync Log (${allEntries.length} entries from ${new Set(allEntries.map(e=>e.d)).size} devices) — exported ${new Date().toLocaleString()}\n\n${lines.join('\n')}\n`;
+    syncLog('LOG_EXPORT',{count:allEntries.length});
+    // Try downloading; if not supported (mobile), show in modal-like prompt
+    try{
+      const blob=new Blob([text],{type:'text/plain'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=`sync_log_${new Date().toISOString().slice(0,10)}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`📋 已匯出 ${allEntries.length} 筆 log`);
+    }catch(downloadErr){
+      // Fallback for mobile: show text in a window/dialog so user can copy
+      const w=window.open('','_blank');
+      if(w){
+        w.document.body.style.fontFamily='monospace';
+        w.document.body.style.whiteSpace='pre-wrap';
+        w.document.body.style.padding='12px';
+        w.document.body.textContent=text;
+      }else{
+        prompt('複製下面的 log 內容：',text.slice(0,2000));
+      }
+    }
   }catch(e){alert('匯出失敗：'+e.message);}
 };
-window.clearSyncLog=function(){
-  if(!confirm('確定清空所有 sync log？'))return;
+window.clearSyncLog=async function(){
+  if(!confirm('確定清空所有 sync log（本機 + 雲端）？'))return;
   localStorage.removeItem(SYNC_LOG_KEY);
+  // Also clear cloud logs for THIS device only (other devices stay)
+  if(dbRef&&fbUser){
+    try{
+      const dev=getDeviceName();
+      await update(ref(fbDb),{[`health-tracker-debug-log/${fbUser.uid}/${dev}`]:null});
+    }catch(e){console.warn('clear cloud log failed',e);}
+  }
   syncLog('LOG_CLEAR',{});
   showToast('🗑 已清空 log');
 };
@@ -4384,6 +4463,11 @@ if((S.longestSit||0)>=LONGEST_WARN_SEC&&(S.over45CountToday||0)===0){
 renderAll();
 // Update water countdown every 30s (works regardless of session state)
 setInterval(updateWaterCountdown,30000);
+// Flush sync log to cloud every 60s (only writes if buffer has entries)
+setInterval(flushCloudLog,60000);
+// Also flush when tab becomes hidden or page unloads (best-effort)
+document.addEventListener('visibilitychange',()=>{if(document.hidden)flushCloudLog();});
+window.addEventListener('beforeunload',()=>flushCloudLog());
 
 // PROTECTION LAYER 1: Detect day rollover even if tab stays open across midnight.
 // Without this, a tab open since yesterday will keep S.lastDate stale until reload.
