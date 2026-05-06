@@ -1908,6 +1908,20 @@ async function cloudSave(){
 
 // updatedAt-based conflict resolution
 function isCloudNewer(c){
+  // Defense layer 1: if cloud has significantly more history days than local,
+  // trust cloud regardless of updatedAt. This prevents stale local data from
+  // overwriting valid cloud history just because the device's clock or save
+  // sequence made local.updatedAt look newer.
+  const cN=Object.keys(c.history||{}).length;
+  const lN=Object.keys(S.history||{}).length;
+  if(cN>=lN+1)return true;
+  // Defense layer 2: if cloud has same/fewer days but its lastDate is newer
+  // than local, trust cloud (it's been rolled over already).
+  if(c.lastDate&&S.lastDate&&c.lastDate!==S.lastDate){
+    const cd=new Date(c.lastDate),ld=new Date(S.lastDate);
+    if(cd>ld)return true;
+  }
+  // Standard comparison by updatedAt
   const cloudT=c.updatedAt,localT=S.updatedAt;
   if(cloudT&&localT)return cloudT>localT;
   if(cloudT&&!localT)return true;
@@ -1955,13 +1969,37 @@ async function cloudPull(firstPull){
       renderAll();
       if(rolled)cloudSave();
     }else if(firstPull){
+      // Defensive merge: even if local updatedAt looks newer, ALWAYS merge cloud's
+      // history into local on the first pull. Reasoning: stale localStorage from a
+      // long-unopened device can have higher updatedAt (from background saveLocal)
+      // but missing many days. Cloud's history is the source of truth.
+      const histBefore=Object.keys(S.history||{}).length;
+      const cloudHist=c.history||{};
+      const localHist=S.history||{};
+      // Union: keep all days from both sides, prefer cloud's value if conflict
+      const mergedHist={...localHist,...cloudHist};
+      const histAfter=Object.keys(mergedHist).length;
+      if(histAfter!==histBefore){
+        syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore,trigger:'firstPull-defensive'});
+      }
+      S.history=mergedHist;
+      // Also defensively merge garden archive (rare, but same principle)
+      if(c.gardenArchive){
+        S.gardenArchive={...(S.gardenArchive||{}),...c.gardenArchive};
+      }
+      // Set lastCloudSnap to current cloud so cloudSave only writes diffs
+      lastCloudSnap=JSON.parse(JSON.stringify({...c,history:mergedHist}));
       const rolled=maybeRollover(S);
       if(rolled){
         syncLog('ROLLOVER',{from:'local-only',to:S.lastDate,trigger:'cloudPull-local-newer'});
         processPendingRolloverEffects();
       }
       saveLocal();
+      renderAll();
       await cloudSave();
+    }else{
+      // Local same/newer, NOT first pull — still record what cloud has so future diffs work
+      lastCloudSnap=JSON.parse(JSON.stringify(c));
     }
   }catch(e){
     syncLog('ERROR',{where:'cloudPull',msg:e.message});
