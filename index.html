@@ -1638,11 +1638,14 @@ function maybeRollover(d){
   if(!d.lastDate||d.lastDate===today)return false;
   // Capture old date BEFORE we mutate state below
   const oldLastDate=d.lastDate;
-  // Snapshot yesterday into history
+  // Snapshot yesterday into history — but be CAREFUL not to clobber existing data.
+  // Common case: cloudPull merged cloud's old date but kept cloud.todayXXX which is
+  // partial (last sync state). If history[old] already exists from a previous edit,
+  // it's likely more complete than the partial today values.
   if(!d.history||Array.isArray(d.history))d.history={};
   if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday||d.todaySnack>0){
     const LONGEST_WARN=45*60;
-    d.history[oldLastDate]={
+    const incoming={
       water:d.todayWater||0,
       waterMl:(d.todayWater||0)*ML,
       stands:d.todayStand||0,
@@ -1654,6 +1657,25 @@ function maybeRollover(d){
       over45Count:d.over45CountToday||0,
       snack:d.todaySnack||0
     };
+    const existing=d.history[oldLastDate];
+    if(existing){
+      // Merge with existing entry — take max of each numeric field so we never
+      // shrink data that was previously edited or rolled-over more completely.
+      d.history[oldLastDate]={
+        water:Math.max(existing.water||0,incoming.water),
+        waterMl:Math.max(existing.waterMl||0,incoming.waterMl),
+        stands:Math.max(existing.stands||0,incoming.stands),
+        sessions:Math.max(existing.sessions||0,incoming.sessions),
+        workTimeSec:Math.max(existing.workTimeSec||0,incoming.workTimeSec),
+        longestSitSec:Math.max(existing.longestSitSec||0,incoming.longestSitSec),
+        rested:!!(existing.rested||incoming.rested),
+        overLongSit:!!(existing.overLongSit||incoming.overLongSit),
+        over45Count:Math.max(existing.over45Count||0,incoming.over45Count),
+        snack:Math.max(existing.snack||0,incoming.snack)
+      };
+    }else{
+      d.history[oldLastDate]=incoming;
+    }
   }
   const diff=Math.floor((new Date(today)-new Date(oldLastDate))/864e5);
   if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
