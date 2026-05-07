@@ -1386,7 +1386,7 @@ const ACTIVITY_SLOT_TOTAL=1500;     // total slot-machine spin duration
 const ACTIVITY_SETTLE_DELAY=800;    // after slot settles, wait before entering "doing" mode
 const DOING_COUNTDOWN_SEC=30;       // activity "doing" phase in seconds
 const SESSION_STALE_HR=6;           // session older than this is considered stale on page load
-const CLOUD_PULL_DEBOUNCE_MS=10000; // min interval between cloudPull on visibility change
+const CLOUD_PULL_DEBOUNCE_MS=30000; // min interval between cloudPull on visibility change (was 10s; longer = fewer race conditions)
 const CELEBRATE_DURATION_MS=2400;   // big celebration overlay duration
 const TOAST_DURATION_MS=2400;       // individual toast duration
 
@@ -1832,31 +1832,41 @@ onAuthStateChanged(fbAuth,async u=>{
       const c=snap.val();
       if(!c.history||Array.isArray(c.history))c.history={};
       if(!Array.isArray(c.garden))c.garden=[];
+      // Skip if cloudPull is in-flight (avoid race condition writing lastCloudSnap)
+      if(_syncInFlight){
+        syncLog('LISTENER',{result:'skipped_in_flight'});
+        return;
+      }
       // Skip if this is our own recent write (prevent echo loops)
       if(c.updatedAt&&S.updatedAt&&c.updatedAt<=S.updatedAt)return;
       const cloudNewer=isCloudNewer(c);
       syncLog('LISTENER',{result:cloudNewer?'cloud_newer_merging':'local_newer_skip',cloud:snapshotC(c),local:snapshotS()});
       if(cloudNewer){
-        const wasInSession=S.inSession;
-        const histBefore=Object.keys(S.history||{}).length;
-        for(const k of Object.keys(c)){
-          S[k]=c[k];
+        _syncInFlight=true;
+        try{
+          const wasInSession=S.inSession;
+          const histBefore=Object.keys(S.history||{}).length;
+          for(const k of Object.keys(c)){
+            S[k]=c[k];
+          }
+          const histAfter=Object.keys(S.history||{}).length;
+          if(histBefore!==histAfter)syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore,trigger:'listener'});
+          const rolled=maybeRollover(S);
+          if(rolled){
+            syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'listener'});
+            processPendingRolloverEffects();
+          }
+          lastCloudSnap=JSON.parse(JSON.stringify(S));
+          saveLocal();
+          if(S.inSession!==wasInSession||S.inSession){
+            applySessionUI();
+            if(S.inSession)resumeSessionIfNeeded();
+          }
+          renderAll();
+          if(rolled)cloudSave();
+        }finally{
+          _syncInFlight=false;
         }
-        const histAfter=Object.keys(S.history||{}).length;
-        if(histBefore!==histAfter)syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore,trigger:'listener'});
-        const rolled=maybeRollover(S);
-        if(rolled){
-          syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'listener'});
-          processPendingRolloverEffects();
-        }
-        lastCloudSnap=JSON.parse(JSON.stringify(S));
-        saveLocal();
-        if(S.inSession!==wasInSession||S.inSession){
-          applySessionUI();
-          if(S.inSession)resumeSessionIfNeeded();
-        }
-        renderAll();
-        if(rolled)cloudSave();
       }
     });
   }else{
@@ -1874,6 +1884,8 @@ window.handleLogin=async()=>{
 
 // Track last state written to / synced from cloud (for diff-based writes)
 let lastCloudSnap=null;
+// Mutex flag: prevents listener and cloudPull from both writing lastCloudSnap concurrently
+let _syncInFlight=false;
 
 async function cloudSave(){
   if(!dbRef)return;
@@ -1956,6 +1968,11 @@ function isCloudNewer(c){
 
 async function cloudPull(firstPull){
   if(!dbRef)return;
+  if(_syncInFlight){
+    syncLog('PULL',{result:'skipped_in_flight',firstPull});
+    return;
+  }
+  _syncInFlight=true;
   try{
     const snap=await get(dbRef);
     if(!snap.exists()){
@@ -2026,6 +2043,8 @@ async function cloudPull(firstPull){
   }catch(e){
     syncLog('ERROR',{where:'cloudPull',msg:e.message});
     console.warn('cloudPull err',e);
+  }finally{
+    _syncInFlight=false;
   }
 }
 
