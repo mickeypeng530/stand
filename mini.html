@@ -163,9 +163,82 @@ function defS(){return{
 };}
 
 function loadL(){
-  try{const d=JSON.parse(localStorage.getItem('health_v6'));if(d)return d;}catch(e){}
+  try{const d=JSON.parse(localStorage.getItem('health_v6'));if(d){
+    if(!d.history||Array.isArray(d.history))d.history={};
+    return d;
+  }}catch(e){}
   return defS();
 }
+
+// Cross-day rollover — same logic as index.html
+const LONGEST_WARN_SEC=45*60;
+function maybeRollover(d){
+  d=d||S;
+  const today=new Date().toDateString();
+  if(!d.lastDate||d.lastDate===today)return false;
+  const oldLastDate=d.lastDate;
+  if(!d.history||Array.isArray(d.history))d.history={};
+  if(d.todayStand>0||d.todayWater>0||d.sessionSecTotal>0||d.restToday||d.todaySnack>0){
+    const incoming={
+      water:d.todayWater||0,
+      waterMl:(d.todayWater||0)*ML,
+      stands:d.todayStand||0,
+      sessions:d.sessionsToday||0,
+      workTimeSec:d.sessionSecTotal||0,
+      longestSitSec:d.longestSit||0,
+      rested:d.restToday||false,
+      overLongSit:(d.longestSit||0)>=LONGEST_WARN_SEC,
+      over45Count:d.over45CountToday||0,
+      snack:d.todaySnack||0
+    };
+    const existing=d.history[oldLastDate];
+    if(existing){
+      // Merge with existing — Math.max preserves whichever is more complete
+      d.history[oldLastDate]={
+        water:Math.max(existing.water||0,incoming.water),
+        waterMl:Math.max(existing.waterMl||0,incoming.waterMl),
+        stands:Math.max(existing.stands||0,incoming.stands),
+        sessions:Math.max(existing.sessions||0,incoming.sessions),
+        workTimeSec:Math.max(existing.workTimeSec||0,incoming.workTimeSec),
+        longestSitSec:Math.max(existing.longestSitSec||0,incoming.longestSitSec),
+        rested:!!(existing.rested||incoming.rested),
+        overLongSit:!!(existing.overLongSit||incoming.overLongSit),
+        over45Count:Math.max(existing.over45Count||0,incoming.over45Count),
+        snack:Math.max(existing.snack||0,incoming.snack)
+      };
+    }else{
+      d.history[oldLastDate]=incoming;
+    }
+  }
+  d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;
+  d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;d.over45CountToday=0;
+  d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
+  d.sitGoalMetToday=false;d.waterGoalMetToday=false;
+  d.todaySnack=0;d.snackGoalMetToday=true;
+  return true;
+}
+// Minimal sync log (mini version — only critical events)
+const SYNC_LOG_KEY='sync_log_v1';
+const SYNC_LOG_MAX=500;
+function getDeviceName(){return localStorage.getItem('device_name')||(localStorage.getItem('device_id')||'mini');}
+function syncLog(event,details){
+  try{
+    const now=new Date();
+    const pad=n=>String(n).padStart(2,'0');
+    const ts=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const log=JSON.parse(localStorage.getItem(SYNC_LOG_KEY)||'[]');
+    log.push({t:ts,d:getDeviceName()+'/mini',e:event,...details});
+    if(log.length>SYNC_LOG_MAX)log.splice(0,log.length-SYNC_LOG_MAX);
+    localStorage.setItem(SYNC_LOG_KEY,JSON.stringify(log));
+  }catch(e){}
+}
+function snapS(){
+  return {lD:S.lastDate,uA:S.updatedAt,tS:S.todayStand||0,tW:S.todayWater||0,tSn:S.todaySnack||0,histN:Object.keys(S.history||{}).length};
+}
+function snapC(c){
+  return {lD:c.lastDate,uA:c.updatedAt,tS:c.todayStand||0,tW:c.todayWater||0,histN:Object.keys(c.history||{}).length};
+}
+
 let lastCloudSnap=null;
 function saveLocal(){try{localStorage.setItem('health_v6',JSON.stringify(S));}catch(e){}}
 async function saveSync(){
@@ -174,23 +247,53 @@ async function saveSync(){
   try{
     S.updatedAt=Date.now();
     const patch={updatedAt:S.updatedAt};
+    const multiPath={};
+    let histChangedDays=0;
     if(lastCloudSnap){
       for(const k of Object.keys(S)){
         const a=JSON.stringify(S[k]);
         const b=JSON.stringify(lastCloudSnap[k]);
-        if(a!==b)patch[k]=S[k];
+        if(a===b)continue;
+        if(k==='history'){
+          // Per-day diff to avoid overwriting whole history
+          const oldH=lastCloudSnap.history||{};
+          const newH=S.history||{};
+          for(const day of Object.keys(newH)){
+            if(JSON.stringify(newH[day])!==JSON.stringify(oldH[day])){
+              multiPath[`history/${day}`]=newH[day];
+              histChangedDays++;
+            }
+          }
+          for(const day of Object.keys(oldH)){
+            if(!(day in newH)){
+              multiPath[`history/${day}`]=null;
+              histChangedDays++;
+            }
+          }
+        }else{
+          patch[k]=S[k];
+        }
       }
-      if(Object.keys(patch).length===1)return;
+      if(Object.keys(patch).length===1&&Object.keys(multiPath).length===0)return;
     }else{
       Object.assign(patch,S);
+      histChangedDays=Object.keys(S.history||{}).length;
     }
+    syncLog('PUSH',{fieldsChanged:Object.keys(patch).filter(k=>k!=='updatedAt'),histChangedDays,local:snapS()});
     await update(dbRef,patch);
+    if(Object.keys(multiPath).length>0)await update(dbRef,multiPath);
     lastCloudSnap=JSON.parse(JSON.stringify(S));
     setSync('cloud','已同步');
-  }catch(e){setSync('err','錯誤');}
+  }catch(e){syncLog('ERROR',{where:'saveSync',msg:e.message});setSync('err','錯誤');}
 }
 
 S=loadL();
+// Cross-day rollover at load
+if(maybeRollover(S)){
+  syncLog('ROLLOVER',{from:'load-time',to:S.lastDate,trigger:'mini-init'});
+  saveLocal();
+}
+syncLog('INIT',{local:snapS(),session:S.inSession||false});
 applyTheme(S.theme||'default');
 
 function setSync(mode,text){
@@ -238,21 +341,68 @@ async function cloudPull(first){
   if(!dbRef)return;
   try{
     const snap=await get(dbRef);
-    if(!snap.exists()){if(first)await saveSync();return;}
-    const c=snap.val();
-    const today=new Date().toDateString();
-    if(c.lastDate&&c.lastDate!==today&&c.lastDate!==null){if(first)await saveSync();return;}
-    if(isNewer(c)){
-      for(const k of Object.keys(c)){S[k]=c[k];}
-      lastCloudSnap=JSON.parse(JSON.stringify(S));
-      saveLocal();render();
+    if(!snap.exists()){
+      syncLog('PULL',{result:'cloud_empty',firstPull:first,local:snapS()});
+      if(first)await saveSync();
+      return;
     }
-    else if(first){await saveSync();}
-  }catch(e){setSync('err','錯誤');}
+    const c=snap.val();
+    if(!c.history||Array.isArray(c.history))c.history={};
+    const cloudNewer=isNewer(c);
+    syncLog('PULL',{result:cloudNewer?'cloud_newer_merging':'local_newer_skip',firstPull:first,cloud:snapC(c),local:snapS()});
+    if(cloudNewer){
+      // Cloud is more authoritative — merge it in
+      const histBefore=Object.keys(S.history||{}).length;
+      for(const k of Object.keys(c)){S[k]=c[k];}
+      const histAfter=Object.keys(S.history||{}).length;
+      if(histBefore!==histAfter)syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore});
+      const rolled=maybeRollover(S);
+      if(rolled)syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'mini-cloudPull'});
+      lastCloudSnap=JSON.parse(JSON.stringify(S));
+      saveLocal();
+      render();
+      if(rolled)saveSync();
+    }else if(first){
+      // Defensive union merge on first pull — never lose history
+      const localHist=S.history||{};
+      const cloudHist=c.history||{};
+      const mergedHist={...localHist,...cloudHist};
+      const histBefore=Object.keys(localHist).length;
+      const histAfter=Object.keys(mergedHist).length;
+      if(histAfter!==histBefore){
+        syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore,trigger:'mini-firstPull-defensive'});
+      }
+      S.history=mergedHist;
+      lastCloudSnap=JSON.parse(JSON.stringify({...c,history:mergedHist}));
+      const rolled=maybeRollover(S);
+      if(rolled)syncLog('ROLLOVER',{from:'local-only',to:S.lastDate,trigger:'mini-firstPull-local-newer'});
+      saveLocal();
+      render();
+      await saveSync();
+    }else{
+      // Not first pull, local same/newer — just update lastCloudSnap so next saveSync diffs work
+      lastCloudSnap=JSON.parse(JSON.stringify(c));
+    }
+  }catch(e){
+    syncLog('ERROR',{where:'mini-cloudPull',msg:e.message});
+    setSync('err','錯誤');
+  }
 }
 function isNewer(c){
+  // Layer 1: cloud has more history days → trust cloud
+  const cN=Object.keys(c.history||{}).length;
+  const lN=Object.keys(S.history||{}).length;
+  if(cN>=lN+1)return true;
+  // Layer 2: cloud lastDate is later → trust cloud
+  if(c.lastDate&&S.lastDate&&c.lastDate!==S.lastDate){
+    const cd=new Date(c.lastDate),ld=new Date(S.lastDate);
+    if(cd>ld)return true;
+  }
+  // Layer 3: standard updatedAt compare
   const ct=c.updatedAt,lt=S.updatedAt;
-  if(ct&&lt)return ct>lt;if(ct&&!lt)return true;return false;
+  if(ct&&lt)return ct>lt;
+  if(ct&&!lt)return true;
+  return false;
 }
 
 document.getElementById('loginBtn').addEventListener('click',async()=>{
