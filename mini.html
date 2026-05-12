@@ -373,7 +373,10 @@ async function cloudPull(first){
         syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore,trigger:'mini-firstPull-defensive'});
       }
       S.history=mergedHist;
-      lastCloudSnap=JSON.parse(JSON.stringify({...c,history:mergedHist}));
+      // CRITICAL: lastCloudSnap must reflect what's ACTUALLY in cloud — NOT mergedHist.
+      // Otherwise saveSync will think history is already synced and skip pushing the
+      // missing days, leaving cloud incomplete while local has more data.
+      lastCloudSnap=JSON.parse(JSON.stringify(c));
       const rolled=maybeRollover(S);
       if(rolled)syncLog('ROLLOVER',{from:'local-only',to:S.lastDate,trigger:'mini-firstPull-local-newer'});
       saveLocal();
