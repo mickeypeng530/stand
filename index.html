@@ -2026,8 +2026,10 @@ async function cloudPull(firstPull){
       if(c.gardenArchive){
         S.gardenArchive={...(S.gardenArchive||{}),...c.gardenArchive};
       }
-      // Set lastCloudSnap to current cloud so cloudSave only writes diffs
-      lastCloudSnap=JSON.parse(JSON.stringify({...c,history:mergedHist}));
+      // CRITICAL: lastCloudSnap must reflect cloud's ACTUAL state, NOT the locally merged version.
+      // Otherwise cloudSave will think history is already in sync and skip pushing
+      // the locally-only days, leaving cloud incomplete.
+      lastCloudSnap=JSON.parse(JSON.stringify(c));
       const rolled=maybeRollover(S);
       if(rolled){
         syncLog('ROLLOVER',{from:'local-only',to:S.lastDate,trigger:'cloudPull-local-newer'});
