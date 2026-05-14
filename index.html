@@ -1856,7 +1856,9 @@ onAuthStateChanged(fbAuth,async u=>{
             syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'listener'});
             processPendingRolloverEffects();
           }
-          lastCloudSnap=JSON.parse(JSON.stringify(S));
+          // Same fix as cloudPull: lastCloudSnap reflects cloud's actual state, not local.
+          // If rollover added a day, cloudSave must push it (lastCloudSnap=c → diff detects it).
+          lastCloudSnap=JSON.parse(JSON.stringify(c));
           saveLocal();
           if(S.inSession!==wasInSession||S.inSession){
             applySessionUI();
@@ -1999,7 +2001,11 @@ async function cloudPull(firstPull){
         syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'cloudPull'});
         processPendingRolloverEffects();
       }
-      lastCloudSnap=JSON.parse(JSON.stringify(S));
+      // CRITICAL: lastCloudSnap = cloud's actual state (c), NOT S.
+      // If maybeRollover added a day to S.history, that day is NOT yet in cloud.
+      // Setting lastCloudSnap=S would make cloudSave think history is in sync
+      // and skip pushing the newly-rolled-over day, causing data loss.
+      lastCloudSnap=JSON.parse(JSON.stringify(c));
       saveLocal();
       if(S.inSession!==wasInSession||S.inSession){
         applySessionUI();
