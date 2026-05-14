@@ -358,7 +358,9 @@ async function cloudPull(first){
       if(histBefore!==histAfter)syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore});
       const rolled=maybeRollover(S);
       if(rolled)syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'mini-cloudPull'});
-      lastCloudSnap=JSON.parse(JSON.stringify(S));
+      // Same critical fix: lastCloudSnap = cloud's actual state, not local S.
+      // After rollover, S may have an extra day that's NOT in cloud yet.
+      lastCloudSnap=JSON.parse(JSON.stringify(c));
       saveLocal();
       render();
       if(rolled)saveSync();
