@@ -2979,36 +2979,44 @@ function fireNotif(text){
 // These are in the 800×350 reference coords
 // Coords match the 0-800 × 0-350 reference grid used by renderGarden's mapY.
 const FIXED_OBJECTS=[
-  {x:64,  y:260, label:'swing'},    // 鞦韆 xp=8%
+  // collideX/collideY overrides default — swing has small Y so plants can go just below
+  {x:64,  y:230, label:'swing',   collideX:55, collideY:30},  // 鞦韆 xp=8%, base y=230 (raised so plants below at y=290+ are OK)
   {x:200, y:330, label:'rockL'},    // 左石頭 xp=25%
   {x:384, y:320, label:'pond'},     // 池塘 xp=48%
-  {x:656, y:260, label:'sign'},     // 木牌 xp=82%
+  {x:656, y:260, label:'sign',    collideX:60, collideY:35},  // 木牌 xp=82%
   {x:736, y:325, label:'rockR'},    // 右石頭 xp=92%
 ];
-// Distance considered "same spot" — both X and Y must be within these to count as collision
-// 8% of 800 = 64px (x), 8% of 350 = 28px (y)
-// Widened for better visual spacing — was 64/28, now ~11% of reference grid
+// Default collision distance — both X and Y must be within these to count as collision
 const COLLIDE_X=88, COLLIDE_Y=38;
 
 function isColliding(x,y){
-  // Check against fixed objects
+  // Check against fixed objects (with per-object overrides)
   for(const o of FIXED_OBJECTS){
-    if(Math.abs(x-o.x)<COLLIDE_X && Math.abs(y-o.y)<COLLIDE_Y)return true;
+    const cx=o.collideX||COLLIDE_X;
+    const cy=o.collideY||COLLIDE_Y;
+    if(Math.abs(x-o.x)<cx && Math.abs(y-o.y)<cy)return true;
   }
-  // Check against existing garden items
+  // Check against existing garden items (use defaults)
   for(const g of (S.garden||[])){
     if(Math.abs(x-g.x)<COLLIDE_X && Math.abs(y-g.y)<COLLIDE_Y)return true;
   }
   return false;
 }
 
-function randPos(zoneName){
+function randPos(zoneName,isPet){
   const z=GARDEN_ZONES[zoneName];
-  // Avoid left 25% (x < 200): this is where sun/moon and swing live.
-  // Trees/flowers/pets should plant in x=200-750 range.
-  const pickX=()=>200+Math.random()*550;
+  // x range: avoid sun/moon (~0-50) on left edge and visual cutoff (>740) on right edge.
+  // Pets need extra margin because walking animation translates ±40px from spawn position
+  // (see .walking-stroll keyframes), so spawning too close to edges makes them clip out of view.
+  // Plants (no walking) get the wider range: 70-740.
+  // Pets get tighter range: 100-700.
+  const xMin=isPet?100:70;
+  const xMax=isPet?700:740;
+  const pickX=()=>xMin+Math.random()*(xMax-xMin);
   const pickY=()=>z.yMin+Math.random()*(z.yMax-z.yMin);
   // Try up to 20 times to find a non-colliding position
+  // Collision detection (FIXED_OBJECTS + existing garden items) naturally keeps items
+  // out of the swing/pond/sign zones, so we don't need to exclude those by x.
   for(let i=0;i<20;i++){
     const x=pickX(),y=pickY();
     if(!isColliding(x,y))return {x,y};
@@ -3388,7 +3396,7 @@ function checkPetLevelUp(type){
     }else{ // snack
       svg=species==='jigglypuff'?'m-jigglypuff-adult':'m-mushroom-adult';
     }
-    const pos=randPos(type==='water'?'front':'back');
+    const pos=randPos(type==='water'?'front':'back',true);
     S.garden=S.garden||[];
     S.garden.push({type:type,svg:svg,source:'pet',x:pos.x,y:pos.y,at:now()});
     S[daysKey]=0; // reset for next round (new egg)
