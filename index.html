@@ -1185,6 +1185,10 @@ body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card
       </div>
     </div>
     <div class="edit-row">
+      <label>📌 久坐 ≥45m 次數</label>
+      <input type="number" id="etOver45" min="0" max="20" step="1"/>
+    </div>
+    <div class="edit-row">
       <label>💧 喝水杯數</label>
       <input type="number" id="etWater" min="0" max="12" step="0.5"/>
     </div>
@@ -1226,6 +1230,10 @@ body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card
         <input type="number" id="ehLongMin" min="0" max="59" step="1" style="width:56px"/>
         <span style="font-size:calc(12px * var(--fs));color:var(--text-dim);">m</span>
       </div>
+    </div>
+    <div class="edit-row">
+      <label>📌 久坐 ≥45m 次數</label>
+      <input type="number" id="ehOver45" min="0" max="20" step="1"/>
     </div>
     <div class="edit-row">
       <label>🍪 零食次數</label>
@@ -3099,6 +3107,7 @@ window.stopWork=function(){
   // End session
   S.inSession=false;
   S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
+  S._over45TriggeredThisSession=false;
   applySessionUI();
   renderAll();
   saveSync();
@@ -3176,6 +3185,8 @@ window.handleStandup=function(){
   if(sat>(S.longestSit||0))S.longestSit=sat;
   S.inSession=false;
   S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
+  // Reset over45 trigger so next session can count its own ≥45m episode
+  S._over45TriggeredThisSession=false;
   S.lastStand=snap;
   applySessionUI();
   triggerMascot('sit',r.mascotMsg);
@@ -4307,6 +4318,7 @@ function openEditTodayModal(){
   $id('etMin').value=min;
   $id('etLongHr').value=lHr;
   $id('etLongMin').value=lMin;
+  $id('etOver45').value=S.over45CountToday||0;
   $id('etWater').value=S.todayWater||0;
   $id('etWarn').textContent='';
   $id('editTodayOverlay').classList.add('show');
@@ -4322,17 +4334,15 @@ window.saveEditToday=function(){
   const min=Math.max(0,Math.min(59,Math.round(+$id('etMin').value||0)));
   const lHr=Math.max(0,Math.min(23,Math.round(+$id('etLongHr').value||0)));
   const lMin=Math.max(0,Math.min(59,Math.round(+$id('etLongMin').value||0)));
+  const over45=Math.max(0,Math.min(20,Math.round(+$id('etOver45').value||0)));
   let water=+$id('etWater').value||0;
   // Round water to nearest 0.5
   water=Math.max(0,Math.min(12,Math.round(water*2)/2));
   S.todayStand=stand;
   S.sessionSecTotal=hr*3600+min*60;
   S.longestSit=lHr*3600+lMin*60;
+  S.over45CountToday=over45;
   S.todayWater=water;
-  // Sync over45 count: if longest ≥ 45m, ensure at least 1 over45 episode counted
-  if(S.longestSit>=LONGEST_WARN_SEC&&(S.over45CountToday||0)===0){
-    S.over45CountToday=1;
-  }
   // Recompute goal-met flags (affects streak logic) but DO NOT advance pet days
   // (pet days already counted, we don't reapply)
   S.sitGoalMetToday=stand>=S_GOAL;
@@ -4362,6 +4372,7 @@ window.openEditHistoryModal=function(dateKey){
   const lsec=r.longestSitSec||0;
   $id('ehLongHr').value=Math.floor(lsec/3600);
   $id('ehLongMin').value=Math.floor((lsec%3600)/60);
+  $id('ehOver45').value=r.over45Count||0;
   $id('ehSnack').value=r.snack||0;
   $id('ehRested').checked=!!r.rested;
   $id('ehWarn').textContent='';
@@ -4385,6 +4396,7 @@ window.saveEditHistory=function(){
     const min=Math.max(0,Math.min(59,Math.round(+$id('ehMin').value||0)));
     const lHr=Math.max(0,Math.min(23,Math.round(+$id('ehLongHr').value||0)));
     const lMin=Math.max(0,Math.min(59,Math.round(+$id('ehLongMin').value||0)));
+    const over45=Math.max(0,Math.min(20,Math.round(+$id('ehOver45').value||0)));
     const snack=Math.max(0,Math.min(99,Math.round(+$id('ehSnack').value||0)));
     const rested=$id('ehRested').checked;
     const workSec=hr*3600+min*60;
@@ -4398,16 +4410,10 @@ window.saveEditHistory=function(){
       S.longestSit=longestSec;
       S.restToday=rested;
       S.todaySnack=snack;
+      S.over45CountToday=over45;
       S.sitGoalMetToday=stand>=S_GOAL;
       S.waterGoalMetToday=water>=W_STREAK;
-      // Sync over45 with new longest
-      if(longestSec>=LONGEST_WARN&&(S.over45CountToday||0)===0){
-        S.over45CountToday=1;
-      }
     }
-    // Preserve existing over45Count from history; if longest ≥ 45m and existing count is 0, set to 1
-    const prevOver45=(S.history[dateKey]||{}).over45Count||0;
-    const finalOver45=longestSec>=LONGEST_WARN?Math.max(prevOver45,1):prevOver45;
     S.history[dateKey]={
       stands:stand,
       water:water,
@@ -4418,7 +4424,7 @@ window.saveEditHistory=function(){
       snack:snack,
       rested:rested,
       overLongSit:longestSec>=LONGEST_WARN,
-      over45Count:finalOver45
+      over45Count:over45
     };
     window.closeEditHistoryModal();
     syncLog('EDIT_HIST',{date:dateKey,stand,water,workSec,longestSec,snack});
