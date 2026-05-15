@@ -431,6 +431,11 @@ function tick(){
   const sit=currentSitSec();
   if(sit>(S.longestSit||0))S.longestSit=sit;
   S.sessionSecTotal=totalSS();
+  // Trigger over45 count once per session — when sit first crosses 45m
+  if(sit>=LONGEST_WARN_SEC&&!S._over45TriggeredThisSession){
+    S._over45TriggeredThisSession=true;
+    S.over45CountToday=(S.over45CountToday||0)+1;
+  }
   render();
   if(sit%30===0)saveLocal();
 }
@@ -466,7 +471,7 @@ function startWork(){
   const n=now();
   S.inSession=true;
   S.sitStartAt=n;S.sessionStartAt=n;S.sessionAccum=S.sessionSecTotal||0;
-  S.alerted=false;S.sessionsToday=(S.sessionsToday||0)+1;
+  S.alerted=false;S._over45TriggeredThisSession=false;S.sessionsToday=(S.sessionsToday||0)+1;
   render();startTick();saveSync();
 }
 
@@ -489,6 +494,15 @@ function handleStandup(){
   }
   S.sessionSecTotal=totalSS();
   if(sat>(S.longestSit||0))S.longestSit=sat;
+  // Count this session toward over45 if it qualifies AND main tab's tick hasn't already
+  // counted it (via _over45TriggeredThisSession flag). Prevents double-count when both
+  // main and mini are open at the same time.
+  if(sat>=LONGEST_WARN_SEC&&!S._over45TriggeredThisSession){
+    S._over45TriggeredThisSession=true;
+    S.over45CountToday=(S.over45CountToday||0)+1;
+  }
+  // Reset flag at end of session so next ≥45m sit can be counted
+  S._over45TriggeredThisSession=false;
   S.inSession=false;S.sitStartAt=0;S.sessionStartAt=0;S.alerted=false;
   stopTick();
   render();
