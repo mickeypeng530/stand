@@ -244,7 +244,7 @@ let lastCloudSnap=null;
 function saveLocal(){try{localStorage.setItem('health_v6',JSON.stringify(S));}catch(e){}}
 // ===== V2 SCHEMA (same as index.html) =====
 const SCHEMA_VERSION=2;
-const APP_VERSION='v2.0-0519';
+const APP_VERSION='v2.1-0519';
 (function(){const m=document.getElementById('miniVer'); if(m) m.textContent=APP_VERSION;})();
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
@@ -411,6 +411,7 @@ function updateLogin(u){
 
 // === AUTH ===
 let cloudUnsub=null;
+let _miniSyncInFlight=false;
 onAuthStateChanged(fbAuth,async u=>{
   fbUser=u;
   if(cloudUnsub){cloudUnsub();cloudUnsub=null;}
@@ -421,12 +422,71 @@ onAuthStateChanged(fbAuth,async u=>{
     await cloudPull(true);
     cloudUnsub=onValue(dbRef,snap=>{
       if(!snap.exists())return;
-      const c=snap.val();
-      if(c.updatedAt&&S.updatedAt&&c.updatedAt<=S.updatedAt)return;
-      for(const k of Object.keys(c)){S[k]=c[k];}
-      lastCloudSnap=JSON.parse(JSON.stringify(S));
-      saveLocal();
-      render();
+      if(_miniSyncInFlight){
+        syncLog('LISTENER',{result:'skipped_in_flight'});
+        return;
+      }
+      const rawCloud=snap.val();
+      const cn=normalizeCloudSnap(rawCloud);
+      const flatCloud=flattenCloudForSnap(cn);
+      const cloudUA=cn.state.updatedAt||rawCloud.updatedAt||0;
+      if(cloudUA&&S.updatedAt&&cloudUA<=S.updatedAt)return;
+
+      const cloudHistN=Object.keys(cn.history).length;
+      const localHistN=Object.keys(S.history||{}).length;
+      syncLog('LISTENER',{result:'v2-merge',schema:cn._schemaVersion,cloud:{histN:cloudHistN,lD:cn.state.lastDate,uA:cloudUA},local:snapS()});
+
+      _miniSyncInFlight=true;
+      try{
+        // HISTORY union + Math.max (never shrinks)
+        const mergedHist={...(S.history||{})};
+        for(const day of Object.keys(cn.history)){
+          mergedHist[day]=mergeDayMax(mergedHist[day],cn.history[day]);
+        }
+        if(Object.keys(mergedHist).length!==localHistN){
+          syncLog('MERGE',{histBefore:localHistN,histAfter:Object.keys(mergedHist).length,delta:Object.keys(mergedHist).length-localHistN,trigger:'mini-listener'});
+        }
+        S.history=mergedHist;
+
+        // STATE last-write-wins
+        if(cloudUA>(S.updatedAt||0)){
+          for(const k of STATE_KEYS) if(k in cn.state) S[k]=cn.state[k];
+          for(const k of SETTINGS_KEYS) if(k in cn.settings) S[k]=cn.settings[k];
+          for(const k of PETS_KEYS){
+            if(k in cn.pets){
+              if(typeof cn.pets[k]==='number') S[k]=Math.max(S[k]||0,cn.pets[k]||0);
+              else S[k]=cn.pets[k];
+            }
+          }
+          S.updatedAt=cloudUA;
+        }else{
+          for(const k of PETS_KEYS){
+            if(k in cn.pets && typeof cn.pets[k]==='number'){
+              S[k]=Math.max(S[k]||0,cn.pets[k]||0);
+            }
+          }
+        }
+
+        // META: Math.max
+        for(const k of META_KEYS){
+          if(k in cn.meta) S[k]=Math.max(S[k]||0,cn.meta[k]||0);
+        }
+
+        // GARDEN union by `at`
+        const cloudGarden=flatCloud.garden||[];
+        const gardenMap=new Map();
+        for(const g of (S.garden||[])){if(g?.at)gardenMap.set(g.at,g);}
+        for(const g of cloudGarden){if(g?.at && !gardenMap.has(g.at))gardenMap.set(g.at,g);}
+        S.garden=Array.from(gardenMap.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+
+        S.gardenArchive={...(cn.gardenArchive||{}),...(S.gardenArchive||{})};
+
+        lastCloudSnap=flatCloud;
+        saveLocal();
+        render();
+      }finally{
+        _miniSyncInFlight=false;
+      }
     });
   }else{
     dbRef=null;
