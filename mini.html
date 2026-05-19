@@ -274,6 +274,19 @@ async function saveSync(){
           patch[k]=S[k];
         }
       }
+      // SANITY CHECK: force-push any local-only history days
+      const localDays=Object.keys(S.history||{});
+      const snapDays=Object.keys(lastCloudSnap.history||{});
+      if(localDays.length>snapDays.length){
+        const missingDays=localDays.filter(d=>!snapDays.includes(d));
+        for(const day of missingDays){
+          if(!multiPath[`history/${day}`]){
+            multiPath[`history/${day}`]=S.history[day];
+            histChangedDays++;
+            syncLog('SANITY_PUSH',{day,reason:'history-day-missing-from-snap'});
+          }
+        }
+      }
       if(Object.keys(patch).length===1&&Object.keys(multiPath).length===0)return;
     }else{
       Object.assign(patch,S);
@@ -394,9 +407,11 @@ async function cloudPull(first){
   }
 }
 function isNewer(c){
-  // Layer 1: cloud has more history days → trust cloud
   const cN=Object.keys(c.history||{}).length;
   const lN=Object.keys(S.history||{}).length;
+  // Layer 0 (HIGHEST PRIORITY): if local has way more history days, don't trust cloud
+  if(lN>=cN+2)return false;
+  // Layer 1: cloud has more history days → trust cloud
   if(cN>=lN+1)return true;
   // Layer 2: cloud lastDate is later → trust cloud
   if(c.lastDate&&S.lastDate&&c.lastDate!==S.lastDate){
