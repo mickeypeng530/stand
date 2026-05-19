@@ -241,60 +241,143 @@ function snapC(c){
 
 let lastCloudSnap=null;
 function saveLocal(){try{localStorage.setItem('health_v6',JSON.stringify(S));}catch(e){}}
+// ===== V2 SCHEMA (same as index.html) =====
+const SCHEMA_VERSION=2;
+const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
+const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
+const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart'];
+const META_KEYS=['totalStands','totalWater','totalSnacks'];
+
+function mergeDayMax(a,b){
+  if(!a)return b;
+  if(!b)return a;
+  return {
+    stands:Math.max(a.stands||0,b.stands||0),
+    water:Math.max(a.water||0,b.water||0),
+    waterMl:Math.max(a.waterMl||0,b.waterMl||0),
+    workTimeSec:Math.max(a.workTimeSec||0,b.workTimeSec||0),
+    longestSitSec:Math.max(a.longestSitSec||0,b.longestSitSec||0),
+    sessions:Math.max(a.sessions||0,b.sessions||0),
+    snack:Math.max(a.snack||0,b.snack||0),
+    over45Count:Math.max(a.over45Count||0,b.over45Count||0),
+    rested:!!(a.rested||b.rested),
+    overLongSit:!!(a.overLongSit||b.overLongSit)
+  };
+}
+function normalizeCloudSnap(c){
+  c=c||{};
+  const isV2=(c._schemaVersion||0)>=2 || !!c.state;
+  const extractLegacy=(keys)=>{const o={};for(const k of keys)if(k in c)o[k]=c[k];return o;};
+  const legacyState=()=>{const s=extractLegacy(STATE_KEYS);s.updatedAt=c.updatedAt||0;return s;};
+  return {
+    _schemaVersion:c._schemaVersion||(isV2?2:1),
+    state:isV2?(c.state||{}):legacyState(),
+    history:c.history||{},
+    garden:isV2?(c.garden||{}):(Array.isArray(c.garden)?Object.fromEntries((c.garden||[]).map(g=>g?.at?[g.at,g]:null).filter(Boolean)):{}),
+    gardenArchive:c.gardenArchive||{},
+    pets:isV2?(c.pets||{}):extractLegacy(PETS_KEYS),
+    settings:isV2?(c.settings||{}):extractLegacy(SETTINGS_KEYS),
+    meta:isV2?(c.meta||{}):extractLegacy(META_KEYS)
+  };
+}
+function flattenCloudForSnap(norm){
+  const flat={};
+  for(const k of STATE_KEYS) if(k in norm.state) flat[k]=norm.state[k];
+  flat.updatedAt=norm.state.updatedAt||0;
+  for(const k of PETS_KEYS) if(k in norm.pets) flat[k]=norm.pets[k];
+  for(const k of SETTINGS_KEYS) if(k in norm.settings) flat[k]=norm.settings[k];
+  for(const k of META_KEYS) if(k in norm.meta) flat[k]=norm.meta[k];
+  flat.history=norm.history||{};
+  if(typeof norm.garden==='object'&&!Array.isArray(norm.garden)){
+    flat.garden=Object.values(norm.garden).sort((a,b)=>(a?.at||0)-(b?.at||0));
+  }else{flat.garden=norm.garden||[];}
+  flat.gardenArchive=norm.gardenArchive||{};
+  return flat;
+}
+
 async function saveSync(){
   saveLocal();
   if(!dbRef)return;
   try{
     S.updatedAt=Date.now();
-    const patch={updatedAt:S.updatedAt};
     const multiPath={};
-    let histChangedDays=0;
-    if(lastCloudSnap){
-      for(const k of Object.keys(S)){
-        const a=JSON.stringify(S[k]);
-        const b=JSON.stringify(lastCloudSnap[k]);
-        if(a===b)continue;
-        if(k==='history'){
-          // Per-day diff to avoid overwriting whole history
-          const oldH=lastCloudSnap.history||{};
-          const newH=S.history||{};
-          for(const day of Object.keys(newH)){
-            if(JSON.stringify(newH[day])!==JSON.stringify(oldH[day])){
-              multiPath[`history/${day}`]=newH[day];
-              histChangedDays++;
-            }
-          }
-          for(const day of Object.keys(oldH)){
-            if(!(day in newH)){
-              multiPath[`history/${day}`]=null;
-              histChangedDays++;
-            }
-          }
-        }else{
-          patch[k]=S[k];
-        }
-      }
-      // SANITY CHECK: force-push any local-only history days
-      const localDays=Object.keys(S.history||{});
-      const snapDays=Object.keys(lastCloudSnap.history||{});
-      if(localDays.length>snapDays.length){
-        const missingDays=localDays.filter(d=>!snapDays.includes(d));
-        for(const day of missingDays){
-          if(!multiPath[`history/${day}`]){
-            multiPath[`history/${day}`]=S.history[day];
-            histChangedDays++;
-            syncLog('SANITY_PUSH',{day,reason:'history-day-missing-from-snap'});
-          }
-        }
-      }
-      if(Object.keys(patch).length===1&&Object.keys(multiPath).length===0)return;
-    }else{
-      Object.assign(patch,S);
-      histChangedDays=Object.keys(S.history||{}).length;
+    const summary={state:0,history:0,pets:0,settings:0,meta:0,garden:0};
+
+    // STATE
+    for(const k of STATE_KEYS){
+      const a=JSON.stringify(S[k]);
+      const b=JSON.stringify(lastCloudSnap?.[k]);
+      if(a!==b){multiPath[`state/${k}`]=(S[k]===undefined?null:S[k]);summary.state++;}
     }
-    syncLog('PUSH',{fieldsChanged:Object.keys(patch).filter(k=>k!=='updatedAt'),histChangedDays,local:snapS()});
-    await update(dbRef,patch);
-    if(Object.keys(multiPath).length>0)await update(dbRef,multiPath);
+    multiPath['state/updatedAt']=S.updatedAt;
+
+    // HISTORY (per-day)
+    const localHist=S.history||{};
+    const snapHist=lastCloudSnap?.history||{};
+    for(const day of Object.keys(localHist)){
+      if(JSON.stringify(localHist[day])!==JSON.stringify(snapHist[day])){
+        multiPath[`history/${day}`]=localHist[day];
+        summary.history++;
+      }
+    }
+    if(lastCloudSnap){
+      const missing=Object.keys(localHist).filter(d=>!(d in snapHist));
+      for(const day of missing){
+        if(!(`history/${day}` in multiPath)){
+          multiPath[`history/${day}`]=localHist[day];
+          summary.history++;
+          syncLog('SANITY_PUSH',{day});
+        }
+      }
+    }
+
+    // GARDEN (append-only by `at`)
+    const localGarden=S.garden||[];
+    const snapGarden=lastCloudSnap?.garden||[];
+    const snapAts=new Set(snapGarden.map(g=>g?.at).filter(Boolean));
+    for(const g of localGarden){
+      if(g?.at && !snapAts.has(g.at)){
+        multiPath[`garden/${g.at}`]=g;
+        summary.garden++;
+      }
+    }
+
+    // GARDEN ARCHIVE
+    const localArch=S.gardenArchive||{};
+    const snapArch=lastCloudSnap?.gardenArchive||{};
+    for(const period of Object.keys(localArch)){
+      if(JSON.stringify(localArch[period])!==JSON.stringify(snapArch[period])){
+        multiPath[`gardenArchive/${period}`]=localArch[period];
+      }
+    }
+
+    // PETS
+    for(const k of PETS_KEYS){
+      const a=JSON.stringify(S[k]);
+      const b=JSON.stringify(lastCloudSnap?.[k]);
+      if(a!==b){multiPath[`pets/${k}`]=(S[k]===undefined?null:S[k]);summary.pets++;}
+    }
+    // SETTINGS
+    for(const k of SETTINGS_KEYS){
+      const a=JSON.stringify(S[k]);
+      const b=JSON.stringify(lastCloudSnap?.[k]);
+      if(a!==b){multiPath[`settings/${k}`]=(S[k]===undefined?null:S[k]);summary.settings++;}
+    }
+    // META (Math.max - only grow)
+    for(const k of META_KEYS){
+      const localVal=S[k]||0;
+      const snapVal=lastCloudSnap?.[k]||0;
+      if(localVal>snapVal){multiPath[`meta/${k}`]=localVal;summary.meta++;}
+    }
+
+    multiPath._schemaVersion=SCHEMA_VERSION;
+    multiPath.updatedAt=S.updatedAt;
+
+    const realChanges=Object.keys(multiPath).filter(k=>k!=='updatedAt'&&k!=='_schemaVersion'&&k!=='state/updatedAt').length;
+    if(realChanges===0&&lastCloudSnap)return;
+
+    syncLog('PUSH',{paths:summary,local:snapS()});
+    await update(dbRef,multiPath);
     lastCloudSnap=JSON.parse(JSON.stringify(S));
     setSync('cloud','已同步');
   }catch(e){syncLog('ERROR',{where:'saveSync',msg:e.message});setSync('err','錯誤');}
@@ -359,70 +442,73 @@ async function cloudPull(first){
       if(first)await saveSync();
       return;
     }
-    const c=snap.val();
-    if(!c.history||Array.isArray(c.history))c.history={};
-    const cloudNewer=isNewer(c);
-    syncLog('PULL',{result:cloudNewer?'cloud_newer_merging':'local_newer_skip',firstPull:first,cloud:snapC(c),local:snapS()});
-    if(cloudNewer){
-      // Cloud is more authoritative — merge it in
-      const histBefore=Object.keys(S.history||{}).length;
-      for(const k of Object.keys(c)){S[k]=c[k];}
-      const histAfter=Object.keys(S.history||{}).length;
-      if(histBefore!==histAfter)syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore});
-      const rolled=maybeRollover(S);
-      if(rolled)syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'mini-cloudPull'});
-      // Same critical fix: lastCloudSnap = cloud's actual state, not local S.
-      // After rollover, S may have an extra day that's NOT in cloud yet.
-      lastCloudSnap=JSON.parse(JSON.stringify(c));
-      saveLocal();
-      render();
-      if(rolled)saveSync();
-    }else if(first){
-      // Defensive union merge on first pull — never lose history
-      const localHist=S.history||{};
-      const cloudHist=c.history||{};
-      const mergedHist={...localHist,...cloudHist};
-      const histBefore=Object.keys(localHist).length;
-      const histAfter=Object.keys(mergedHist).length;
-      if(histAfter!==histBefore){
-        syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore,trigger:'mini-firstPull-defensive'});
+    const rawCloud=snap.val();
+    const cn=normalizeCloudSnap(rawCloud);
+    const flatCloud=flattenCloudForSnap(cn);
+
+    const cloudHistN=Object.keys(cn.history).length;
+    const localHistN=Object.keys(S.history||{}).length;
+    const cloudUA=cn.state.updatedAt||0;
+    const localUA=S.updatedAt||0;
+
+    syncLog('PULL',{result:'v2',firstPull:first,schema:cn._schemaVersion,cloud:{histN:cloudHistN,lD:cn.state.lastDate,uA:cloudUA},local:snapS()});
+
+    // HISTORY union + Math.max (never shrinks)
+    const mergedHist={...(S.history||{})};
+    for(const day of Object.keys(cn.history)){
+      mergedHist[day]=mergeDayMax(mergedHist[day],cn.history[day]);
+    }
+    if(Object.keys(mergedHist).length!==localHistN){
+      syncLog('MERGE',{histBefore:localHistN,histAfter:Object.keys(mergedHist).length,delta:Object.keys(mergedHist).length-localHistN,trigger:'mini-v2'});
+    }
+    S.history=mergedHist;
+
+    // STATE last-write-wins
+    if(cloudUA>localUA){
+      for(const k of STATE_KEYS) if(k in cn.state) S[k]=cn.state[k];
+      for(const k of SETTINGS_KEYS) if(k in cn.settings) S[k]=cn.settings[k];
+      for(const k of PETS_KEYS){
+        if(k in cn.pets){
+          if(typeof cn.pets[k]==='number') S[k]=Math.max(S[k]||0,cn.pets[k]||0);
+          else S[k]=cn.pets[k];
+        }
       }
-      S.history=mergedHist;
-      // CRITICAL: lastCloudSnap must reflect what's ACTUALLY in cloud — NOT mergedHist.
-      // Otherwise saveSync will think history is already synced and skip pushing the
-      // missing days, leaving cloud incomplete while local has more data.
-      lastCloudSnap=JSON.parse(JSON.stringify(c));
-      const rolled=maybeRollover(S);
-      if(rolled)syncLog('ROLLOVER',{from:'local-only',to:S.lastDate,trigger:'mini-firstPull-local-newer'});
-      saveLocal();
-      render();
-      await saveSync();
+      S.updatedAt=cloudUA;
     }else{
-      // Not first pull, local same/newer — just update lastCloudSnap so next saveSync diffs work
-      lastCloudSnap=JSON.parse(JSON.stringify(c));
+      for(const k of PETS_KEYS){
+        if(k in cn.pets && typeof cn.pets[k]==='number'){
+          S[k]=Math.max(S[k]||0,cn.pets[k]||0);
+        }
+      }
+    }
+
+    // META: Math.max
+    for(const k of META_KEYS){
+      if(k in cn.meta) S[k]=Math.max(S[k]||0,cn.meta[k]||0);
+    }
+
+    // GARDEN union by `at`
+    const cloudGarden=flatCloud.garden||[];
+    const gardenMap=new Map();
+    for(const g of (S.garden||[])){if(g?.at)gardenMap.set(g.at,g);}
+    for(const g of cloudGarden){if(g?.at && !gardenMap.has(g.at))gardenMap.set(g.at,g);}
+    S.garden=Array.from(gardenMap.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+
+    S.gardenArchive={...(cn.gardenArchive||{}),...(S.gardenArchive||{})};
+
+    const rolled=maybeRollover(S);
+    if(rolled)syncLog('ROLLOVER',{from:cn.state.lastDate,to:S.lastDate,trigger:'mini-cloudPull-v2'});
+
+    lastCloudSnap=flatCloud;
+    saveLocal();
+    render();
+    if(rolled || Object.keys(S.history||{}).length>cloudHistN){
+      await saveSync();
     }
   }catch(e){
     syncLog('ERROR',{where:'mini-cloudPull',msg:e.message});
     setSync('err','錯誤');
   }
-}
-function isNewer(c){
-  const cN=Object.keys(c.history||{}).length;
-  const lN=Object.keys(S.history||{}).length;
-  // Layer 0 (HIGHEST PRIORITY): if local has way more history days, don't trust cloud
-  if(lN>=cN+2)return false;
-  // Layer 1: cloud has more history days → trust cloud
-  if(cN>=lN+1)return true;
-  // Layer 2: cloud lastDate is later → trust cloud
-  if(c.lastDate&&S.lastDate&&c.lastDate!==S.lastDate){
-    const cd=new Date(c.lastDate),ld=new Date(S.lastDate);
-    if(cd>ld)return true;
-  }
-  // Layer 3: standard updatedAt compare
-  const ct=c.updatedAt,lt=S.updatedAt;
-  if(ct&&lt)return ct>lt;
-  if(ct&&!lt)return true;
-  return false;
 }
 
 document.getElementById('loginBtn').addEventListener('click',async()=>{
