@@ -18,6 +18,11 @@ body{overflow-x:hidden;}
 .topbar{position:fixed;top:0;left:0;right:0;z-index:50;height:48px;background:#0c1810ee;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 12px;gap:8px;}
 body{padding-top:48px;}
 .topbar .tb-title{font-family:'Fredoka',sans-serif;font-size:calc(14px * var(--fs));color:var(--green-light);font-weight:700;white-space:nowrap;flex-shrink:0;}
+.topbar .tb-ver{display:inline-block;margin-left:4px;padding:1px 6px;background:var(--gold);color:#1a3a1a;border-radius:8px;font-size:calc(9px * var(--fs));font-weight:900;font-family:'Fredoka',monospace;vertical-align:middle;letter-spacing:0.3px;}
+/* Menu version row — shown at top of settings dropdown so mobile users can confirm which build they're on */
+.menu-ver-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;margin-bottom:10px;background:var(--card-alt);border-radius:8px;font-size:11px;}
+.menu-ver-row .mv-label{color:var(--text-dim);font-weight:700;}
+.menu-ver-row .mv-badge{padding:2px 9px;background:var(--gold);color:#1a3a1a;border-radius:8px;font-size:11px;font-weight:900;font-family:'Fredoka',monospace;letter-spacing:0.3px;}
 .tb-chips{display:flex;gap:6px;margin:0 auto;}
 .tb-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .topbar .tb-chip{background:var(--card);border-radius:6px;padding:3px 7px;font-size:calc(11px * var(--fs));color:var(--text-dim);display:flex;align-items:center;gap:3px;white-space:nowrap;}
@@ -809,7 +814,7 @@ body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card
 
 <!-- TOP BAR -->
 <div class="topbar">
-  <div class="tb-title">🌱 起來動一動</div>
+  <div class="tb-title">🌱 起來動一動 <span class="tb-ver" id="tbVer">v2</span></div>
   <div class="tb-chips">
     <div class="tb-chip"><span>🪑</span><span class="v on" id="tbTimer">0m</span></div>
     <div class="tb-chip"><span>站</span><span class="v" id="tbStand">3/5</span></div>
@@ -829,6 +834,10 @@ body:not([class*="theme-"]) .snack-card.over-limit,body.theme-kawaii .snack-card
 <!-- SETTINGS DROPDOWN (attached to top bar) -->
 <div class="menu-overlay" id="menuOverlay"></div>
 <div class="menu-dropdown" id="menuDropdown">
+  <div class="menu-ver-row" id="menuVerRow">
+    <span class="mv-label">版本</span>
+    <span class="mv-badge" id="menuVer">v2</span>
+  </div>
   <div class="menu-section" id="menuQuick" style="display:none;">
     <button class="quick-undo" id="quickUndoBtn">↩️ 取消剛才那次站起</button>
   </div>
@@ -1957,6 +1966,15 @@ window.handleLogin=async()=>{
 // This prevents the historical "one device pushes incomplete root, overwriting cloud" bug.
 
 const SCHEMA_VERSION=2;
+// App build identifier — bump this whenever sync logic changes so user can verify which version is loaded.
+// Shown in the topbar badge. Format: v{schema}.{rev}-{date}
+const APP_VERSION='v2.0-0519';
+// Update the topbar + menu badges with the version string on load
+(function(){
+  const v=APP_VERSION;
+  const d=document.getElementById('tbVer'); if(d) d.textContent=v;
+  const m=document.getElementById('menuVer'); if(m) m.textContent=v;
+})();
 // Keys that live under state/ (session-level, last-write-wins)
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 // Keys under pets/ (pet progress, last-write-wins)
