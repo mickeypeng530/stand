@@ -14,6 +14,7 @@ body{padding:5px 7px;font-size:11px;user-select:none;min-width:200px;}
 /* Header bar */
 .hdr{display:flex;align-items:center;gap:4px;padding:1px 0 3px;}
 .hdr .title{font-family:'Fredoka',sans-serif;font-size:11px;font-weight:700;color:var(--green-light);}
+.hdr .mini-ver{display:inline-block;margin-left:3px;padding:0 5px;background:var(--gold,#ffd54f);color:#1a3a1a;border-radius:6px;font-size:9px;font-weight:900;font-family:'Fredoka',monospace;letter-spacing:0.3px;}
 .hdr .spacer{flex:1;}
 .hdr .sync{font-size:9px;padding:1px 4px;border-radius:3px;background:var(--card);color:var(--green-light);border:1px solid #2e7d3244;}
 .hdr .sync.off{color:var(--gold);border-color:#ff700344;}
@@ -74,7 +75,7 @@ body.theme-mario{--bg:#b8e0f7;--card:#fef6e4;--card-alt:#fdecd2;--green:#e52521;
 </head>
 <body>
 <div class="hdr">
-  <div class="title">🌱 Mini</div>
+  <div class="title">🌱 Mini <span class="mini-ver" id="miniVer">v2</span></div>
   <div class="sync off" id="sync" title="連線狀態">本地</div>
   <button id="loginBtn" class="tb-login" title="登入">👤</button>
   <button id="openMainBtn" title="開啟完整版">🖥</button>
@@ -243,6 +244,8 @@ let lastCloudSnap=null;
 function saveLocal(){try{localStorage.setItem('health_v6',JSON.stringify(S));}catch(e){}}
 // ===== V2 SCHEMA (same as index.html) =====
 const SCHEMA_VERSION=2;
+const APP_VERSION='v2.0-0519';
+(function(){const m=document.getElementById('miniVer'); if(m) m.textContent=APP_VERSION;})();
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
 const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart'];
