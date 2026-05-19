@@ -1837,46 +1837,99 @@ onAuthStateChanged(fbAuth,async u=>{
     // Set up realtime listener — triggers when cloud data changes from another device
     cloudListenerUnsub=onValue(dbRef,snap=>{
       if(!snap.exists())return;
-      const c=snap.val();
-      if(!c.history||Array.isArray(c.history))c.history={};
-      if(!Array.isArray(c.garden))c.garden=[];
       // Skip if cloudPull is in-flight (avoid race condition writing lastCloudSnap)
       if(_syncInFlight){
         syncLog('LISTENER',{result:'skipped_in_flight'});
         return;
       }
+      const rawCloud=snap.val();
+      const cn=normalizeCloudSnap(rawCloud);
+      const flatCloud=flattenCloudForSnap(cn);
+
       // Skip if this is our own recent write (prevent echo loops)
-      if(c.updatedAt&&S.updatedAt&&c.updatedAt<=S.updatedAt)return;
-      const cloudNewer=isCloudNewer(c);
-      syncLog('LISTENER',{result:cloudNewer?'cloud_newer_merging':'local_newer_skip',cloud:snapshotC(c),local:snapshotS()});
-      if(cloudNewer){
-        _syncInFlight=true;
-        try{
-          const wasInSession=S.inSession;
-          const histBefore=Object.keys(S.history||{}).length;
-          for(const k of Object.keys(c)){
-            S[k]=c[k];
-          }
-          const histAfter=Object.keys(S.history||{}).length;
-          if(histBefore!==histAfter)syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore,trigger:'listener'});
-          const rolled=maybeRollover(S);
-          if(rolled){
-            syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'listener'});
-            processPendingRolloverEffects();
-          }
-          // Same fix as cloudPull: lastCloudSnap reflects cloud's actual state, not local.
-          // If rollover added a day, cloudSave must push it (lastCloudSnap=c → diff detects it).
-          lastCloudSnap=JSON.parse(JSON.stringify(c));
-          saveLocal();
-          if(S.inSession!==wasInSession||S.inSession){
-            applySessionUI();
-            if(S.inSession)resumeSessionIfNeeded();
-          }
-          renderAll();
-          if(rolled)cloudSave();
-        }finally{
-          _syncInFlight=false;
+      const cloudUA=cn.state.updatedAt||rawCloud.updatedAt||0;
+      if(cloudUA&&S.updatedAt&&cloudUA<=S.updatedAt)return;
+
+      const cloudHistN=Object.keys(cn.history).length;
+      const localHistN=Object.keys(S.history||{}).length;
+      syncLog('LISTENER',{result:'v2-merge',schema:cn._schemaVersion,cloud:{histN:cloudHistN,lD:cn.state.lastDate,uA:cloudUA},local:snapshotS()});
+
+      _syncInFlight=true;
+      try{
+        const wasInSession=S.inSession;
+
+        // History: union + Math.max merge (never shrinks)
+        const mergedHist={...(S.history||{})};
+        for(const day of Object.keys(cn.history)){
+          mergedHist[day]=mergeDayMax(mergedHist[day],cn.history[day]);
         }
+        if(Object.keys(mergedHist).length!==localHistN){
+          syncLog('MERGE',{histBefore:localHistN,histAfter:Object.keys(mergedHist).length,delta:Object.keys(mergedHist).length-localHistN,trigger:'listener'});
+        }
+        S.history=mergedHist;
+
+        // State: cloud newer → adopt
+        if(cloudUA>(S.updatedAt||0)){
+          for(const k of STATE_KEYS){
+            if(k in cn.state) S[k]=cn.state[k];
+          }
+          for(const k of SETTINGS_KEYS){
+            if(k in cn.settings) S[k]=cn.settings[k];
+          }
+          for(const k of PETS_KEYS){
+            if(k in cn.pets){
+              if(typeof cn.pets[k]==='number'){
+                S[k]=Math.max(S[k]||0,cn.pets[k]||0);
+              }else{
+                S[k]=cn.pets[k];
+              }
+            }
+          }
+          S.updatedAt=cloudUA;
+        }else{
+          // Even if cloud not newer, take Math.max for pet counters
+          for(const k of PETS_KEYS){
+            if(k in cn.pets && typeof cn.pets[k]==='number'){
+              S[k]=Math.max(S[k]||0,cn.pets[k]||0);
+            }
+          }
+        }
+
+        // Meta: Math.max
+        for(const k of META_KEYS){
+          if(k in cn.meta){
+            S[k]=Math.max(S[k]||0,cn.meta[k]||0);
+          }
+        }
+
+        // Garden: union by `at`
+        const cloudGarden=flatCloud.garden||[];
+        const gardenMap=new Map();
+        for(const g of (S.garden||[])){if(g?.at)gardenMap.set(g.at,g);}
+        for(const g of cloudGarden){if(g?.at && !gardenMap.has(g.at))gardenMap.set(g.at,g);}
+        S.garden=Array.from(gardenMap.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+
+        // Garden archive: union
+        S.gardenArchive={...(cn.gardenArchive||{}),...(S.gardenArchive||{})};
+
+        const rolled=maybeRollover(S);
+        if(rolled){
+          syncLog('ROLLOVER',{from:cn.state.lastDate,to:S.lastDate,trigger:'listener-v2'});
+          processPendingRolloverEffects();
+        }
+
+        // lastCloudSnap reflects cloud's actual state (flat form)
+        lastCloudSnap=flatCloud;
+
+        saveLocal();
+        if(S.inSession!==wasInSession||S.inSession){
+          applySessionUI();
+          if(S.inSession)resumeSessionIfNeeded();
+        }
+        renderAll();
+        if(rolled)cloudSave();
+      }finally{
+        _syncInFlight=false;
       }
     });
   }else{
@@ -1892,6 +1945,70 @@ window.handleLogin=async()=>{
   else{try{await signInWithPopup(fbAuth,prov);}catch(e){console.warn('login failed',e);}}
 };
 
+// ===== V2 SCHEMA DEFINITIONS =====
+// Sync v2: data is partitioned into Firebase paths so that:
+//  - history/{day}: per-day path, NEVER shrinks (Math.max merge)
+//  - garden/{i}: per-item, append-only
+//  - gardenArchive/{period}: per-period, append-only
+//  - state/*: session state, last-write-wins
+//  - pets/*: pet progress, last-write-wins
+//  - settings/*: preferences, last-write-wins
+//  - meta/*: counters, Math.max merge
+// This prevents the historical "one device pushes incomplete root, overwriting cloud" bug.
+
+const SCHEMA_VERSION=2;
+// Keys that live under state/ (session-level, last-write-wins)
+const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
+// Keys under pets/ (pet progress, last-write-wins)
+const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
+// Keys under settings/ (user preferences)
+const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart'];
+// Keys under meta/ (counters; Math.max merge — never shrinks)
+const META_KEYS=['totalStands','totalWater','totalSnacks'];
+
+// Merge two day-entries via Math.max on every numeric field.
+// Used both at cloudPull (cloud day vs local day) and at sanity checks.
+function mergeDayMax(a,b){
+  if(!a)return b;
+  if(!b)return a;
+  return {
+    stands:Math.max(a.stands||0,b.stands||0),
+    water:Math.max(a.water||0,b.water||0),
+    waterMl:Math.max(a.waterMl||0,b.waterMl||0),
+    workTimeSec:Math.max(a.workTimeSec||0,b.workTimeSec||0),
+    longestSitSec:Math.max(a.longestSitSec||0,b.longestSitSec||0),
+    sessions:Math.max(a.sessions||0,b.sessions||0),
+    snack:Math.max(a.snack||0,b.snack||0),
+    over45Count:Math.max(a.over45Count||0,b.over45Count||0),
+    rested:!!(a.rested||b.rested),
+    overLongSit:!!(a.overLongSit||b.overLongSit)
+  };
+}
+
+// Extract legacy (v1) root-level fields into a fake "state" object for backward compat.
+// When we read cloud and find no state/ path, we treat the root itself as state.
+function extractLegacyState(c){
+  const s={};
+  for(const k of STATE_KEYS) if(k in c) s[k]=c[k];
+  s.updatedAt=c.updatedAt||0;
+  return s;
+}
+function extractLegacyPets(c){
+  const p={};
+  for(const k of PETS_KEYS) if(k in c) p[k]=c[k];
+  return p;
+}
+function extractLegacySettings(c){
+  const s={};
+  for(const k of SETTINGS_KEYS) if(k in c) s[k]=c[k];
+  return s;
+}
+function extractLegacyMeta(c){
+  const m={};
+  for(const k of META_KEYS) if(k in c) m[k]=c[k];
+  return m;
+}
+
 // Track last state written to / synced from cloud (for diff-based writes)
 let lastCloudSnap=null;
 // Mutex flag: prevents listener and cloudPull from both writing lastCloudSnap concurrently
@@ -1901,62 +2018,104 @@ async function cloudSave(){
   if(!dbRef)return;
   try{
     S.updatedAt=Date.now();
-    const patch={updatedAt:S.updatedAt};
     const multiPath={};
-    let histChangedDays=0;
+    const summary={state:0,history:0,pets:0,settings:0,meta:0,garden:0};
+
+    // === STATE ===
+    for(const k of STATE_KEYS){
+      const a=JSON.stringify(S[k]);
+      const b=JSON.stringify(lastCloudSnap?.[k]);
+      if(a!==b){
+        multiPath[`state/${k}`]=(S[k]===undefined?null:S[k]);
+        summary.state++;
+      }
+    }
+    multiPath['state/updatedAt']=S.updatedAt;
+
+    // === HISTORY (per-day) ===
+    const localHist=S.history||{};
+    const snapHist=lastCloudSnap?.history||{};
+    for(const day of Object.keys(localHist)){
+      if(JSON.stringify(localHist[day])!==JSON.stringify(snapHist[day])){
+        multiPath[`history/${day}`]=localHist[day];
+        summary.history++;
+      }
+    }
+    // Sanity check: any local day missing from snap → force push
     if(lastCloudSnap){
-      for(const k of Object.keys(S)){
-        const a=JSON.stringify(S[k]);
-        const b=JSON.stringify(lastCloudSnap[k]);
-        if(a===b)continue;
-        if(k==='history'){
-          const oldH=lastCloudSnap.history||{};
-          const newH=S.history||{};
-          for(const day of Object.keys(newH)){
-            if(JSON.stringify(newH[day])!==JSON.stringify(oldH[day])){
-              multiPath[`history/${day}`]=newH[day];
-              histChangedDays++;
-            }
-          }
-          for(const day of Object.keys(oldH)){
-            if(!(day in newH)){
-              multiPath[`history/${day}`]=null;
-              histChangedDays++;
-            }
-          }
-        }else{
-          patch[k]=S[k];
+      const missing=Object.keys(localHist).filter(d=>!(d in snapHist));
+      for(const day of missing){
+        if(!(`history/${day}` in multiPath)){
+          multiPath[`history/${day}`]=localHist[day];
+          summary.history++;
+          syncLog('SANITY_PUSH',{day});
         }
       }
-      // SANITY CHECK: if S has history days that lastCloudSnap doesn't, force push them.
-      // This catches the case where a race (concurrent listener/cloudPull/saveSync) leaves
-      // lastCloudSnap accidentally containing the locally-rolled-over day, so per-day diff
-      // misses the new day. Defense in depth — better to push redundantly than lose data.
-      const localDays=Object.keys(S.history||{});
-      const snapDays=Object.keys(lastCloudSnap.history||{});
-      if(localDays.length>snapDays.length){
-        const missingDays=localDays.filter(d=>!snapDays.includes(d));
-        for(const day of missingDays){
-          if(!multiPath[`history/${day}`]){
-            multiPath[`history/${day}`]=S.history[day];
-            histChangedDays++;
-            syncLog('SANITY_PUSH',{day,reason:'history-day-missing-from-snap'});
-          }
-        }
-      }
-      if(Object.keys(patch).length===1&&Object.keys(multiPath).length===0){
-        return;
-      }
-    }else{
-      Object.assign(patch,S);
-      histChangedDays=Object.keys(S.history||{}).length;
     }
-    const fieldsChanged=Object.keys(patch).filter(k=>k!=='updatedAt');
-    syncLog('PUSH',{fieldsChanged,histChangedDays,local:snapshotS()});
-    await update(dbRef,patch);
-    if(Object.keys(multiPath).length>0){
-      await update(dbRef,multiPath);
+
+    // === GARDEN (per-index, append-only — never overwrite existing items) ===
+    const localGarden=S.garden||[];
+    const snapGarden=lastCloudSnap?.garden||[];
+    // Build a Set of `at` values from snap for fast lookup (each garden item has unique `at`)
+    const snapAts=new Set(snapGarden.map(g=>g?.at).filter(Boolean));
+    for(const g of localGarden){
+      if(g?.at && !snapAts.has(g.at)){
+        // New item → add it (use timestamp-as-key for stable identity)
+        multiPath[`garden/${g.at}`]=g;
+        summary.garden++;
+      }
     }
+
+    // === GARDEN ARCHIVE (per-period) ===
+    const localArch=S.gardenArchive||{};
+    const snapArch=lastCloudSnap?.gardenArchive||{};
+    for(const period of Object.keys(localArch)){
+      if(JSON.stringify(localArch[period])!==JSON.stringify(snapArch[period])){
+        multiPath[`gardenArchive/${period}`]=localArch[period];
+      }
+    }
+
+    // === PETS ===
+    for(const k of PETS_KEYS){
+      const a=JSON.stringify(S[k]);
+      const b=JSON.stringify(lastCloudSnap?.[k]);
+      if(a!==b){
+        multiPath[`pets/${k}`]=(S[k]===undefined?null:S[k]);
+        summary.pets++;
+      }
+    }
+
+    // === SETTINGS ===
+    for(const k of SETTINGS_KEYS){
+      const a=JSON.stringify(S[k]);
+      const b=JSON.stringify(lastCloudSnap?.[k]);
+      if(a!==b){
+        multiPath[`settings/${k}`]=(S[k]===undefined?null:S[k]);
+        summary.settings++;
+      }
+    }
+
+    // === META (Math.max — never shrink) ===
+    for(const k of META_KEYS){
+      const localVal=S[k]||0;
+      const snapVal=lastCloudSnap?.[k]||0;
+      if(localVal>snapVal){
+        multiPath[`meta/${k}`]=localVal;
+        summary.meta++;
+      }
+    }
+
+    multiPath._schemaVersion=SCHEMA_VERSION;
+    multiPath.updatedAt=S.updatedAt;
+
+    // If nothing changed (only updatedAt + _schemaVersion), skip
+    const realChanges=Object.keys(multiPath).filter(k=>k!=='updatedAt'&&k!=='_schemaVersion'&&k!=='state/updatedAt').length;
+    if(realChanges===0&&lastCloudSnap){
+      return;
+    }
+
+    syncLog('PUSH',{paths:summary,local:snapshotS()});
+    await update(dbRef,multiPath);
     lastCloudSnap=JSON.parse(JSON.stringify(S));
     setSyncChip('cloud','已同步');
   }catch(e){
@@ -1996,6 +2155,48 @@ function isCloudNewer(c){
   return cloudTotal>localTotal;
 }
 
+// Normalize cloud snapshot: if it's still v1 (no `state` subkey), wrap legacy root fields
+// as if they were in state/. This lets v2 code read both v1 and v2 cloud data.
+function normalizeCloudSnap(c){
+  c=c||{};
+  const isV2=(c._schemaVersion||0)>=2 || !!c.state;
+  const norm={
+    _schemaVersion:c._schemaVersion||(isV2?2:1),
+    state:isV2?(c.state||{}):extractLegacyState(c),
+    history:c.history||{},
+    garden:isV2?(c.garden||{}):(Array.isArray(c.garden)?Object.fromEntries((c.garden||[]).map(g=>g?.at?[g.at,g]:null).filter(Boolean)):{}),
+    gardenArchive:c.gardenArchive||{},
+    pets:isV2?(c.pets||{}):extractLegacyPets(c),
+    settings:isV2?(c.settings||{}):extractLegacySettings(c),
+    meta:isV2?(c.meta||{}):extractLegacyMeta(c)
+  };
+  // history may have legacy null fields → strip
+  if(Array.isArray(norm.history))norm.history={};
+  return norm;
+}
+
+// Build a "synthetic" cloud snapshot in the same shape S uses (flat), for diff purposes.
+function flattenCloudForSnap(norm){
+  const flat={};
+  // state
+  for(const k of STATE_KEYS) if(k in norm.state) flat[k]=norm.state[k];
+  flat.updatedAt=norm.state.updatedAt||0;
+  // pets, settings, meta
+  for(const k of PETS_KEYS) if(k in norm.pets) flat[k]=norm.pets[k];
+  for(const k of SETTINGS_KEYS) if(k in norm.settings) flat[k]=norm.settings[k];
+  for(const k of META_KEYS) if(k in norm.meta) flat[k]=norm.meta[k];
+  // history
+  flat.history=norm.history||{};
+  // garden: convert {at: g} dict back to sorted array
+  if(typeof norm.garden==='object'&&!Array.isArray(norm.garden)){
+    flat.garden=Object.values(norm.garden).sort((a,b)=>(a?.at||0)-(b?.at||0));
+  }else{
+    flat.garden=norm.garden||[];
+  }
+  flat.gardenArchive=norm.gardenArchive||{};
+  return flat;
+}
+
 async function cloudPull(firstPull){
   if(!dbRef)return;
   if(_syncInFlight){
@@ -2010,71 +2211,100 @@ async function cloudPull(firstPull){
       if(firstPull)await cloudSave();
       return;
     }
-    const c=snap.val();
-    if(!c.history||Array.isArray(c.history))c.history={};
-    if(!Array.isArray(c.garden))c.garden=[];
-    const cloudNewer=isCloudNewer(c);
-    syncLog('PULL',{result:cloudNewer?'cloud_newer_merging':'local_newer_skip',firstPull,cloud:snapshotC(c),local:snapshotS()});
+    const rawCloud=snap.val();
+    const cn=normalizeCloudSnap(rawCloud);
+    const flatCloud=flattenCloudForSnap(cn);
 
-    if(cloudNewer){
-      const wasInSession=S.inSession;
-      const histBefore=Object.keys(S.history||{}).length;
-      for(const k of Object.keys(c)){
-        S[k]=c[k];
+    // Compute deltas BEFORE any mutation
+    const cloudHistN=Object.keys(cn.history).length;
+    const localHistN=Object.keys(S.history||{}).length;
+    const cloudStateUpdated=cn.state.updatedAt||0;
+    const localStateUpdated=S.updatedAt||0;
+
+    syncLog('PULL',{result:'v2',firstPull,schema:cn._schemaVersion,cloud:{histN:cloudHistN,lD:cn.state.lastDate,uA:cloudStateUpdated},local:snapshotS()});
+
+    // === HISTORY: union + Math.max merge (NEVER shrinks) ===
+    const mergedHist={...(S.history||{})};
+    for(const day of Object.keys(cn.history)){
+      mergedHist[day]=mergeDayMax(mergedHist[day],cn.history[day]);
+    }
+    const mergedHistN=Object.keys(mergedHist).length;
+    if(mergedHistN!==localHistN){
+      syncLog('MERGE',{histBefore:localHistN,histAfter:mergedHistN,delta:mergedHistN-localHistN,trigger:firstPull?'firstPull':'pull'});
+    }
+    S.history=mergedHist;
+
+    // === STATE: last-write-wins by state.updatedAt ===
+    let stateChanged=false;
+    const wasInSession=S.inSession;
+    if(cloudStateUpdated>localStateUpdated){
+      for(const k of STATE_KEYS){
+        if(k in cn.state) S[k]=cn.state[k];
       }
-      const histAfter=Object.keys(S.history||{}).length;
-      if(histBefore!==histAfter)syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore});
-      const rolled=maybeRollover(S);
-      if(rolled){
-        syncLog('ROLLOVER',{from:c.lastDate,to:S.lastDate,trigger:'cloudPull'});
-        processPendingRolloverEffects();
+      S.updatedAt=cloudStateUpdated;
+      stateChanged=true;
+    }
+
+    // === PETS: take cloud if it has data we don't ===
+    for(const k of PETS_KEYS){
+      if(k in cn.pets && cn.pets[k]!==undefined){
+        // For numeric counters use Math.max; for species/index strings use cloud if newer state
+        if(typeof cn.pets[k]==='number'){
+          S[k]=Math.max(S[k]||0,cn.pets[k]||0);
+        }else if(cloudStateUpdated>localStateUpdated){
+          S[k]=cn.pets[k];
+        }
       }
-      // CRITICAL: lastCloudSnap = cloud's actual state (c), NOT S.
-      // If maybeRollover added a day to S.history, that day is NOT yet in cloud.
-      // Setting lastCloudSnap=S would make cloudSave think history is in sync
-      // and skip pushing the newly-rolled-over day, causing data loss.
-      lastCloudSnap=JSON.parse(JSON.stringify(c));
-      saveLocal();
-      if(S.inSession!==wasInSession||S.inSession){
-        applySessionUI();
-        if(S.inSession)resumeSessionIfNeeded();
+    }
+
+    // === SETTINGS: last-write-wins (use state.updatedAt as proxy) ===
+    if(cloudStateUpdated>localStateUpdated){
+      for(const k of SETTINGS_KEYS){
+        if(k in cn.settings) S[k]=cn.settings[k];
       }
-      renderAll();
-      if(rolled)cloudSave();
-    }else if(firstPull){
-      // Defensive merge: even if local updatedAt looks newer, ALWAYS merge cloud's
-      // history into local on the first pull. Reasoning: stale localStorage from a
-      // long-unopened device can have higher updatedAt (from background saveLocal)
-      // but missing many days. Cloud's history is the source of truth.
-      const histBefore=Object.keys(S.history||{}).length;
-      const cloudHist=c.history||{};
-      const localHist=S.history||{};
-      // Union: keep all days from both sides, prefer cloud's value if conflict
-      const mergedHist={...localHist,...cloudHist};
-      const histAfter=Object.keys(mergedHist).length;
-      if(histAfter!==histBefore){
-        syncLog('MERGE',{histBefore,histAfter,delta:histAfter-histBefore,trigger:'firstPull-defensive'});
+    }
+
+    // === META: Math.max — never shrink ===
+    for(const k of META_KEYS){
+      if(k in cn.meta){
+        S[k]=Math.max(S[k]||0,cn.meta[k]||0);
       }
-      S.history=mergedHist;
-      // Also defensively merge garden archive (rare, but same principle)
-      if(c.gardenArchive){
-        S.gardenArchive={...(S.gardenArchive||{}),...c.gardenArchive};
-      }
-      // CRITICAL: lastCloudSnap must reflect cloud's ACTUAL state, NOT the locally merged version.
-      // Otherwise cloudSave will think history is already in sync and skip pushing
-      // the locally-only days, leaving cloud incomplete.
-      lastCloudSnap=JSON.parse(JSON.stringify(c));
-      const rolled=maybeRollover(S);
-      if(rolled){
-        syncLog('ROLLOVER',{from:'local-only',to:S.lastDate,trigger:'cloudPull-local-newer'});
-        processPendingRolloverEffects();
-      }
-      saveLocal();
-      renderAll();
+    }
+
+    // === GARDEN: union by `at` timestamp ===
+    const cloudGarden=flatCloud.garden||[];
+    const gardenMap=new Map();
+    for(const g of (S.garden||[])){if(g?.at)gardenMap.set(g.at,g);}
+    for(const g of cloudGarden){if(g?.at && !gardenMap.has(g.at))gardenMap.set(g.at,g);}
+    const mergedGarden=Array.from(gardenMap.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+    if(mergedGarden.length!==(S.garden||[]).length){
+      syncLog('GARDEN_MERGE',{before:(S.garden||[]).length,after:mergedGarden.length});
+    }
+    S.garden=mergedGarden;
+
+    // === GARDEN ARCHIVE: union ===
+    S.gardenArchive={...(cn.gardenArchive||{}),...(S.gardenArchive||{})};
+
+    // === Run rollover after merge ===
+    const rolled=maybeRollover(S);
+    if(rolled){
+      syncLog('ROLLOVER',{from:cn.state.lastDate,to:S.lastDate,trigger:'cloudPull-v2'});
+      processPendingRolloverEffects();
+    }
+
+    // Update lastCloudSnap to reflect cloud's actual state (not S after merge)
+    lastCloudSnap=flatCloud;
+
+    saveLocal();
+    if(S.inSession!==wasInSession||S.inSession){
+      applySessionUI();
+      if(S.inSession)resumeSessionIfNeeded();
+    }
+    renderAll();
+
+    // If we rolled over OR have local-only data, push to cloud
+    if(rolled || mergedHistN>cloudHistN || mergedGarden.length>cloudGarden.length){
       await cloudSave();
-    }else{
-      // Local same/newer, NOT first pull — still record what cloud has so future diffs work
-      lastCloudSnap=JSON.parse(JSON.stringify(c));
     }
   }catch(e){
     syncLog('ERROR',{where:'cloudPull',msg:e.message});
