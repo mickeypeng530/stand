@@ -1968,7 +1968,7 @@ window.handleLogin=async()=>{
 const SCHEMA_VERSION=2;
 // App build identifier — bump this whenever sync logic changes so user can verify which version is loaded.
 // Shown in the topbar badge. Format: v{schema}.{rev}-{date}
-const APP_VERSION='v2.1-0519';
+const APP_VERSION='v2.2-0522';
 // Update the topbar + menu badges with the version string on load
 (function(){
   const v=APP_VERSION;
@@ -3261,15 +3261,17 @@ function fireNotif(text){
 // These are in the 800×350 reference coords
 // Coords match the 0-800 × 0-350 reference grid used by renderGarden's mapY.
 const FIXED_OBJECTS=[
-  // collideX/collideY overrides default — swing has small Y so plants can go just below
-  {x:64,  y:230, label:'swing',   collideX:55, collideY:30},  // 鞦韆 xp=8%, base y=230 (raised so plants below at y=290+ are OK)
-  {x:200, y:330, label:'rockL'},    // 左石頭 xp=25%
-  {x:384, y:320, label:'pond'},     // 池塘 xp=48%
-  {x:656, y:260, label:'sign',    collideX:60, collideY:35},  // 木牌 xp=82%
-  {x:736, y:325, label:'rockR'},    // 右石頭 xp=92%
+  // collideX/collideY tuned so plants can grow in front-of-swing + right-of-sign zones.
+  // Plant default collide: 88x38; pet default same. Per-object overrides below tighten the fixed-object
+  // boxes so plants don't get unfairly excluded from natural-looking spots.
+  {x:64,  y:230, label:'swing',   collideX:40, collideY:25},  // 鞦韆 — narrowed so plants can flank
+  {x:200, y:330, label:'rockL'},
+  {x:384, y:320, label:'pond',    collideX:80, collideY:30},  // 池塘 — Y narrowed so mid-zone plants OK around it
+  {x:656, y:260, label:'sign',    collideX:45, collideY:30},  // 木牌 — X narrowed so x>700 area is free
+  {x:736, y:325, label:'rockR',   collideX:50, collideY:28},  // 右石頭 — X narrowed so x∈[700,720] usable for sign-right plants
 ];
 // Default collision distance — both X and Y must be within these to count as collision
-const COLLIDE_X=88, COLLIDE_Y=38;
+const COLLIDE_X=70, COLLIDE_Y=32;
 
 function isColliding(x,y){
   // Check against fixed objects (with per-object overrides)
@@ -3294,11 +3296,27 @@ function randPos(zoneName,isPet){
   // Pets get tighter range: 100-700.
   const xMin=isPet?100:70;
   const xMax=isPet?700:740;
-  const pickX=()=>xMin+Math.random()*(xMax-xMin);
   const pickY=()=>z.yMin+Math.random()*(z.yMax-z.yMin);
-  // Try up to 20 times to find a non-colliding position
+  // pickX: weighted random — 25% bias toward "underused" zones (swing-front: x<120, sign-right: x>700).
+  // This compensates for the natural under-population of these areas: with uniform random they'd
+  // only get ~7% of plants each, leaving the swing and sign looking lonely. Plants are skipped (not biased)
+  // for pets because pets need more vertical room and tend to walk through clear areas.
+  const pickX=()=>{
+    if(!isPet && Math.random()<0.25){
+      // bias: 50/50 between left-of-swing-front and right-of-sign
+      if(Math.random()<0.5){
+        // swing-front region: x∈[70, 120] (just past xMin, within swing x-band)
+        return 70+Math.random()*50;
+      }else{
+        // sign-right region: x∈[700, 740]
+        return 700+Math.random()*40;
+      }
+    }
+    return xMin+Math.random()*(xMax-xMin);
+  };
+  // Try up to 20 times to find a non-colliding position.
   // Collision detection (FIXED_OBJECTS + existing garden items) naturally keeps items
-  // out of the swing/pond/sign zones, so we don't need to exclude those by x.
+  // out of the swing/pond/sign zones at their y-bands.
   for(let i=0;i<20;i++){
     const x=pickX(),y=pickY();
     if(!isColliding(x,y))return {x,y};
