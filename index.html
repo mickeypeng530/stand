@@ -1968,7 +1968,7 @@ window.handleLogin=async()=>{
 const SCHEMA_VERSION=2;
 // App build identifier — bump this whenever sync logic changes so user can verify which version is loaded.
 // Shown in the topbar badge. Format: v{schema}.{rev}-{date}
-const APP_VERSION='v2.2-0522';
+const APP_VERSION='v2.3-0601';
 // Update the topbar + menu badges with the version string on load
 (function(){
   const v=APP_VERSION;
@@ -2002,6 +2002,26 @@ function mergeDayMax(a,b){
     overLongSit:!!(a.overLongSit||b.overLongSit)
   };
 }
+
+// Normalize a day-entry to a canonical field set + order. Used when diffing local vs cloud
+// history so that cosmetic differences (missing field defaulting to 0, key order) don't trigger
+// a spurious "changed" verdict that re-pushes the entire history every save.
+function normDay(d){
+  d=d||{};
+  return {
+    stands:d.stands||0,
+    water:d.water||0,
+    waterMl:d.waterMl||0,
+    workTimeSec:d.workTimeSec||0,
+    longestSitSec:d.longestSitSec||0,
+    sessions:d.sessions||0,
+    snack:d.snack||0,
+    over45Count:d.over45Count||0,
+    rested:!!d.rested,
+    overLongSit:!!d.overLongSit
+  };
+}
+function dayEq(a,b){return JSON.stringify(normDay(a))===JSON.stringify(normDay(b));}
 
 // Extract legacy (v1) root-level fields into a fake "state" object for backward compat.
 // When we read cloud and find no state/ path, we treat the root itself as state.
@@ -2054,7 +2074,7 @@ async function cloudSave(){
     const localHist=S.history||{};
     const snapHist=lastCloudSnap?.history||{};
     for(const day of Object.keys(localHist)){
-      if(JSON.stringify(localHist[day])!==JSON.stringify(snapHist[day])){
+      if(!dayEq(localHist[day],snapHist[day])){
         multiPath[`history/${day}`]=localHist[day];
         summary.history++;
       }
