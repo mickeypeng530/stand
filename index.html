@@ -1709,14 +1709,11 @@ function maybeRollover(d){
     d._pendingSnackLevelCheck=true;
   }
   d.todaySnack=0;d.snackGoalMetToday=true;
-  // Cross-month archive (use the OLD date, not the one we just reset to today)
-  if(!d.autoArchiveDisabled){
-    const oldDate=new Date(oldLastDate);
-    const newDate=new Date(today);
-    const crossMonth=oldDate.getMonth()!==newDate.getMonth()||oldDate.getFullYear()!==newDate.getFullYear();
-    const crossYear=oldDate.getFullYear()!==newDate.getFullYear();
-    if(crossMonth)d._pendingGardenArchive=crossYear?'year':'month';
-  }
+  // NOTE: Garden archiving is NO LONGER triggered here. The old "compare oldLastDate vs today
+  // month" logic was fragile — if mini.html (which has no archive logic) rolled over first, it
+  // would advance lastDate and index would never see the month boundary. Archiving is now driven
+  // by checkMonthlyArchive() at init, comparing _gardenPeriodStart's month to the current month,
+  // which is independent of which app/device rolled the day over.
   d._rolledOver=true;
   return true;
 }
@@ -1910,13 +1907,12 @@ onAuthStateChanged(fbAuth,async u=>{
             S[k]=Math.max(S[k]||0,cn.meta[k]||0);
           }
         }
+        // archivedAt monotonic
+        S._gardenArchivedAt=Math.max(S._gardenArchivedAt||0,cn.settings._gardenArchivedAt||0);
 
         // Garden: union by `at`
         const cloudGarden=flatCloud.garden||[];
-        const gardenMap=new Map();
-        for(const g of (S.garden||[])){if(g?.at)gardenMap.set(g.at,g);}
-        for(const g of cloudGarden){if(g?.at && !gardenMap.has(g.at))gardenMap.set(g.at,g);}
-        S.garden=Array.from(gardenMap.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+        S.garden=mergeGarden(S.garden,cloudGarden,Math.max(S._gardenArchivedAt||0,cn.settings._gardenArchivedAt||0));
 
         // Garden archive: union
         S.gardenArchive={...(cn.gardenArchive||{}),...(S.gardenArchive||{})};
@@ -1968,7 +1964,7 @@ window.handleLogin=async()=>{
 const SCHEMA_VERSION=2;
 // App build identifier — bump this whenever sync logic changes so user can verify which version is loaded.
 // Shown in the topbar badge. Format: v{schema}.{rev}-{date}
-const APP_VERSION='v2.3-0601';
+const APP_VERSION='v2.4-0601';
 // Update the topbar + menu badges with the version string on load
 (function(){
   const v=APP_VERSION;
@@ -1980,9 +1976,34 @@ const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecT
 // Keys under pets/ (pet progress, last-write-wins)
 const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
 // Keys under settings/ (user preferences)
-const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart'];
+const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart','_gardenArchivedAt'];
 // Keys under meta/ (counters; Math.max merge — never shrinks)
 const META_KEYS=['totalStands','totalWater','totalSnacks'];
+
+// Merge local + cloud garden arrays into a union keyed by `at` timestamp, but RESPECT the
+// archive cutoff: items whose `at` is at/before _gardenArchivedAt that exist on only one side
+// are treated as intentionally-archived and dropped. This prevents a stale device (whose local
+// garden still holds last month's plants/pets) from resurrecting them via union-merge after an
+// archive cleared them. Items newer than the cutoff always union normally.
+function mergeGarden(localArr,cloudArr,archivedAt){
+  const cut=archivedAt||0;
+  const localAts=new Set((localArr||[]).map(g=>g?.at).filter(Boolean));
+  const cloudAts=new Set((cloudArr||[]).map(g=>g?.at).filter(Boolean));
+  const map=new Map();
+  const consider=(g,fromCloud)=>{
+    if(!g||!g.at)return;
+    // If this item predates the archive cutoff and is MISSING from the other side,
+    // it was archived/cleared there — don't resurrect it.
+    if(g.at<=cut){
+      const onOtherSide=fromCloud?localAts.has(g.at):cloudAts.has(g.at);
+      if(!onOtherSide)return; // skip — intentionally archived
+    }
+    if(!map.has(g.at))map.set(g.at,g);
+  };
+  for(const g of (localArr||[]))consider(g,false);
+  for(const g of (cloudArr||[]))consider(g,true);
+  return Array.from(map.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+}
 
 // Merge two day-entries via Math.max on every numeric field.
 // Used both at cloudPull (cloud day vs local day) and at sanity checks.
@@ -2301,6 +2322,8 @@ async function cloudPull(firstPull){
         if(k in cn.settings) S[k]=cn.settings[k];
       }
     }
+    // _gardenArchivedAt must never regress (it's a monotonic cutoff) — always take the max.
+    S._gardenArchivedAt=Math.max(S._gardenArchivedAt||0,cn.settings._gardenArchivedAt||0);
 
     // === META: Math.max — never shrink ===
     for(const k of META_KEYS){
@@ -2311,10 +2334,7 @@ async function cloudPull(firstPull){
 
     // === GARDEN: union by `at` timestamp ===
     const cloudGarden=flatCloud.garden||[];
-    const gardenMap=new Map();
-    for(const g of (S.garden||[])){if(g?.at)gardenMap.set(g.at,g);}
-    for(const g of cloudGarden){if(g?.at && !gardenMap.has(g.at))gardenMap.set(g.at,g);}
-    const mergedGarden=Array.from(gardenMap.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+    const mergedGarden=mergeGarden(S.garden,cloudGarden,Math.max(S._gardenArchivedAt||0,cn.settings._gardenArchivedAt||0));
     if(mergedGarden.length!==(S.garden||[]).length){
       syncLog('GARDEN_MERGE',{before:(S.garden||[]).length,after:mergedGarden.length});
     }
@@ -2330,6 +2350,10 @@ async function cloudPull(firstPull){
       processPendingRolloverEffects();
     }
 
+    // Monthly archive check using the now-synced _gardenPeriodStart (authoritative from cloud).
+    // Guard with _syncInFlight already held; archiveGardenPeriod mutates S.garden which we then push.
+    const archived=checkMonthlyArchive();
+
     // Update lastCloudSnap to reflect cloud's actual state (not S after merge)
     lastCloudSnap=flatCloud;
 
@@ -2339,9 +2363,10 @@ async function cloudPull(firstPull){
       if(S.inSession)resumeSessionIfNeeded();
     }
     renderAll();
+    if(archived)setTimeout(()=>showToast('📦 跨月：花園已歸檔，開始新的一月'),800);
 
-    // If we rolled over OR have local-only data, push to cloud
-    if(rolled || mergedHistN>cloudHistN || mergedGarden.length>cloudGarden.length){
+    // If we rolled over, archived, OR have local-only data, push to cloud
+    if(rolled || archived || mergedHistN>cloudHistN || mergedGarden.length>cloudGarden.length){
       await cloudSave();
     }
   }catch(e){
@@ -3104,19 +3129,24 @@ function renderGardenSnapshot(scene,items){
 
 // Manually archive current garden period (advanced action)
 window.archiveGardenNow=function(){
-  if(!confirm('立即歸檔本期花園？樹/花會清空，寵物 adult 保留。'))return;
-  archiveGardenPeriod(false);
+  if(!confirm('立即歸檔本期花園？所有植物與寵物都會清空並存入歷史，花園重新開始。'))return;
+  archiveGardenPeriod(true);
   renderAll();
   saveSync();
-  showToast('📦 已歸檔本期花園');
+  showToast('📦 已歸檔本期花園（植物+寵物）');
 };
 
-// Archive logic — called automatically on cross-month or manually
-// resetPets: true on cross-year (Jan 1), false otherwise
+// Archive logic — called automatically on cross-month or manually.
+// As of v2.4: pets are archived MONTHLY along with plants (garden fully resets each month).
+// The `resetPets` param is retained for API compatibility but no longer changes behavior —
+// every archive now fully clears the garden. Past pets are preserved in gardenArchive (snapshot).
 function archiveGardenPeriod(resetPets){
-  if(!S.garden||S.garden.length===0)return; // nothing to archive
+  if(!S.garden||S.garden.length===0){
+    // Even with an empty garden, advance the period marker so the month check doesn't re-fire.
+    S._gardenPeriodStart=Date.now();
+    return;
+  }
   const now=Date.now();
-  const monthKey=`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
   // Determine the archive key for the *previous* period
   const prevDate=new Date(S._gardenPeriodStart||S.firstUseAt||now);
   const prevKey=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
@@ -3124,17 +3154,34 @@ function archiveGardenPeriod(resetPets){
   S.gardenArchive[prevKey]={
     plantedAt:S._gardenPeriodStart||S.firstUseAt||now,
     archivedAt:now,
-    items:JSON.parse(JSON.stringify(S.garden)), // deep copy
+    items:JSON.parse(JSON.stringify(S.garden)), // deep copy — full snapshot incl. pets
     summary:summarizeGarden(S.garden)
   };
-  // Decide which items to keep — pets always survive cross-month, only cleared on cross-year
-  if(resetPets){
-    S.garden=[]; // full clear at year-end
-  }else{
-    // Keep pet adults only (filter out p-* trees/flowers/seedlings)
-    S.garden=S.garden.filter(g=>(g.svg||'').endsWith('-adult'));
-  }
+  // Monthly full reset: clear EVERYTHING (plants + pets). Pets retired monthly per user pref.
+  S.garden=[];
   S._gardenPeriodStart=now;
+  // Record archive cutoff so stale devices can't resurrect cleared items via garden union merge.
+  // Any garden item with `at` <= this timestamp that's missing locally was intentionally archived.
+  S._gardenArchivedAt=now;
+}
+
+// Period-based monthly archive check — runs at init, independent of day-rollover.
+// Compares the month of _gardenPeriodStart to the current month. If they differ, the garden
+// belongs to a previous month and should be archived. This is robust against mini.html rolling
+// the day over first (mini has no archive logic), because it doesn't rely on catching the exact
+// day-boundary moment — any time index opens in a new month, it archives.
+// Returns true if an archive happened.
+function checkMonthlyArchive(){
+  if(S.autoArchiveDisabled)return false;
+  if(!S._gardenPeriodStart)return false;
+  const start=new Date(S._gardenPeriodStart);
+  const now=new Date();
+  const sameMonth=start.getFullYear()===now.getFullYear()&&start.getMonth()===now.getMonth();
+  if(sameMonth)return false;
+  // Different month → archive the previous period's garden.
+  syncLog('AUTO_ARCHIVE',{periodStart:S._gardenPeriodStart,startMonth:`${start.getFullYear()}-${start.getMonth()+1}`,nowMonth:`${now.getFullYear()}-${now.getMonth()+1}`,gardenN:(S.garden||[]).length});
+  archiveGardenPeriod(true);
+  return true;
 }
 
 // ===== CUPS (water tracker) =====
@@ -4857,6 +4904,16 @@ processPendingRolloverEffects();
 // Set garden period start if missing (first time)
 if(!S._gardenPeriodStart){
   S._gardenPeriodStart=S.firstUseAt||Date.now();
+}
+// Monthly archive check — if the garden's period started in a prior month, archive it now.
+// Runs here at init (not in maybeRollover) so it's independent of which device rolled the day.
+// Note: at this point cloudPull may not have completed yet for logged-in users; the definitive
+// check also runs inside cloudPull after merge (see processMonthlyArchiveAfterSync).
+if(checkMonthlyArchive()){
+  saveLocal();
+  renderAll();
+  if(dbRef)cloudSave();
+  setTimeout(()=>showToast('📦 跨月：花園已歸檔，開始新的一月'),800);
 }
 // Backfill over45CountToday if longestSit ≥ 45m but count is 0 (e.g. tick missed it before this feature was added)
 if((S.longestSit||0)>=LONGEST_WARN_SEC&&(S.over45CountToday||0)===0){
