@@ -244,7 +244,7 @@ let lastCloudSnap=null;
 function saveLocal(){try{localStorage.setItem('health_v6',JSON.stringify(S));}catch(e){}}
 // ===== V2 SCHEMA (same as index.html) =====
 const SCHEMA_VERSION=2;
-const APP_VERSION='v2.2-0522';
+const APP_VERSION='v2.3-0601';
 (function(){const m=document.getElementById('miniVer'); if(m) m.textContent=APP_VERSION;})();
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
@@ -267,6 +267,11 @@ function mergeDayMax(a,b){
     overLongSit:!!(a.overLongSit||b.overLongSit)
   };
 }
+function normDay(d){
+  d=d||{};
+  return {stands:d.stands||0,water:d.water||0,waterMl:d.waterMl||0,workTimeSec:d.workTimeSec||0,longestSitSec:d.longestSitSec||0,sessions:d.sessions||0,snack:d.snack||0,over45Count:d.over45Count||0,rested:!!d.rested,overLongSit:!!d.overLongSit};
+}
+function dayEq(a,b){return JSON.stringify(normDay(a))===JSON.stringify(normDay(b));}
 function normalizeCloudSnap(c){
   c=c||{};
   const isV2=(c._schemaVersion||0)>=2 || !!c.state;
@@ -318,7 +323,7 @@ async function saveSync(){
     const localHist=S.history||{};
     const snapHist=lastCloudSnap?.history||{};
     for(const day of Object.keys(localHist)){
-      if(JSON.stringify(localHist[day])!==JSON.stringify(snapHist[day])){
+      if(!dayEq(localHist[day],snapHist[day])){
         multiPath[`history/${day}`]=localHist[day];
         summary.history++;
       }
@@ -503,6 +508,7 @@ async function cloudPull(first){
     if(!snap.exists()){
       syncLog('PULL',{result:'cloud_empty',firstPull:first,local:snapS()});
       if(first)await saveSync();
+      setSync('cloud','已同步');
       return;
     }
     const rawCloud=snap.val();
@@ -568,6 +574,9 @@ async function cloudPull(first){
     if(rolled || Object.keys(S.history||{}).length>cloudHistN){
       await saveSync();
     }
+    // Mark sync complete. Without this, when cloud is already up-to-date (no rollover,
+    // no extra local history), saveSync never runs and the chip stays stuck on "同步中".
+    setSync('cloud','已同步');
   }catch(e){
     syncLog('ERROR',{where:'mini-cloudPull',msg:e.message});
     setSync('err','錯誤');
