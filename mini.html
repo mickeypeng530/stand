@@ -122,6 +122,16 @@ import{getDatabase,ref,set,update,get,onValue}from"https://www.gstatic.com/fireb
 const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-scheduler-f752b.firebaseapp.com",databaseURL:"https://case-scheduler-f752b-default-rtdb.firebaseio.com",projectId:"case-scheduler-f752b",storageBucket:"case-scheduler-f752b.firebasestorage.app",messagingSenderId:"703006186929",appId:"1:703006186929:web:57ac5b059678005455f190"};
 const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),prov=new GoogleAuthProvider();
 
+// get() with a timeout — Firebase's get() has no built-in timeout, so on a flaky network
+// it can stay pending forever, leaving the sync chip stuck on "同步中". This rejects after
+// `ms` so callers can surface an error / retry instead of hanging.
+function getWithTimeout(r,ms=12000){
+  return Promise.race([
+    get(r),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))
+  ]);
+}
+
 // === CONSTANTS (must match main app) ===
 const SILENT=600,AWAY=3600,W_GOAL=12,ML=150;
 const SIT_STG=[{x:2},{x:3},{x:4},{x:5},{x:6},{x:7},{x:8},{x:0}];
@@ -244,13 +254,30 @@ let lastCloudSnap=null;
 function saveLocal(){try{localStorage.setItem('health_v6',JSON.stringify(S));}catch(e){}}
 // ===== V2 SCHEMA (same as index.html) =====
 const SCHEMA_VERSION=2;
-const APP_VERSION='v2.3-0601';
+const APP_VERSION='v2.4-0601';
 (function(){const m=document.getElementById('miniVer'); if(m) m.textContent=APP_VERSION;})();
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
-const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart'];
+const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart','_gardenArchivedAt'];
 const META_KEYS=['totalStands','totalWater','totalSnacks'];
 
+function mergeGarden(localArr,cloudArr,archivedAt){
+  const cut=archivedAt||0;
+  const localAts=new Set((localArr||[]).map(g=>g?.at).filter(Boolean));
+  const cloudAts=new Set((cloudArr||[]).map(g=>g?.at).filter(Boolean));
+  const map=new Map();
+  const consider=(g,fromCloud)=>{
+    if(!g||!g.at)return;
+    if(g.at<=cut){
+      const onOtherSide=fromCloud?localAts.has(g.at):cloudAts.has(g.at);
+      if(!onOtherSide)return;
+    }
+    if(!map.has(g.at))map.set(g.at,g);
+  };
+  for(const g of (localArr||[]))consider(g,false);
+  for(const g of (cloudArr||[]))consider(g,true);
+  return Array.from(map.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+}
 function mergeDayMax(a,b){
   if(!a)return b;
   if(!b)return a;
@@ -417,6 +444,7 @@ function updateLogin(u){
 // === AUTH ===
 let cloudUnsub=null;
 let _miniSyncInFlight=false;
+let _connMonitor=null;
 onAuthStateChanged(fbAuth,async u=>{
   fbUser=u;
   if(cloudUnsub){cloudUnsub();cloudUnsub=null;}
@@ -424,6 +452,19 @@ onAuthStateChanged(fbAuth,async u=>{
     dbRef=ref(fbDb,`health-tracker/${u.uid}`);
     updateLogin(u);
     setSync('cloud','同步中');
+    // Monitor real connection state. Firebase exposes /.info/connected (true/false).
+    // When the network drops the chip shows 離線; when it returns we re-pull.
+    if(!_connMonitor){
+      _connMonitor=onValue(ref(fbDb,'.info/connected'),s=>{
+        const connected=s.val()===true;
+        if(!connected){
+          setSync('off','離線');
+        }else if(dbRef){
+          // Reconnected — refresh from cloud so the chip recovers to 已同步.
+          cloudPull(false);
+        }
+      });
+    }
     await cloudPull(true);
     cloudUnsub=onValue(dbRef,snap=>{
       if(!snap.exists())return;
@@ -477,18 +518,17 @@ onAuthStateChanged(fbAuth,async u=>{
           if(k in cn.meta) S[k]=Math.max(S[k]||0,cn.meta[k]||0);
         }
 
-        // GARDEN union by `at`
+        // GARDEN union by `at` (respects archive cutoff to avoid resurrecting cleared items)
+        S._gardenArchivedAt=Math.max(S._gardenArchivedAt||0,cn.settings._gardenArchivedAt||0);
         const cloudGarden=flatCloud.garden||[];
-        const gardenMap=new Map();
-        for(const g of (S.garden||[])){if(g?.at)gardenMap.set(g.at,g);}
-        for(const g of cloudGarden){if(g?.at && !gardenMap.has(g.at))gardenMap.set(g.at,g);}
-        S.garden=Array.from(gardenMap.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+        S.garden=mergeGarden(S.garden,cloudGarden,S._gardenArchivedAt||0);
 
         S.gardenArchive={...(cn.gardenArchive||{}),...(S.gardenArchive||{})};
 
         lastCloudSnap=flatCloud;
         saveLocal();
         render();
+        setSync('cloud','已同步');
       }finally{
         _miniSyncInFlight=false;
       }
@@ -504,7 +544,7 @@ onAuthStateChanged(fbAuth,async u=>{
 async function cloudPull(first){
   if(!dbRef)return;
   try{
-    const snap=await get(dbRef);
+    const snap=await getWithTimeout(dbRef);
     if(!snap.exists()){
       syncLog('PULL',{result:'cloud_empty',firstPull:first,local:snapS()});
       if(first)await saveSync();
@@ -556,12 +596,10 @@ async function cloudPull(first){
       if(k in cn.meta) S[k]=Math.max(S[k]||0,cn.meta[k]||0);
     }
 
-    // GARDEN union by `at`
+    // GARDEN union by `at` (respects archive cutoff to avoid resurrecting cleared items)
+    S._gardenArchivedAt=Math.max(S._gardenArchivedAt||0,cn.settings._gardenArchivedAt||0);
     const cloudGarden=flatCloud.garden||[];
-    const gardenMap=new Map();
-    for(const g of (S.garden||[])){if(g?.at)gardenMap.set(g.at,g);}
-    for(const g of cloudGarden){if(g?.at && !gardenMap.has(g.at))gardenMap.set(g.at,g);}
-    S.garden=Array.from(gardenMap.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+    S.garden=mergeGarden(S.garden,cloudGarden,S._gardenArchivedAt||0);
 
     S.gardenArchive={...(cn.gardenArchive||{}),...(S.gardenArchive||{})};
 
@@ -577,11 +615,23 @@ async function cloudPull(first){
     // Mark sync complete. Without this, when cloud is already up-to-date (no rollover,
     // no extra local history), saveSync never runs and the chip stays stuck on "同步中".
     setSync('cloud','已同步');
+    _miniPullRetries=0;
   }catch(e){
-    syncLog('ERROR',{where:'mini-cloudPull',msg:e.message});
-    setSync('err','錯誤');
+    const isTimeout=e&&e.message==='timeout';
+    syncLog('ERROR',{where:'mini-cloudPull',msg:e.message,firstPull:first});
+    if(isTimeout && _miniPullRetries<3){
+      // Network hiccup — show retrying state and try again with backoff.
+      _miniPullRetries++;
+      setSync('off','連線中…');
+      setTimeout(()=>{ if(dbRef) cloudPull(first); }, 3000*_miniPullRetries);
+    }else{
+      // Give up after retries — show actionable state. The realtime listener may still
+      // recover on its own when the network returns, flipping the chip back to 已同步.
+      setSync('err', isTimeout?'離線':'錯誤');
+    }
   }
 }
+let _miniPullRetries=0;
 
 document.getElementById('loginBtn').addEventListener('click',async()=>{
   if(fbUser){if(confirm('登出？'))await signOut(fbAuth);}
