@@ -1964,7 +1964,7 @@ window.handleLogin=async()=>{
 const SCHEMA_VERSION=2;
 // App build identifier — bump this whenever sync logic changes so user can verify which version is loaded.
 // Shown in the topbar badge. Format: v{schema}.{rev}-{date}
-const APP_VERSION='v2.4-0601';
+const APP_VERSION='v2.5-0602';
 // Update the topbar + menu badges with the version string on load
 (function(){
   const v=APP_VERSION;
@@ -1976,7 +1976,7 @@ const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecT
 // Keys under pets/ (pet progress, last-write-wins)
 const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
 // Keys under settings/ (user preferences)
-const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart','_gardenArchivedAt'];
+const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart','_gardenArchivedAt','_gardenPeriodKey'];
 // Keys under meta/ (counters; Math.max merge — never shrinks)
 const META_KEYS=['totalStands','totalWater','totalSnacks'];
 
@@ -2002,7 +2002,12 @@ function mergeGarden(localArr,cloudArr,archivedAt){
   };
   for(const g of (localArr||[]))consider(g,false);
   for(const g of (cloudArr||[]))consider(g,true);
-  return Array.from(map.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+  // v2.5 structural guard: the live garden only ever contains the active period's plants.
+  // Anything planted before the current period start (e.g. stale local state from before a period
+  // switch) is dropped here — the hard wall that makes cross-period resurrection impossible.
+  return Array.from(map.values())
+    .filter(g=>inActivePeriod(g.at))
+    .sort((a,b)=>(a.at||0)-(b.at||0));
 }
 
 // Merge two day-entries via Math.max on every numeric field.
@@ -2112,15 +2117,18 @@ async function cloudSave(){
       }
     }
 
-    // === GARDEN (per-index, append-only — never overwrite existing items) ===
+    // === GARDEN (v2.5: namespaced by month — garden/{periodKey}/{at}) ===
+    // Append within the CURRENT period only. Past periods are never touched here, so archiving
+    // (advancing the period) needs no deletion. `lastCloudSnap.garden` holds only the current
+    // period's items (normalizeCloudSnap scopes it), so the diff stays correct across months.
+    const pKey=currentPeriodKey();
     const localGarden=S.garden||[];
     const snapGarden=lastCloudSnap?.garden||[];
-    // Build a Set of `at` values from snap for fast lookup (each garden item has unique `at`)
     const snapAts=new Set(snapGarden.map(g=>g?.at).filter(Boolean));
     for(const g of localGarden){
       if(g?.at && !snapAts.has(g.at)){
-        // New item → add it (use timestamp-as-key for stable identity)
-        multiPath[`garden/${g.at}`]=g;
+        // New item in the current period → write under the period namespace.
+        multiPath[`garden/${pKey}/${g.at}`]=g;
         summary.garden++;
       }
     }
@@ -2214,19 +2222,54 @@ function isCloudNewer(c){
   return cloudTotal>localTotal;
 }
 
+// v2.5: extract the active period's plants from the (possibly mixed-shape) cloud garden node.
+// rawGarden may contain: period keys ("2026-06" -> {at:g}) AND/OR legacy flat numeric keys
+// (at -> g) left over from v2.0–2.4. Returns a flat {at: g} dict for the active period only.
+// Legacy flat nodes are folded into the active period (one-time, so existing plants survive),
+// but ONLY if their `at` falls within the active month — stale older flats are ignored, which is
+// exactly what stops last month's plants from resurrecting.
+function scopeGardenToPeriod(rawGarden,activeKey,periodStart){
+  const out={};
+  if(!rawGarden||typeof rawGarden!=='object')return out;
+  const isPeriodKey=k=>/^\d{4}-\d{2}(-\d+)?$/.test(k);
+  for(const k of Object.keys(rawGarden)){
+    const v=rawGarden[k];
+    if(isPeriodKey(k)){
+      if(k===activeKey && v && typeof v==='object'){
+        for(const at of Object.keys(v)) if(v[at]) out[at]=v[at];
+      }
+      // other period keys = archived cycles → ignore for the live garden
+    }else{
+      // legacy flat node: key is the `at` timestamp. Keep only if planted in the active period.
+      const g=v;
+      if(g && g.at && (g.at>=(periodStart||0))) out[g.at]=g;
+    }
+  }
+  return out;
+}
+
 // Normalize cloud snapshot: if it's still v1 (no `state` subkey), wrap legacy root fields
 // as if they were in state/. This lets v2 code read both v1 and v2 cloud data.
 function normalizeCloudSnap(c){
   c=c||{};
   const isV2=(c._schemaVersion||0)>=2 || !!c.state;
+  const settings=isV2?(c.settings||{}):extractLegacySettings(c);
+  // v2.5: garden is namespaced by month — c.garden = {periodKey: {at: g}}.
+  // Scope to the active period (from cloud's _gardenPeriodStart). Also absorb any LEGACY nodes:
+  //  - v1: c.garden is an array
+  //  - v2.0–2.4: c.garden is a flat {at: g} dict (numeric keys) with no period nesting
+  // Legacy nodes get folded into the active period so existing plants survive migration.
+  const activeKey=settings._gardenPeriodKey || periodKeyFrom(settings._gardenPeriodStart);
+  const rawGarden=isV2?(c.garden||{}):(Array.isArray(c.garden)?Object.fromEntries((c.garden||[]).map(g=>g?.at?[g.at,g]:null).filter(Boolean)):{});
+  const scopedGarden=scopeGardenToPeriod(rawGarden,activeKey,settings._gardenPeriodStart);
   const norm={
     _schemaVersion:c._schemaVersion||(isV2?2:1),
     state:isV2?(c.state||{}):extractLegacyState(c),
     history:c.history||{},
-    garden:isV2?(c.garden||{}):(Array.isArray(c.garden)?Object.fromEntries((c.garden||[]).map(g=>g?.at?[g.at,g]:null).filter(Boolean)):{}),
+    garden:scopedGarden,
     gardenArchive:c.gardenArchive||{},
     pets:isV2?(c.pets||{}):extractLegacyPets(c),
-    settings:isV2?(c.settings||{}):extractLegacySettings(c),
+    settings:settings,
     meta:isV2?(c.meta||{}):extractLegacyMeta(c)
   };
   // history may have legacy null fields → strip
@@ -2332,7 +2375,8 @@ async function cloudPull(firstPull){
       }
     }
 
-    // === GARDEN: union by `at` timestamp ===
+    // === GARDEN: union by `at` (v2.5: cloudGarden is already scoped to the active period,
+    // so union can never pull back a previous month's plants — the namespace is the wall). ===
     const cloudGarden=flatCloud.garden||[];
     const mergedGarden=mergeGarden(S.garden,cloudGarden,Math.max(S._gardenArchivedAt||0,cn.settings._gardenArchivedAt||0));
     if(mergedGarden.length!==(S.garden||[]).length){
@@ -2763,6 +2807,27 @@ function weekRangeLabel(mondayLabel){
   return `${start.getMonth()+1}/${start.getDate()}-${end.getMonth()+1}/${end.getDate()}`;
 }
 function monthKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+// v2.5: the garden cloud node is namespaced by month — garden/{periodKey}/{at}.
+// The active period key is derived from _gardenPeriodStart. Archiving = advancing this key;
+// no cloud nodes are ever deleted. A given object derives its key from a provided start ts so
+// normalize (cloud-driven) and push (local-driven) agree on which namespace is "live".
+function periodKeyFrom(startTs){return monthKey(new Date(startTs||Date.now()));}
+// STORAGE namespace: an explicit, synced string. Normally the month ("2026-06"); a manual archive
+// within the same month gets a "-N" suffix so the new cycle writes to a fresh cloud namespace.
+function currentPeriodKey(){
+  return S._gardenPeriodKey || periodKeyFrom(S._gardenPeriodStart||S.firstUseAt||Date.now());
+}
+// MEMBERSHIP test: a plant belongs to the active period iff it was planted at/after the period
+// start. This is independent of the storage-key string, so it works for both monthly rollover and
+// manual mid-month archive — anything planted before the current period start is "last cycle".
+function inActivePeriod(at){return (at||0) >= (S._gardenPeriodStart||0);}
+// Produce a fresh storage key for the new cycle, avoiding collision with any existing archive key.
+function nextPeriodKey(now){
+  const base=monthKey(new Date(now));
+  if(!S.gardenArchive || !(base in S.gardenArchive)) return base;
+  let n=2; while((`${base}-${n}`) in S.gardenArchive) n++;
+  return `${base}-${n}`;
+}
 
 // Group records into weeks/months — each group becomes one row
 function groupByWeek(records){
@@ -3141,27 +3206,31 @@ window.archiveGardenNow=function(){
 // The `resetPets` param is retained for API compatibility but no longer changes behavior —
 // every archive now fully clears the garden. Past pets are preserved in gardenArchive (snapshot).
 function archiveGardenPeriod(resetPets){
+  const now=Date.now();
   if(!S.garden||S.garden.length===0){
-    // Even with an empty garden, advance the period marker so the month check doesn't re-fire.
-    S._gardenPeriodStart=Date.now();
+    // Empty garden: still advance the period so the month check doesn't re-fire, and open a fresh
+    // storage namespace so any later plants don't land in a stale/archived key.
+    S._gardenPeriodStart=now;
+    S._gardenPeriodKey=nextPeriodKey(now);
+    S._gardenArchivedAt=now;
     return;
   }
-  const now=Date.now();
-  // Determine the archive key for the *previous* period
-  const prevDate=new Date(S._gardenPeriodStart||S.firstUseAt||now);
-  const prevKey=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
+  // The cycle being closed is stored under the CURRENT period key. Snapshot it under that same key
+  // so the archive entry and the cloud namespace correspond. No deletion needed — advancing the
+  // key below means new plants write to a fresh namespace and the old one becomes history in place.
+  const closingKey=currentPeriodKey();
   if(!S.gardenArchive)S.gardenArchive={};
-  S.gardenArchive[prevKey]={
+  S.gardenArchive[closingKey]={
     plantedAt:S._gardenPeriodStart||S.firstUseAt||now,
     archivedAt:now,
     items:JSON.parse(JSON.stringify(S.garden)), // deep copy — full snapshot incl. pets
     summary:summarizeGarden(S.garden)
   };
-  // Monthly full reset: clear EVERYTHING (plants + pets). Pets retired monthly per user pref.
+  // Full reset: clear the live garden + advance to a fresh period namespace.
   S.garden=[];
   S._gardenPeriodStart=now;
-  // Record archive cutoff so stale devices can't resurrect cleared items via garden union merge.
-  // Any garden item with `at` <= this timestamp that's missing locally was intentionally archived.
+  S._gardenPeriodKey=nextPeriodKey(now);
+  // Retained for backward-compat with pre-v2.5 devices (harmless under namespacing).
   S._gardenArchivedAt=now;
 }
 
@@ -4904,6 +4973,11 @@ processPendingRolloverEffects();
 // Set garden period start if missing (first time)
 if(!S._gardenPeriodStart){
   S._gardenPeriodStart=S.firstUseAt||Date.now();
+}
+// v2.5 migration: ensure an explicit period-key namespace exists. Existing installs adopt the
+// month of their current period start, which is also where legacy flat cloud nodes get folded in.
+if(!S._gardenPeriodKey){
+  S._gardenPeriodKey=periodKeyFrom(S._gardenPeriodStart);
 }
 // Monthly archive check — if the garden's period started in a prior month, archive it now.
 // Runs here at init (not in maybeRollover) so it's independent of which device rolled the day.
