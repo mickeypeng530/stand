@@ -254,13 +254,30 @@ let lastCloudSnap=null;
 function saveLocal(){try{localStorage.setItem('health_v6',JSON.stringify(S));}catch(e){}}
 // ===== V2 SCHEMA (same as index.html) =====
 const SCHEMA_VERSION=2;
-const APP_VERSION='v2.4-0601';
+const APP_VERSION='v2.5-0602';
 (function(){const m=document.getElementById('miniVer'); if(m) m.textContent=APP_VERSION;})();
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
-const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart','_gardenArchivedAt'];
+const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart','_gardenArchivedAt','_gardenPeriodKey'];
 const META_KEYS=['totalStands','totalWater','totalSnacks'];
 
+// v2.5: garden namespaced by period (garden/{periodKey}/{at}); see index.html for rationale.
+function monthKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+function periodKeyFrom(startTs){return monthKey(new Date(startTs||Date.now()));}
+function currentPeriodKey(){return S._gardenPeriodKey || periodKeyFrom(S._gardenPeriodStart||S.firstUseAt||Date.now());}
+function inActivePeriod(at){return (at||0) >= (S._gardenPeriodStart||0);}
+function scopeGardenToPeriod(rawGarden,activeKey,periodStart){
+  const out={};
+  if(!rawGarden||typeof rawGarden!=='object')return out;
+  const isPeriodKey=k=>/^\d{4}-\d{2}(-\d+)?$/.test(k);
+  for(const k of Object.keys(rawGarden)){
+    const v=rawGarden[k];
+    if(isPeriodKey(k)){
+      if(k===activeKey && v && typeof v==='object'){for(const at of Object.keys(v)) if(v[at]) out[at]=v[at];}
+    }else{const g=v; if(g && g.at && (g.at>=(periodStart||0))) out[g.at]=g;}
+  }
+  return out;
+}
 function mergeGarden(localArr,cloudArr,archivedAt){
   const cut=archivedAt||0;
   const localAts=new Set((localArr||[]).map(g=>g?.at).filter(Boolean));
@@ -276,7 +293,8 @@ function mergeGarden(localArr,cloudArr,archivedAt){
   };
   for(const g of (localArr||[]))consider(g,false);
   for(const g of (cloudArr||[]))consider(g,true);
-  return Array.from(map.values()).sort((a,b)=>(a.at||0)-(b.at||0));
+  // v2.5: only the active period's plants survive (structural anti-resurrection wall).
+  return Array.from(map.values()).filter(g=>inActivePeriod(g.at)).sort((a,b)=>(a.at||0)-(b.at||0));
 }
 function mergeDayMax(a,b){
   if(!a)return b;
@@ -304,14 +322,17 @@ function normalizeCloudSnap(c){
   const isV2=(c._schemaVersion||0)>=2 || !!c.state;
   const extractLegacy=(keys)=>{const o={};for(const k of keys)if(k in c)o[k]=c[k];return o;};
   const legacyState=()=>{const s=extractLegacy(STATE_KEYS);s.updatedAt=c.updatedAt||0;return s;};
+  const settings=isV2?(c.settings||{}):extractLegacy(SETTINGS_KEYS);
+  const activeKey=settings._gardenPeriodKey || periodKeyFrom(settings._gardenPeriodStart);
+  const rawGarden=isV2?(c.garden||{}):(Array.isArray(c.garden)?Object.fromEntries((c.garden||[]).map(g=>g?.at?[g.at,g]:null).filter(Boolean)):{});
   return {
     _schemaVersion:c._schemaVersion||(isV2?2:1),
     state:isV2?(c.state||{}):legacyState(),
     history:c.history||{},
-    garden:isV2?(c.garden||{}):(Array.isArray(c.garden)?Object.fromEntries((c.garden||[]).map(g=>g?.at?[g.at,g]:null).filter(Boolean)):{}),
+    garden:scopeGardenToPeriod(rawGarden,activeKey,settings._gardenPeriodStart),
     gardenArchive:c.gardenArchive||{},
     pets:isV2?(c.pets||{}):extractLegacy(PETS_KEYS),
-    settings:isV2?(c.settings||{}):extractLegacy(SETTINGS_KEYS),
+    settings:settings,
     meta:isV2?(c.meta||{}):extractLegacy(META_KEYS)
   };
 }
@@ -366,13 +387,14 @@ async function saveSync(){
       }
     }
 
-    // GARDEN (append-only by `at`)
+    // GARDEN (v2.5: namespaced by period — garden/{periodKey}/{at}; append within current period)
+    const pKey=currentPeriodKey();
     const localGarden=S.garden||[];
     const snapGarden=lastCloudSnap?.garden||[];
     const snapAts=new Set(snapGarden.map(g=>g?.at).filter(Boolean));
     for(const g of localGarden){
       if(g?.at && !snapAts.has(g.at)){
-        multiPath[`garden/${g.at}`]=g;
+        multiPath[`garden/${pKey}/${g.at}`]=g;
         summary.garden++;
       }
     }
@@ -419,6 +441,10 @@ async function saveSync(){
 }
 
 S=loadL();
+// v2.5: ensure a garden period namespace exists locally (cloud sync will overwrite with the
+// authoritative value on first pull). Prevents mini from ever pushing to an undefined namespace.
+if(!S._gardenPeriodStart) S._gardenPeriodStart=S.firstUseAt||Date.now();
+if(!S._gardenPeriodKey) S._gardenPeriodKey=periodKeyFrom(S._gardenPeriodStart);
 // Cross-day rollover at load
 if(maybeRollover(S)){
   syncLog('ROLLOVER',{from:'load-time',to:S.lastDate,trigger:'mini-init'});
