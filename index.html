@@ -1900,6 +1900,13 @@ onAuthStateChanged(fbAuth,async u=>{
             }
           }
         }
+        // 2026-07-17: resolve over-threshold counters arriving via merge (e.g. mini
+        // accumulated past 8 while this tab was closed). Safe to call repeatedly —
+        // checkPetLevelUp now dedupes graduations per type per day.
+        ['sit','water','snack'].forEach(tp=>{
+          const dk=tp==='sit'?'sitPetDays':(tp==='water'?'waterPetDays':'snackPetDays');
+          if((S[dk]||0)>=PET_ADULT_THRESHOLD)checkPetLevelUp(tp);
+        });
 
         // Meta: Math.max
         for(const k of META_KEYS){
@@ -3826,6 +3833,16 @@ function checkPetLevelUp(type){
   const days=S[daysKey]||0;
   // Just reached or exceeded adult threshold — retire to garden with species-specific svg
   if(days>=PET_ADULT_THRESHOLD){
+    // GUARD (2026-07-17): same-day dedupe. Pet counters merge with Math.max everywhere,
+    // so a reset-to-0 can be resurrected by any stale client (mini kept pushing 12) —
+    // each resurrection re-graduated another pet (the "69 水滴滴" incident).
+    // A type can legitimately graduate at most once per day (needs 8 goal-days),
+    // so if a pet-sourced adult of this type already exists today: just re-reset, no spawn.
+    const dayStart=new Date();dayStart.setHours(0,0,0,0);
+    if((S.garden||[]).some(g=>g&&g.source==='pet'&&g.type===type&&g.at>=+dayStart)){
+      S[daysKey]=0;S[speciesKey]='original';
+      return;
+    }
     const species=S[speciesKey]||'original';
     let svg;
     if(type==='sit'){
@@ -4995,12 +5012,19 @@ if((S.longestSit||0)>=LONGEST_WARN_SEC&&(S.over45CountToday||0)===0){
 }
 // Auto-recover: if any pet has reached adult threshold but wasn't promoted (e.g. mini.html
 // updated days but didn't run checkPetLevelUp), trigger the promotion now.
-['sit','water','snack'].forEach(type=>{
-  const daysKey=type==='sit'?'sitPetDays':(type==='water'?'waterPetDays':'snackPetDays');
-  if((S[daysKey]||0)>=PET_ADULT_THRESHOLD){
-    checkPetLevelUp(type);
-  }
-});
+{
+  let recovered=false;
+  ['sit','water','snack'].forEach(type=>{
+    const daysKey=type==='sit'?'sitPetDays':(type==='water'?'waterPetDays':'snackPetDays');
+    if((S[daysKey]||0)>=PET_ADULT_THRESHOLD){
+      checkPetLevelUp(type);
+      recovered=true;
+    }
+  });
+  // 2026-07-17: persist the counter reset immediately — otherwise a reload (or a stale
+  // client's Math.max push) resurrects the counter and re-graduates another pet.
+  if(recovered){saveLocal();if(dbRef)cloudSave();}
+}
 renderAll();
 // Update water countdown every 30s (works regardless of session state)
 setInterval(updateWaterCountdown,30000);

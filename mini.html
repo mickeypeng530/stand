@@ -711,8 +711,11 @@ function addSeedXP(type,xp){
   }
 }
 function checkPetGoals(){
-  if(!S.sitGoalMetToday&&(S.todayStand||0)>=S_GOAL){S.sitGoalMetToday=true;S.sitPetDays=(S.sitPetDays||0)+1;toast('🪑 今日目標達成！');}
-  if(!S.waterGoalMetToday&&(S.todayWater||0)>=W_STREAK){S.waterGoalMetToday=true;S.waterPetDays=(S.waterPetDays||0)+1;toast('💧 今日目標達成！');}
+  // 2026-07-17: cap at adult threshold — mini has no checkPetLevelUp, so uncapped counters
+  // (e.g. 12) kept resurrecting via Math.max merges after index reset them, causing
+  // index to re-graduate a pet on every open (the "69 水滴滴" incident).
+  if(!S.sitGoalMetToday&&(S.todayStand||0)>=S_GOAL){S.sitGoalMetToday=true;S.sitPetDays=Math.min((S.sitPetDays||0)+1,PET_ADULT_THRESHOLD);toast('🪑 今日目標達成！');}
+  if(!S.waterGoalMetToday&&(S.todayWater||0)>=W_STREAK){S.waterGoalMetToday=true;S.waterPetDays=Math.min((S.waterPetDays||0)+1,PET_ADULT_THRESHOLD);toast('💧 今日目標達成！');}
 }
 
 // === ACTIONS ===
