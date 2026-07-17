@@ -221,10 +221,20 @@ function maybeRollover(d){
       d.history[oldLastDate]=incoming;
     }
   }
+  // Streak — same rule as index.html: consecutive day + (both goals met OR rest day)
+  const diff=Math.floor((new Date(today)-new Date(oldLastDate))/864e5);
+  if(diff===1){if((d.todayStand>=S_GOAL&&d.todayWater>=W_STREAK)||d.restToday)d.streak=(d.streak||0)+1;else d.streak=0;}
+  else if(diff>1)d.streak=0;
   d.todayStand=0;d.todayWater=0;d.lastDate=today;d.restToday=false;
   d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;d.over45CountToday=0;
   d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
   d.sitGoalMetToday=false;d.waterGoalMetToday=false;
+  // Snack pet: award a day if yesterday stayed within limit (recomputed from the count,
+  // not the flag — same as index). Cap at adult threshold; no _pendingSnackLevelCheck
+  // flag (index-local mechanism); hatch/graduation stays index's job.
+  if((d.todaySnack||0)<=(d.snackLimit||3)){
+    d.snackPetDays=Math.min((d.snackPetDays||0)+1,PET_ADULT_THRESHOLD);
+  }
   d.todaySnack=0;d.snackGoalMetToday=true;
   return true;
 }
