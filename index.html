@@ -1900,14 +1900,6 @@ onAuthStateChanged(fbAuth,async u=>{
             }
           }
         }
-        // 2026-07-17: resolve over-threshold counters arriving via merge (e.g. mini
-        // accumulated past 8 while this tab was closed). Safe to call repeatedly —
-        // checkPetLevelUp now dedupes graduations per type per day.
-        ['sit','water','snack'].forEach(tp=>{
-          const dk=tp==='sit'?'sitPetDays':(tp==='water'?'waterPetDays':'snackPetDays');
-          if((S[dk]||0)>=PET_ADULT_THRESHOLD)checkPetLevelUp(tp);
-        });
-
         // Meta: Math.max
         for(const k of META_KEYS){
           if(k in cn.meta){
@@ -1930,6 +1922,16 @@ onAuthStateChanged(fbAuth,async u=>{
           processPendingRolloverEffects();
         }
 
+        // 2026-07-17: resolve over-threshold counters arriving via merge (e.g. mini
+        // accumulated past 8 while this tab was closed). Must run AFTER the garden
+        // union above — the same-day dedupe guard in checkPetLevelUp needs the other
+        // device's freshly-merged graduation to be visible, or it re-graduates.
+        let resolvedPet=false;
+        ['sit','water','snack'].forEach(tp=>{
+          const dk=tp==='sit'?'sitPetDays':(tp==='water'?'waterPetDays':'snackPetDays');
+          if((S[dk]||0)>=PET_ADULT_THRESHOLD){checkPetLevelUp(tp);resolvedPet=true;}
+        });
+
         // lastCloudSnap reflects cloud's actual state (flat form)
         lastCloudSnap=flatCloud;
 
@@ -1939,7 +1941,9 @@ onAuthStateChanged(fbAuth,async u=>{
           if(S.inSession)resumeSessionIfNeeded();
         }
         renderAll();
-        if(rolled)cloudSave();
+        // resolvedPet: push the counter reset (and any new garden pet) immediately,
+        // otherwise the stale ≥8 value stays in cloud and re-triggers on every merge.
+        if(rolled||resolvedPet)cloudSave();
       }finally{
         _syncInFlight=false;
       }
