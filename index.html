@@ -1841,11 +1841,12 @@ onAuthStateChanged(fbAuth,async u=>{
     dbRef=ref(fbDb,`health-tracker/${u.uid}`);
     updateLoginBtn(u);
     setSyncChip('cloud','已同步');
-    await cloudPull(true);
-    // Settle AFTER the first pull — never before. Settlement plants from the counter pair,
-    // so acting on stale local counters (another machine may already have planted and
-    // advanced PlantedCount) would duplicate plants in the garden.
-    if(runSettlement()){saveLocal();cloudSave();}
+    const pulled=await cloudPull(true);
+    // Settle only after a SUCCESSFUL first pull — never before, never on failure.
+    // Settlement plants from the counter pair, so acting on stale/unmerged local counters
+    // (another machine may already have planted and advanced PlantedCount) would duplicate
+    // plants. If the pull failed, the realtime listener below settles once data arrives.
+    if(pulled&&runSettlement()){saveLocal();cloudSave();}
     renderAll();
     // Set up realtime listener — triggers when cloud data changes from another device
     cloudListenerUnsub=onValue(dbRef,snap=>{
@@ -2324,19 +2325,36 @@ function flattenCloudForSnap(norm){
   return flat;
 }
 
+// get() with a timeout (ported from mini.html — review #5). Firebase's get() has no
+// built-in timeout: on a flaky network it can stay pending FOREVER, which here means the
+// catch/finally never run, _syncInFlight stays locked, and — since init awaits
+// cloudPull(true) before attaching the realtime listener and running settlement — the whole
+// sync pipeline silently dies. Rejecting after `ms` lets the normal error path clean up,
+// so init can still attach the realtime listener (which delivers data once the network
+// recovers) and the visibilitychange re-pull provides a further retry path.
+function getWithTimeout(r,ms=12000){
+  return Promise.race([
+    get(r),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))
+  ]);
+}
+
+// Returns true when the pull completed (merged, or cloud empty) — callers that act on the
+// merged result (init settlement) must check this: after a FAILED pull local counters are
+// unmerged/stale, and settling on them could duplicate work another device already did.
 async function cloudPull(firstPull){
-  if(!dbRef)return;
+  if(!dbRef)return false;
   if(_syncInFlight){
     syncLog('PULL',{result:'skipped_in_flight',firstPull});
-    return;
+    return false;
   }
   _syncInFlight=true;
   try{
-    const snap=await get(dbRef);
+    const snap=await getWithTimeout(dbRef);
     if(!snap.exists()){
       syncLog('PULL',{result:'cloud_empty',firstPull,local:snapshotS()});
       if(firstPull)await cloudSave();
-      return;
+      return true;
     }
     const rawCloud=snap.val();
     const cn=normalizeCloudSnap(rawCloud);
@@ -2439,9 +2457,12 @@ async function cloudPull(firstPull){
     if(rolled || archived || mergedHistN>cloudHistN || mergedGarden.length>cloudGarden.length){
       await cloudSave();
     }
+    return true;
   }catch(e){
     syncLog('ERROR',{where:'cloudPull',msg:e.message});
     console.warn('cloudPull err',e);
+    if(firstPull)setSyncChip('local',e.message==='timeout'?'離線':'同步失敗');
+    return false;
   }finally{
     _syncInFlight=false;
   }
@@ -2452,7 +2473,16 @@ let lastPullAt=0;
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='visible'&&dbRef){
     const n=Date.now();
-    if(n-lastPullAt>CLOUD_PULL_DEBOUNCE_MS){lastPullAt=n;cloudPull(false);}
+    if(n-lastPullAt>CLOUD_PULL_DEBOUNCE_MS){
+      lastPullAt=n;
+      // Settle after a successful re-pull too. Covers the recovery path where the FIRST
+      // pull failed (timeout) and the listener then early-exits because cloud isn't newer
+      // than local (same-device mini backlog shares localStorage/updatedAt) — without this
+      // the backlog would stay unsettled until some other device writes.
+      cloudPull(false).then(ok=>{
+        if(ok&&runSettlement()){saveLocal();cloudSave();renderAll();}
+      });
+    }
   }
 });
 
