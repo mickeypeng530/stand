@@ -784,7 +784,21 @@ function checkPetGoals(){
 }
 
 // === ACTIONS ===
+// Review #11: mini is a long-lived always-open widget, but only rolled the day over at
+// load / cloudPull. A tap after midnight would book onto YESTERDAY's counters (inflating
+// yesterday, losing today, and corrupting the streak/snack-pet judgement that #4 added to
+// rollover). Guard every recording action.
+function rolloverGuard(){
+  if(maybeRollover(S)){
+    syncLog('ROLLOVER',{from:'stale-open',to:S.lastDate,trigger:'mini-action'});
+    stopTick();
+    saveSync();
+    render();
+    toast('🌅 跨日，新的一天開始');
+  }
+}
 function startWork(){
+  rolloverGuard();
   const n=now();
   S.inSession=true;
   S.sitStartAt=n;S.sessionStartAt=n;S.sessionAccum=S.sessionSecTotal||0;
@@ -793,6 +807,7 @@ function startWork(){
 }
 
 function handleStandup(){
+  rolloverGuard(); // may reset inSession — a session can't span midnight (same as index)
   if(!S.inSession){toast('記得先按開始');return;}
   const sat=currentSitSec();
   const threshSec=(S.thresh||30)*60;
@@ -843,6 +858,7 @@ function handleStandup(){
 }
 
 function doWater(){
+  rolloverGuard();
   S.todayWater=(S.todayWater||0)+0.5;
   S.totalWater=(S.totalWater||0)+0.5;
   S.lastWaterRemindAt=Date.now();
@@ -856,6 +872,7 @@ function doWater(){
 }
 
 function doSnack(){
+  rolloverGuard();
   S.todaySnack=(S.todaySnack||0)+1;
   S.totalSnacks=(S.totalSnacks||0)+1;
   const limit=S.snackLimit||3;
@@ -865,6 +882,7 @@ function doSnack(){
   render();saveSync();
 }
 function undoSnack(){
+  rolloverGuard(); // post-midnight undo must not shave yesterday's (already archived) count
   if((S.todaySnack||0)<=0){toast('沒有紀錄');return;}
   S.todaySnack=Math.max(0,(S.todaySnack||0)-1);
   S.totalSnacks=Math.max(0,(S.totalSnacks||0)-1);
