@@ -1884,9 +1884,10 @@ onAuthStateChanged(fbAuth,async u=>{
           }
           for(const k of PETS_KEYS){
             if(k in cn.pets){
-              if(typeof cn.pets[k]==='number'){
+              if(typeof cn.pets[k]==='number'&&!PET_LWW_KEYS.has(k)){
                 S[k]=Math.max(S[k]||0,cn.pets[k]||0);
               }else{
+                // species strings + stage fields: LWW — cloud is newer in this branch
                 S[k]=cn.pets[k];
               }
             }
@@ -1894,8 +1895,9 @@ onAuthStateChanged(fbAuth,async u=>{
           S.updatedAt=cloudUA;
         }else{
           // Even if cloud not newer, take Math.max for pet counters
+          // (stage fields excluded: local is newer → keep local)
           for(const k of PETS_KEYS){
-            if(k in cn.pets && typeof cn.pets[k]==='number'){
+            if(k in cn.pets && typeof cn.pets[k]==='number'&&!PET_LWW_KEYS.has(k)){
               S[k]=Math.max(S[k]||0,cn.pets[k]||0);
             }
           }
@@ -1986,6 +1988,11 @@ const APP_VERSION='v2.5-0602';
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 // Keys under pets/ (pet progress, last-write-wins)
 const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
+// Seed-stage fields must NOT merge via Math.max — a completed seed resets idx/XP to 0,
+// and a stale client's old high value would resurrect it and re-harvest (same mechanism
+// as the 69 水滴滴 incident; same-day dedupe can't help since a seed can legitimately
+// complete more than once per day). These follow state LWW instead.
+const PET_LWW_KEYS=new Set(['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','stageIdx','stageXP']);
 // Keys under settings/ (user preferences)
 const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart','_gardenArchivedAt','_gardenPeriodKey'];
 // Keys under meta/ (counters; Math.max merge — never shrinks)
@@ -2361,8 +2368,9 @@ async function cloudPull(firstPull){
     // === PETS: take cloud if it has data we don't ===
     for(const k of PETS_KEYS){
       if(k in cn.pets && cn.pets[k]!==undefined){
-        // For numeric counters use Math.max; for species/index strings use cloud if newer state
-        if(typeof cn.pets[k]==='number'){
+        // Numeric counters use Math.max; species strings AND stage fields (PET_LWW_KEYS)
+        // use cloud only if cloud state is newer (LWW — lets stage resets propagate)
+        if(typeof cn.pets[k]==='number'&&!PET_LWW_KEYS.has(k)){
           S[k]=Math.max(S[k]||0,cn.pets[k]||0);
         }else if(cloudStateUpdated>localStateUpdated){
           S[k]=cn.pets[k];

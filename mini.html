@@ -268,6 +268,9 @@ const APP_VERSION='v2.5-0602';
 (function(){const m=document.getElementById('miniVer'); if(m) m.textContent=APP_VERSION;})();
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
+// Stage fields follow LWW, not Math.max — a completed seed resets idx/XP to 0 and a
+// stale client's old high value would resurrect it (see index.html PET_LWW_KEYS).
+const PET_LWW_KEYS=new Set(['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','stageIdx','stageXP']);
 const SETTINGS_KEYS=['theme','thresh','snackLimit','soundOn','histEditEnabled','autoArchiveDisabled','_gardenPeriodStart','_gardenArchivedAt','_gardenPeriodKey'];
 const META_KEYS=['totalStands','totalWater','totalSnacks'];
 
@@ -536,14 +539,15 @@ onAuthStateChanged(fbAuth,async u=>{
           for(const k of SETTINGS_KEYS) if(k in cn.settings) S[k]=cn.settings[k];
           for(const k of PETS_KEYS){
             if(k in cn.pets){
-              if(typeof cn.pets[k]==='number') S[k]=Math.max(S[k]||0,cn.pets[k]||0);
-              else S[k]=cn.pets[k];
+              if(typeof cn.pets[k]==='number'&&!PET_LWW_KEYS.has(k)) S[k]=Math.max(S[k]||0,cn.pets[k]||0);
+              else S[k]=cn.pets[k]; // species + stage: LWW (cloud newer here)
             }
           }
           S.updatedAt=cloudUA;
         }else{
+          // cloud not newer: Math.max for counters; stage fields keep local (LWW)
           for(const k of PETS_KEYS){
-            if(k in cn.pets && typeof cn.pets[k]==='number'){
+            if(k in cn.pets && typeof cn.pets[k]==='number'&&!PET_LWW_KEYS.has(k)){
               S[k]=Math.max(S[k]||0,cn.pets[k]||0);
             }
           }
@@ -614,14 +618,15 @@ async function cloudPull(first){
       for(const k of SETTINGS_KEYS) if(k in cn.settings) S[k]=cn.settings[k];
       for(const k of PETS_KEYS){
         if(k in cn.pets){
-          if(typeof cn.pets[k]==='number') S[k]=Math.max(S[k]||0,cn.pets[k]||0);
-          else S[k]=cn.pets[k];
+          if(typeof cn.pets[k]==='number'&&!PET_LWW_KEYS.has(k)) S[k]=Math.max(S[k]||0,cn.pets[k]||0);
+          else S[k]=cn.pets[k]; // species + stage: LWW (cloud newer here)
         }
       }
       S.updatedAt=cloudUA;
     }else{
+      // cloud not newer: Math.max for counters; stage fields keep local (LWW)
       for(const k of PETS_KEYS){
-        if(k in cn.pets && typeof cn.pets[k]==='number'){
+        if(k in cn.pets && typeof cn.pets[k]==='number'&&!PET_LWW_KEYS.has(k)){
           S[k]=Math.max(S[k]||0,cn.pets[k]||0);
         }
       }
