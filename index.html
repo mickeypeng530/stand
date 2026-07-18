@@ -1842,12 +1842,19 @@ function updateLoginBtn(u){
 
 let cloudListenerUnsub=null;
 
+// Review #10: persisted marker for "this device has synced with the cloud before".
+// Firebase auth restores asynchronously, so at init we can't know whether a login is coming;
+// this flag is the synchronous proxy that lets init defer month-archiving to the post-pull
+// definitive check instead of archiving a stale local garden.
+function hadCloudLogin(){try{return localStorage.getItem('had_cloud_login')==='1';}catch(e){return false;}}
+
 onAuthStateChanged(fbAuth,async u=>{
   fbUser=u;
   // Detach previous listener if any
   if(cloudListenerUnsub){cloudListenerUnsub();cloudListenerUnsub=null;}
   if(u){
     dbRef=ref(fbDb,`health-tracker/${u.uid}`);
+    try{localStorage.setItem('had_cloud_login','1');}catch(e){}
     updateLoginBtn(u);
     setSyncChip('cloud','已同步');
     const pulled=await cloudPull(true);
@@ -1978,6 +1985,12 @@ onAuthStateChanged(fbAuth,async u=>{
     // Local-only mode: mini shares this device's localStorage, so a backlog can still
     // exist. No cloud means no stale-counter risk — settle right away.
     if(runSettlement()){saveLocal();renderAll();}
+    // Review #10: init deferred the month-archive when hadCloudLogin() — but auth resolved
+    // to logged-out (e.g. signed out since), so no pull is coming. Do it now on local data.
+    if(hadCloudLogin()&&checkMonthlyArchive()){
+      saveLocal();renderAll();
+      setTimeout(()=>showToast('📦 跨月：花園已歸檔，開始新的一月'),800);
+    }
   }
 });
 
@@ -5213,12 +5226,14 @@ if(!S._gardenPeriodKey){
 }
 // Monthly archive check — if the garden's period started in a prior month, archive it now.
 // Runs here at init (not in maybeRollover) so it's independent of which device rolled the day.
-// Note: at this point cloudPull may not have completed yet for logged-in users; the definitive
-// check also runs inside cloudPull after merge (see processMonthlyArchiveAfterSync).
-if(checkMonthlyArchive()){
+// Review #10: when a cloud login is expected (this device has logged in before), SKIP the
+// init-time check — at this point cloudPull hasn't run, so a stale device opening on the 1st
+// would snapshot an INCOMPLETE local garden into gardenArchive (whose merge is local-wins,
+// masking the complete version). The definitive check runs inside cloudPull after merge;
+// the logged-out branch of onAuthStateChanged covers the no-cloud case.
+if(!hadCloudLogin()&&checkMonthlyArchive()){
   saveLocal();
   renderAll();
-  if(dbRef)cloudSave();
   setTimeout(()=>showToast('📦 跨月：花園已歸檔，開始新的一月'),800);
 }
 // Backfill over45CountToday if longestSit ≥ 45m but count is 0 (e.g. tick missed it before this feature was added)
