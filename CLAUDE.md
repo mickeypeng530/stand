@@ -17,7 +17,7 @@
 
 ## 2. 現在進度
 
-- 2026-07-18 **review findings 主力批已修**(4 commits:#4 `ae8ea14`、#8 `1df720f`、B 結帳 `b429f77`+#9 收編、#5 `0dafa91`、#3 `4ab383a`):mini rollover 補 streak/零食寵、種子 stage 改 LWW、開頁批次結帳(單調計數對)、cloudPull timeout、刪除歷史日 tombstone。**剩 #6 #7 #10 #11 #12**(見 §5)。
+- 2026-07-18 **review findings 除 #7 外全修完**(9 個 fix commits,見 §5 表)+ 開頁批次結帳(B)。**待決定:petDays 未爆彈(§5 ⚠,~7/25 前)**;#7 掛著等 C。
 - 2026-07-17 「69 水滴滴」事件已修(3 commits,見 DECISION_LOG)。資料已清理;備份在 `../Pet/.backup-health-tracker-*.json`。
 
 ## 3. 架構速覽(同步機制 = 一切 bug 的核心)
@@ -55,22 +55,24 @@ health-tracker/{uid}/
 - **garden 的 `at` 是 identity**:union by at + 雲端路徑 key。同 ms 多筆要用遞增序號(結算已處理),否則被靜默去重。
 - **LWW 時鐘 = 裝置牆鐘 `Date.now()`**:桌寵 24h 常駐,時鐘漂移會穩贏 LWW(潛在隱患,未修;修法 = `.info/serverTimeOffset` 校正三端,見 DECISION_LOG)。
 
-## 5. Code review findings(2026-07-17 開列;#1-#5、#8、#9 已修)
+## 5. Code review findings(2026-07-17 開列;**#7 之外全數已修**)
 
-| # | 嚴重度 | 狀態 | 問題(位置行號為開列當時) |
-|---|---|---|---|
-| 3 | 🔴 | ✅ `4ab383a` | 刪除歷史日復活 → deletedDays tombstone + editedAt + null 推送 |
-| 4 | 🔴 | ✅ `ae8ea14` | mini rollover 缺 streak/零食寵 → 比照 index/桌寵補上 |
-| 5 | 🟡 | ✅ `0dafa91` | index cloudPull 裸 get() 無 timeout → getWithTimeout + 結算 gate 在 pull 成功 |
-| 8 | 🟡 | ✅ `1df720f` | 種子 stage Math.max 復活 → PET_LWW_KEYS 改 LWW |
-| 9 | 🟡 | ✅ `b429f77` | mini 收成丟失 → 單調計數對批次結帳(**未用**原提案的 _pendingHarvest 旗標,旗標會復活) |
-| 6 | 🟡 | ⏳ | 歷史數字改小被 mergeDayMax 推回 → entry 已有 editedAt 戳(#3 鋪路),差 mergeDayMax 改「editedAt 新者全勝」 |
-| 7 | 🟡 | ⏳ | undo 站起的 sitPetDays 遞減被 Math.max 推回 |
-| 10 | 🟡 | ⏳ | 首次 cloudPull 前就歸檔 → stale 裝置月初先開會歸檔不完整花園(結算已改 auth 後,歸檔的 init 呼叫還在) |
-| 11 | 🟢 | ⏳ | mini 掛著跨午夜不 rollover → doWater/handleStandup 開頭補 `if(maybeRollover(S))saveSync()` |
-| 12 | 🟢 | ⏳ | index 跨午夜後 UI 停在 session 模式 → rolled 分支補 `applySessionUI()` |
+| # | 狀態 | 問題 → 修法 |
+|---|---|---|
+| 3 | ✅ `4ab383a` | 刪除歷史日復活 → deletedDays tombstone + editedAt + null 推送 |
+| 4 | ✅ `ae8ea14` | mini rollover 缺 streak/零食寵 → 比照 index/桌寵補上 |
+| 5 | ✅ `0dafa91` | index cloudPull 裸 get() 無 timeout → getWithTimeout + 結算 gate 在 pull 成功 |
+| 6 | ✅ `0325175` | 歷史數字改小被推回 → mergeDayMax 改「editedAt 新者整筆全勝,同戳才逐欄 max」;rollover 內聯合併同步(編輯過的 entry 不被自動歸檔資料 max) |
+| 8 | ✅ `1df720f` | 種子 stage Math.max 復活 → PET_LWW_KEYS 改 LWW |
+| 9 | ✅ `b429f77` | mini 收成丟失 → 單調計數對批次結帳(**未用**原提案的 _pendingHarvest 旗標,旗標會復活) |
+| 10 | ✅ `953b701` | init 期歸檔不完整花園 → `hadCloudLogin()` 旗標:曾登入跳過 init 歸檔,交給 pull 後 definitive check;登出分支就地補跑 |
+| 11 | ✅ `29944a3` | mini 跨夜直接按記到昨天 → `rolloverGuard()` 掛 5 個動作進入點 |
+| 12 | ✅ `d237aad` | 跨夜後 UI 停 session 模式 → rolled 分支補 `applySessionUI()`(含 stopTick) |
+| 7 | ⏸ 掛著 | undo 第 8 站的 sitPetDays 遞減被 Math.max 推回 — 現行架構無乾淨解,等 C 方案(Revoked 單調計數)一併消滅。極低頻、傷害一天 |
 
-長期方向(未排程):寵物 petDays 也改單調計數對(`GoalDays`/`Graduated`,cap 8 可移除、#7 一併消失);LWW 時鐘 server-offset 校正。
+**⚠ 未爆彈(2026-07-18 分析發現,~7/25 前要決定)**:寵物畢業歸零後,mini 本機的 Math.max 永不接受歸零 → 卡在 cap 8 每日推回 → index 同日 guard 只擋當天,**次日起每天免費畢業一隻**。桌寵無此問題(無本機狀態,read-modify-write 雲端值)。選項:A. petDays 加入 PET_LWW_KEYS 止血(2 行,代價=stale 裝置搶動作可能回退天數) B. 直接做 C。7/17 清零後首次畢業約 7/25,之前是安全期。
+
+長期方向(獨立 session):**C 方案** petDays 改單調計數對(`GoalDays`/`Graduated`,cap 8 移除、#7+未爆彈一併消滅;動 schema+桌寵);**LWW 時鐘 server-offset 校正**(`.info/serverTimeOffset`,三端含桌寵,防 24h 常駐端時鐘漂移穩贏 LWW)。
 
 ## 6. 接手者 cheatsheet
 

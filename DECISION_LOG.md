@@ -32,6 +32,10 @@ B 把結算掛在 `await cloudPull(true)` 之後 → 裸 get() 卡死從「同�
 `deletedDays/{day}=ts` 只增不減 → union/max 天然正確;死亡判定 `deletedAt > entry.editedAt`,重新編輯蓋新戳即復活 —— 不需要「移除 tombstone」(那會把 delete-不-propagate 問題遞迴上移一層)。
 **沒選**:tombstone 放 settings(整批 LWW 會互相蓋)、只推 null 不留 tombstone(stale 裝置 SANITY_PUSH 推回就復活)。`editedAt` 同時為 #6 鋪路(mergeDayMax 已傳遞戳,差「新者全勝」規則)。狀態:active。
 
+**2026-07-18|#6/#10/#11/#12 收尾批 + 發現 petDays 未爆彈**
+#6:mergeDayMax 改「editedAt 新者整筆全勝、同戳才逐欄 max」—— 沒選逐欄 LWW(粒度過細無需求);rollover 內聯合併對已編輯 entry 整筆保留(手動編輯 > 自動歸檔)。#10:init 歸檔用 `hadCloudLogin()` localStorage 旗標當「登入將至」的同步 proxy —— 沒選等 auth resolve 再歸檔(要重排 init 流程,面大)。#11:mini 五個動作進入點掛 rolloverGuard。#12:一行 applySessionUI。
+**未爆彈(多日尺度推演發現)**:寵物畢業歸零後 mini Math.max 卡 8 → 次日起每日免費畢業一隻;桌寵免疫(無本機狀態)。7/17 清零 → 首爆約 7/25。選項 A(petDays 入 LWW 止血)vs B(直接做 C),**待 user 決定**。狀態:active。
+
 **2026-07-17|_pendingSnackLevelCheck 旗標棄用(桌寵端)**
 stand 用 `delete` 清旗標,但差異推送永遠推不了「刪除」→ 雲端旗標卡死 → 每次開頁轟炸提示。桌寵 rollover 改為就地把零食寵 +1(cap 8),不寫旗標。index 端的旗標機制未動(它本機 set→本機 delete,自身閉環沒事)。
 教訓:**任何用 delete 清理、又會被推上雲的欄位都是地雷**(→ findings #3)。狀態:active。
