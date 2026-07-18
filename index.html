@@ -5272,6 +5272,7 @@ function checkDayRollover(){
     const archiveToasts=processPendingRolloverEffects();
     saveLocal();
     if(dbRef)cloudSave();
+    applySessionUI(); // review #12: rollover reset inSession — sync the UI out of session mode
     renderAll();
     showToast('🌅 跨日：昨日已歸檔，新的一天開始');
     archiveToasts.forEach(t=>setTimeout(()=>showToast(t),1500));
