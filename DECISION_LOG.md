@@ -18,7 +18,7 @@
 **2026-07-18|pets 合併規則按欄位語意拆分:stage→LWW,petDays 留 Math.max(#8)**
 種子 stage(idx/XP)是 set-then-reset 語意,Math.max 讓歸零復活(69 同機制、種子一天可完成多次故同日 guard 無效)→ 改 LWW(`PET_LWW_KEYS`)。
 **沒選**:pets 全改 LWW —— petDays 是 increment 語意,LWW 會把「已被同日 guard 罩住的罕見復活」換成「沒有 guard 的 lost-update」,負優化。**沒選**:generation-tag(gen 大者全勝)—— 最正確但動 schema + 桌寵,個人 app 過度設計。
-代價:petDays 歸零復活仍在(guard 限一天一次)。狀態:active。
+代價:petDays 歸零復活仍在(guard 限一天一次)。狀態:stage→LWW 部分 active;**petDays 部分 superseded by 同日 C 方案**(guard 只擋同日,多日尺度仍會每日免費畢業)。
 
 **2026-07-18|開頁批次結帳:單調計數對,不用 pending 旗標(#9 收編)**
 mini 完成種子只歸零不種花,收成靜默丟失(約 2-4 天一棵)且多事件慶祝互蓋。改:`*HarvestCount`(完成數)/`*PlantedCount`(已種數)兩個只增不減欄位,待結帳=差值,index 在 auth 後/listener 後結算+單一摘要。
@@ -32,9 +32,18 @@ B 把結算掛在 `await cloudPull(true)` 之後 → 裸 get() 卡死從「同�
 `deletedDays/{day}=ts` 只增不減 → union/max 天然正確;死亡判定 `deletedAt > entry.editedAt`,重新編輯蓋新戳即復活 —— 不需要「移除 tombstone」(那會把 delete-不-propagate 問題遞迴上移一層)。
 **沒選**:tombstone 放 settings(整批 LWW 會互相蓋)、只推 null 不留 tombstone(stale 裝置 SANITY_PUSH 推回就復活)。`editedAt` 同時為 #6 鋪路(mergeDayMax 已傳遞戳,差「新者全勝」規則)。狀態:active。
 
+**2026-07-18|C 方案:petDays → GoalDays/Graduated 單調計數對(未爆彈正解)**
+與 B 收成同 idiom:生涯達標天/生涯畢業數兩個只增計數,本輪與待畢業全衍生;畢業=Graduated+1 而非歸零 → 復活家族(69 殘餘、每日免費畢業、#7 undo)結構性消滅,cap 8/同日 guard/`===3` 門檻全拆。undo 改 `sitGoalRevoked` 撤銷計數(同 idiom 第三次復用)。species 語意改「'original'=蛋,孵化必定種」讓孵化狀態可推導。
+**沒選**:選項 A(petDays 入 LWW 止血)—— 反正要做 C,一步到位省一次部署;generation-tag —— 計數對已覆蓋需求。
+**遷移**:seedPetCounters 只在 GoalDays==0 時從舊欄位種子,stale 種子被 Math.max 吃掉 → 亂序安全;趕在 7/25 首次畢業前上線,避開「stuck-8 是否已畢業」歧義。舊欄位凍結不刪(混版相容)。代價:混版窗口(未強刷裝置)可能多種一隻;undo 跨畢業邊界 clamp 不收回成體。狀態:active。
+
+**2026-07-18|LWW 時鐘改 server 校正(cloudNow / .sv sentinel)**
+所有 LWW 排序原本信裝置牆鐘,24h 常駐的桌寵一漂移就穩贏所有衝突(症狀像隨機回檔,極難 debug)。index/mini 訂 `.info/serverTimeOffset` 包成 `cloudNow()`;桌寵 REST 用 `{".sv":"timestamp"}` 由 server 蓋章。garden `at`/結算 seq 維持本機鐘(identity 要唯一性,不要跨裝置排序)。
+**沒選**:web SDK 的 serverTimestamp() sentinel —— S.updatedAt 推送後還要立刻做本機比較,sentinel 會讓本機值與雲端解析值分家,echo 抑制邏輯變不可推理。狀態:active。
+
 **2026-07-18|#6/#10/#11/#12 收尾批 + 發現 petDays 未爆彈**
 #6:mergeDayMax 改「editedAt 新者整筆全勝、同戳才逐欄 max」—— 沒選逐欄 LWW(粒度過細無需求);rollover 內聯合併對已編輯 entry 整筆保留(手動編輯 > 自動歸檔)。#10:init 歸檔用 `hadCloudLogin()` localStorage 旗標當「登入將至」的同步 proxy —— 沒選等 auth resolve 再歸檔(要重排 init 流程,面大)。#11:mini 五個動作進入點掛 rolloverGuard。#12:一行 applySessionUI。
-**未爆彈(多日尺度推演發現)**:寵物畢業歸零後 mini Math.max 卡 8 → 次日起每日免費畢業一隻;桌寵免疫(無本機狀態)。7/17 清零 → 首爆約 7/25。選項 A(petDays 入 LWW 止血)vs B(直接做 C),**待 user 決定**。狀態:active。
+**未爆彈(多日尺度推演發現)**:寵物畢業歸零後 mini Math.max 卡 8 → 次日起每日免費畢業一隻;桌寵免疫(無本機狀態)。7/17 清零 → 首爆約 7/25。選項 A(petDays 入 LWW 止血)vs B(直接做 C)。狀態:**resolved by 同日 C 方案**(user 選直接做 C)。
 
 **2026-07-17|_pendingSnackLevelCheck 旗標棄用(桌寵端)**
 stand 用 `delete` 清旗標,但差異推送永遠推不了「刪除」→ 雲端旗標卡死 → 每次開頁轟炸提示。桌寵 rollover 改為就地把零食寵 +1(cap 8),不寫旗標。index 端的旗標機制未動(它本機 set→本機 delete,自身閉環沒事)。
