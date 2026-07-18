@@ -167,15 +167,30 @@ function defS(){return{
   inSession:false,sitStartAt:0,sessionStartAt:0,sessionAccum:0,alerted:false,
   sitStageIdx:0,sitStageXP:0,waterStageIdx:0,waterStageXP:0,
   sitPetDays:0,waterPetDays:0,sitGoalMetToday:false,waterGoalMetToday:false,
+  // C 方案: monotonic lifetime counters (see index.html PET SYSTEM); legacy *PetDays frozen
+  sitGoalDays:0,sitGraduated:0,sitGoalRevoked:0,
+  waterGoalDays:0,waterGraduated:0,
+  snackGoalDays:0,snackGraduated:0,
   totalStands:0,totalWater:0,
   todaySnack:0,totalSnacks:0,snackLimit:3,snackGoalMetToday:true,
   snackPetDays:0,snackPetSpecies:'original',
   theme:'default',
 };}
 
+// C 方案 migration (same as index.html): one-time seed of monotonic counters from the
+// legacy per-cycle counter. Order-safe — a stale seed (≤8) loses to grown values via Math.max.
+function seedPetCounters(d){
+  for(const t of ['sit','water','snack']){
+    if(!((d[t+'GoalDays']||0)>0)&&((d[t+'PetDays']||0)>0)){
+      d[t+'GoalDays']=d[t+'PetDays'];
+    }
+  }
+}
+
 function loadL(){
   try{const d=JSON.parse(localStorage.getItem('health_v6'));if(d){
     if(!d.history||Array.isArray(d.history))d.history={};
+    seedPetCounters(d);
     return d;
   }}catch(e){}
   return defS();
@@ -232,11 +247,11 @@ function maybeRollover(d){
   d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;d.over45CountToday=0;
   d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
   d.sitGoalMetToday=false;d.waterGoalMetToday=false;
-  // Snack pet: award a day if yesterday stayed within limit (recomputed from the count,
-  // not the flag — same as index). Cap at adult threshold; no _pendingSnackLevelCheck
-  // flag (index-local mechanism); hatch/graduation stays index's job.
+  // Snack pet: award a goal-day if yesterday stayed within limit (recomputed from the
+  // count, not the flag — same as index). C 方案: monotonic snackGoalDays, no cap;
+  // hatch/graduation stays index's job.
   if((d.todaySnack||0)<=(d.snackLimit||3)){
-    d.snackPetDays=Math.min((d.snackPetDays||0)+1,PET_ADULT_THRESHOLD);
+    d.snackGoalDays=(d.snackGoalDays||0)+1;
   }
   d.todaySnack=0;d.snackGoalMetToday=true;
   return true;
@@ -270,7 +285,7 @@ const SCHEMA_VERSION=2;
 const APP_VERSION='v2.5-0602';
 (function(){const m=document.getElementById('miniVer'); if(m) m.textContent=APP_VERSION;})();
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
-const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount'];
+const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount','sitGoalDays','sitGraduated','sitGoalRevoked','waterGoalDays','waterGraduated','snackGoalDays','snackGraduated'];
 // Stage fields follow LWW, not Math.max — a completed seed resets idx/XP to 0 and a
 // stale client's old high value would resurrect it (see index.html PET_LWW_KEYS).
 const PET_LWW_KEYS=new Set(['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','stageIdx','stageXP']);
@@ -598,6 +613,7 @@ onAuthStateChanged(fbAuth,async u=>{
             }
           }
         }
+        seedPetCounters(S); // C migration — cloud may still be on legacy petDays only
 
         // META: Math.max
         for(const k of META_KEYS){
@@ -683,6 +699,7 @@ async function cloudPull(first){
         }
       }
     }
+    seedPetCounters(S); // C migration — cloud may still be on legacy petDays only
 
     // META: Math.max
     for(const k of META_KEYS){
@@ -782,11 +799,12 @@ function addSeedXP(type,xp){
   }
 }
 function checkPetGoals(){
-  // 2026-07-17: cap at adult threshold — mini has no checkPetLevelUp, so uncapped counters
-  // (e.g. 12) kept resurrecting via Math.max merges after index reset them, causing
-  // index to re-graduate a pet on every open (the "69 水滴滴" incident).
-  if(!S.sitGoalMetToday&&(S.todayStand||0)>=S_GOAL){S.sitGoalMetToday=true;S.sitPetDays=Math.min((S.sitPetDays||0)+1,PET_ADULT_THRESHOLD);toast('🪑 今日目標達成！');}
-  if(!S.waterGoalMetToday&&(S.todayWater||0)>=W_STREAK){S.waterGoalMetToday=true;S.waterPetDays=Math.min((S.waterPetDays||0)+1,PET_ADULT_THRESHOLD);toast('💧 今日目標達成！');}
+  // C 方案: increment the monotonic lifetime GoalDays — no cap needed anymore. The old
+  // cap-8 guarded the resurrection loop (69 水滴滴); under the counter-pair model a stale
+  // push can never re-raise `pending`, so uncapped growth is exactly what we want
+  // (day 9+ of a mini-only stretch no longer gets lost). Graduation stays index's job.
+  if(!S.sitGoalMetToday&&(S.todayStand||0)>=S_GOAL){S.sitGoalMetToday=true;S.sitGoalDays=(S.sitGoalDays||0)+1;toast('🪑 今日目標達成！');}
+  if(!S.waterGoalMetToday&&(S.todayWater||0)>=W_STREAK){S.waterGoalMetToday=true;S.waterGoalDays=(S.waterGoalDays||0)+1;toast('💧 今日目標達成！');}
 }
 
 // === ACTIONS ===

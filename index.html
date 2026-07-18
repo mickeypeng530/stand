@@ -1642,14 +1642,20 @@ function defS(){return{
   // Harvest settlement (monotonic pair — see settleSeedHarvests)
   sitHarvestCount:0,sitPlantedCount:0,
   waterHarvestCount:0,waterPlantedCount:0,
-  // Pet system: days-met-goal based
+  // Pet system (C 方案): monotonic lifetime counters — per-cycle progress is DERIVED
+  // (effective = GoalDays − Revoked; cycle day = effective % 8; pending = floor/8 − Graduated)
+  sitGoalDays:0,sitGraduated:0,sitGoalRevoked:0,
+  waterGoalDays:0,waterGraduated:0,
+  snackGoalDays:0,snackGraduated:0,
+  // Legacy per-cycle counters — frozen post-migration, kept so mixed-version merges stay sane
   sitPetDays:0,waterPetDays:0,
   sitGoalMetToday:false,waterGoalMetToday:false,
-  // Pet species (determined when egg hatches): 'original' | 'pikachu' (sit) | 'mario' (water)
+  // Pet species: 'original' = unhatched egg; hatching assigns an explicit species
+  // ('pikachu'|'sprout', 'mario'|'drop', 'jigglypuff'|'mushroom')
   sitPetSpecies:'original',waterPetSpecies:'original',
   // Snack counter: 零食計數器
   todaySnack:0,totalSnacks:0,snackLimit:3,snackGoalMetToday:true,
-  snackPetDays:0,snackPetSpecies:'original', // 'jigglypuff' or 'mushroom' when hatched
+  snackPetDays:0,snackPetSpecies:'original',
   // Health metrics
   over45CountToday:0, // count of sit episodes ≥ 45min today
 };}
@@ -1712,11 +1718,14 @@ function maybeRollover(d){
   d.sessionSecTotal=0;d.longestSit=0;d.sessionsToday=0;d.over45CountToday=0;
   d.inSession=false;d.sitStartAt=0;d.sessionStartAt=0;d.sessionAccum=0;d.alerted=false;
   d.sitGoalMetToday=false;d.waterGoalMetToday=false;
-  // Snack: award pet day if yesterday's count was within limit, then reset
+  // Snack: award a goal-day if yesterday's count was within limit, then reset.
+  // C 方案: increments the monotonic snackGoalDays (never capped, never reset);
+  // hatch/graduation settle later via settlePetType (flag consumed in
+  // processPendingRolloverEffects).
   const snackLimit=d.snackLimit||3;
   const snackMet=(d.todaySnack||0)<=snackLimit;
   if(snackMet){
-    d.snackPetDays=(d.snackPetDays||0)+1;
+    d.snackGoalDays=(d.snackGoalDays||0)+1;
     d._pendingSnackLevelCheck=true;
   }
   d.todaySnack=0;d.snackGoalMetToday=true;
@@ -1727,6 +1736,19 @@ function maybeRollover(d){
   // which is independent of which app/device rolled the day over.
   d._rolledOver=true;
   return true;
+}
+
+// C 方案 migration: seed the monotonic counters from the legacy per-cycle counter, once.
+// Idempotent and order-safe by construction: a stale seed (≤8) loses to any already-grown
+// value via the Math.max merge, so racing devices cannot corrupt it. Graduated starts at 0 —
+// history isn't back-credited; the seed just preserves the in-progress cycle (0-8 days).
+// Runs at load AND after every cloud merge (a fresh device may meet an unmigrated cloud).
+function seedPetCounters(d){
+  for(const t of ['sit','water','snack']){
+    if(!((d[t+'GoalDays']||0)>0)&&((d[t+'PetDays']||0)>0)){
+      d[t+'GoalDays']=d[t+'PetDays'];
+    }
+  }
 }
 
 function loadL(){
@@ -1741,7 +1763,8 @@ function loadL(){
       if(!d.deletedDays||typeof d.deletedDays!=='object')d.deletedDays={};
       if(!Array.isArray(d.garden))d.garden=[];
       if(!d.gardenArchive||typeof d.gardenArchive!=='object')d.gardenArchive={};
-      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays','todaySnack','totalSnacks','snackPetDays','over45CountToday','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount'].forEach(k=>{if(!d[k])d[k]=0;});
+      seedPetCounters(d); // C migration — must run BEFORE any use of the new counters
+      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays','todaySnack','totalSnacks','snackPetDays','over45CountToday','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount','sitGoalDays','sitGraduated','sitGoalRevoked','waterGoalDays','waterGraduated','snackGoalDays','snackGraduated'].forEach(k=>{if(!d[k])d[k]=0;});
       if(!d.thresh)d.thresh=30;
       if(!d.snackLimit)d.snackLimit=3;
       if(!d.theme||!THEMES.includes(d.theme))d.theme='default';
@@ -1932,6 +1955,8 @@ onAuthStateChanged(fbAuth,async u=>{
             }
           }
         }
+        // C migration — cloud may still be on legacy petDays only
+        seedPetCounters(S);
         // Meta: Math.max
         for(const k of META_KEYS){
           if(k in cn.meta){
@@ -1954,11 +1979,10 @@ onAuthStateChanged(fbAuth,async u=>{
           processPendingRolloverEffects();
         }
 
-        // 2026-07-17: resolve over-threshold counters arriving via merge (e.g. mini
-        // accumulated past 8 while this tab was closed). Must run AFTER the garden
-        // union above — the same-day dedupe guard in checkPetLevelUp needs the other
-        // device's freshly-merged graduation to be visible, or it re-graduates.
-        // 2026-07-18: now also settles seed harvests mini completed, as one batch.
+        // Settle whatever the merge brought in — seed harvests mini completed and pet
+        // goal-days accrued elsewhere — as one batch. (C 方案: pending graduations come
+        // from the monotonic counter pair, so ordering vs the garden union no longer
+        // matters for correctness; it just keeps the display coherent.)
         const resolvedPet=runSettlement();
 
         // lastCloudSnap reflects cloud's actual state (flat form)
@@ -2023,7 +2047,7 @@ const APP_VERSION='v2.5-0602';
 // Keys that live under state/ (session-level, last-write-wins)
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 // Keys under pets/ (pet progress, last-write-wins)
-const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount'];
+const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount','sitGoalDays','sitGraduated','sitGoalRevoked','waterGoalDays','waterGraduated','snackGoalDays','snackGraduated'];
 // Seed-stage fields must NOT merge via Math.max — a completed seed resets idx/XP to 0,
 // and a stale client's old high value would resurrect it and re-harvest (same mechanism
 // as the 69 水滴滴 incident; same-day dedupe can't help since a seed can legitimately
@@ -2482,6 +2506,8 @@ async function cloudPull(firstPull){
         }
       }
     }
+    // C migration — cloud may still be on legacy petDays only
+    seedPetCounters(S);
 
     // === SETTINGS: last-write-wins (use state.updatedAt as proxy) ===
     if(cloudStateUpdated>localStateUpdated){
@@ -3869,8 +3895,8 @@ function renderSnack(){
   const cDesktop=$id('snackCandiesDesktop');
   if(cMobile)cMobile.innerHTML=candiesHtml;
   if(cDesktop)cDesktop.innerHTML=candiesHtml;
-  // Pet progress
-  const days=S.snackPetDays||0;
+  // Pet progress (C 方案: derived current-cycle day)
+  const days=petCycleDay('snack');
   const species=S.snackPetSpecies||'original';
   let petText;
   if(days>=PET_ADULT_THRESHOLD){
@@ -3930,21 +3956,50 @@ function addSeedXP(type,xp){
   }
 }
 
-// ===== PET SYSTEM (days-met-goal) =====
+// ===== PET SYSTEM (C 方案: monotonic goal-day counters) =====
+// Two ever-growing counters per type replace the old resettable {type}PetDays:
+//   {type}GoalDays  — lifetime goal-met days (all three writers increment, no cap)
+//   {type}Graduated — lifetime graduated pets (only index increments, at settlement)
+//   sitGoalRevoked  — lifetime revoked goal-days (undo of a goal-crossing stand, #7)
+// Everything else is DERIVED — cycle day = effective % 8, pending = floor/8 − Graduated.
+// Both counters only grow → Math.max merging is exactly correct: graduation advances
+// Graduated instead of zeroing GoalDays, so there is no reset to resurrect. This kills the
+// whole resurrection family (69 水滴滴 mechanics, the "mini stuck at cap 8 → free daily
+// graduation" loop, and #7's undo conflict) — the same idiom as the harvest counter pair.
+function petEffectiveDays(type){
+  const rev=type==='sit'?(S.sitGoalRevoked||0):0;
+  return Math.max(0,(S[type+'GoalDays']||0)-rev);
+}
+function petCycleDay(type){return petEffectiveDays(type)%8;}
+function petPendingGrads(type){
+  return Math.max(0,Math.floor(petEffectiveDays(type)/8)-(S[type+'Graduated']||0));
+}
+function rollPetSpecies(type){
+  const rand=Math.random()<0.5;
+  if(type==='sit')return rand?'pikachu':'sprout';
+  if(type==='water')return rand?'mario':'drop';
+  return rand?'jigglypuff':'mushroom';
+}
+const PET_NAMES={pikachu:'皮卡丘',sprout:'芽芽',mario:'馬力歐',drop:'水滴滴',jigglypuff:'胖丁',mushroom:'洋菇'};
+function petName(type,species){
+  if(species==='original')return type==='sit'?'芽芽':(type==='water'?'水滴滴':'糖糖');
+  return PET_NAMES[species]||'寵物';
+}
+
 function checkPetGoals(){
-  // Sit pet: increment daysMetGoal once per day when todayStand reaches goal
+  // Sit pet: award a lifetime goal-day once per day when todayStand reaches goal
   if(!S.sitGoalMetToday&&(S.todayStand||0)>=S_GOAL){
     S.sitGoalMetToday=true;
-    S.sitPetDays=(S.sitPetDays||0)+1;
+    S.sitGoalDays=(S.sitGoalDays||0)+1;
     showToast('🪑 今日久坐目標達成！',true);
-    checkPetLevelUp('sit');
+    settlePetType('sit');
   }
   // Water pet: independent
   if(!S.waterGoalMetToday&&(S.todayWater||0)>=W_STREAK){
     S.waterGoalMetToday=true;
-    S.waterPetDays=(S.waterPetDays||0)+1;
+    S.waterGoalDays=(S.waterGoalDays||0)+1;
     showToast('💧 今日喝水目標達成！',true);
-    checkPetLevelUp('water');
+    settlePetType('water');
   }
 }
 
@@ -3960,73 +4015,49 @@ function checkSnackGoal(){
   }
 }
 
-// Award snack pet day at rollover if goal was met yesterday
-function awardSnackPetDayIfGoalMet(){
-  if(S.snackGoalMetToday){
-    S.snackPetDays=(S.snackPetDays||0)+1;
-    checkPetLevelUp('snack');
-  }
-}
-
-function checkPetLevelUp(type){
-  const daysKey=type==='sit'?'sitPetDays':(type==='water'?'waterPetDays':'snackPetDays');
+// Graduate every pending pet of one type, then run the hatch check. Returns true when
+// anything changed so callers persist + push. Live path (checkPetGoals) shows celebrations
+// directly; inside runSettlement they're batched into the single summary.
+// No same-day garden guard anymore — the monotonic counter math IS the dedupe (a stale
+// GoalDays push can only lower `pending` back toward 0, never re-raise it).
+function settlePetType(type){
   const speciesKey=type==='sit'?'sitPetSpecies':(type==='water'?'waterPetSpecies':'snackPetSpecies');
-  const days=S[daysKey]||0;
-  // Just reached or exceeded adult threshold — retire to garden with species-specific svg
-  if(days>=PET_ADULT_THRESHOLD){
-    // GUARD (2026-07-17): same-day dedupe. Pet counters merge with Math.max everywhere,
-    // so a reset-to-0 can be resurrected by any stale client (mini kept pushing 12) —
-    // each resurrection re-graduated another pet (the "69 水滴滴" incident).
-    // A type can legitimately graduate at most once per day (needs 8 goal-days),
-    // so if a pet-sourced adult of this type already exists today: just re-reset, no spawn.
-    const dayStart=new Date();dayStart.setHours(0,0,0,0);
-    if((S.garden||[]).some(g=>g&&g.source==='pet'&&g.type===type&&g.at>=+dayStart)){
-      S[daysKey]=0;S[speciesKey]='original';
-      return;
-    }
-    const species=S[speciesKey]||'original';
-    let svg;
-    if(type==='sit'){
-      svg=species==='pikachu'?'m-pikachu-adult':'m-sprout-adult';
-    }else if(type==='water'){
-      svg=species==='mario'?'m-mario-adult':'m-drop-adult';
-    }else{ // snack
-      svg=species==='jigglypuff'?'m-jigglypuff-adult':'m-mushroom-adult';
-    }
-    const pos=randPos(type==='water'?'front':'back',true);
+  let changed=false;
+  const pending=petPendingGrads(type);
+  if(pending>0){
+    // distinct `at` per plant — it's the garden identity (union key + cloud path)
+    let seq=Math.max(now(),(S.garden||[]).reduce((m,g)=>Math.max(m,g?.at||0),0)+1);
     S.garden=S.garden||[];
-    S.garden.push({type:type,svg:svg,source:'pet',x:pos.x,y:pos.y,at:now()});
-    S[daysKey]=0; // reset for next round (new egg)
-    S[speciesKey]='original'; // reset species (new egg = not-yet-decided)
-    const nameMap={
-      original:(type==='sit'?'芽芽':(type==='water'?'水滴滴':'糖糖')),
-      pikachu:'皮卡丘',mario:'馬力歐',
-      jigglypuff:'胖丁',mushroom:'洋菇'
-    };
-    const n=nameMap[species]||'寵物';
-    const emoji=type==='sit'?'🌿':(type==='water'?'💧':'🍪');
-    celebrate('🏡',`${n} 長大了！`,`已搬進花園，新的蛋開始孵化 ${emoji}`);
-    beep();
-  }else if(days===PET_BABY_THRESHOLD){
-    // Hatching: randomly decide species (50/50)
-    const rand=Math.random()<0.5;
-    let species;
-    if(type==='sit'){
-      species=rand?'pikachu':'original';
-    }else if(type==='water'){
-      species=rand?'mario':'original';
-    }else{ // snack — jigglypuff or mushroom
-      species=rand?'jigglypuff':'mushroom';
+    for(let i=0;i<pending;i++){
+      let species=S[speciesKey]||'original';
+      if(species==='original'){
+        // Cycle completed without an on-screen hatch (accrued entirely via mini/桌寵) —
+        // roll the 50/50 here: the compressed hatch-and-graduate.
+        species=rollPetSpecies(type);
+      }
+      let svg;
+      if(type==='sit')svg=species==='pikachu'?'m-pikachu-adult':'m-sprout-adult';
+      else if(type==='water')svg=species==='mario'?'m-mario-adult':'m-drop-adult';
+      else svg=species==='jigglypuff'?'m-jigglypuff-adult':'m-mushroom-adult';
+      const pos=randPos(type==='water'?'front':'back',true);
+      S.garden.push({type:type,svg:svg,source:'pet',x:pos.x,y:pos.y,at:seq++});
+      S[type+'Graduated']=(S[type+'Graduated']||0)+1; // monotonic advance — never a reset
+      S[speciesKey]='original'; // next egg
+      const emoji=type==='sit'?'🌿':(type==='water'?'💧':'🍪');
+      celebrate('🏡',`${petName(type,species)} 長大了！`,`已搬進花園，新的蛋開始孵化 ${emoji}`);
+      beep();
     }
-    S[speciesKey]=species;
-    const nameMap={
-      original:(type==='sit'?'芽芽':(type==='water'?'水滴滴':'糖糖')),
-      pikachu:'皮卡丘',mario:'馬力歐',
-      jigglypuff:'胖丁',mushroom:'洋菇'
-    };
-    const n=nameMap[species];
-    celebrate('🐣',`${n} 孵化了！`,'繼續照顧，再 5 天就能長大');
+    changed=true;
   }
+  // Hatch: current cycle reached day >=3 and still an egg. `>=` (not `===`) so a cycle that
+  // crossed day 3 on another device still hatches here — the exact-threshold trap is gone.
+  if(petCycleDay(type)>=PET_BABY_THRESHOLD&&(S[speciesKey]||'original')==='original'){
+    const species=rollPetSpecies(type);
+    S[speciesKey]=species;
+    celebrate('🐣',`${petName(type,species)} 孵化了！`,'繼續照顧，養滿 8 天就能長大');
+    changed=true;
+  }
+  return changed;
 }
 
 // ===== BATCH SETTLEMENT (結帳) =====
@@ -4075,8 +4106,7 @@ function runSettlement(){
     planted=settleSeedHarvests();
     if(planted.length)changed=true;
     ['sit','water','snack'].forEach(tp=>{
-      const dk=tp==='sit'?'sitPetDays':(tp==='water'?'waterPetDays':'snackPetDays');
-      if((S[dk]||0)>=PET_ADULT_THRESHOLD){checkPetLevelUp(tp);changed=true;}
+      if(settlePetType(tp))changed=true;
     });
   }finally{
     const pets=_celebrateBatch||[];
@@ -4122,8 +4152,8 @@ function triggerMascot(type,customMsg){
 
 // Update mascot SVG based on pet days, and fill badge with both seed + pet info
 function updatePetMascots(){
-  const sitDays=S.sitPetDays||0;
-  const waterDays=S.waterPetDays||0;
+  const sitDays=petCycleDay('sit');
+  const waterDays=petCycleDay('water');
   const[,sSuf]=petStageOf(sitDays);
   const[,wSuf]=petStageOf(waterDays);
   const sitUse=$id('sitMascotUse');
@@ -4903,7 +4933,12 @@ function rollbackLastStand(){
   S.totalStands=ls.prevTotalStands;
   S.sitStageXP=ls.prevXP;
   S.sitStageIdx=ls.prevStageIdx;
-  S.sitPetDays=ls.prevPetDays;
+  // C 方案 (#7): sitGoalDays is monotonic — restoring an older value is both forbidden and
+  // futile (Math.max would resurrect the higher one from any other client). If the stand
+  // being undone crossed today's goal, record a REVOCATION instead; the effective day count
+  // (GoalDays − Revoked) drops by one, which every device converges on. If a graduation
+  // already fired off that day, petPendingGrads clamps at 0 — the planted adult stays.
+  if(!ls.prevGoalMet&&S.sitGoalMetToday)S.sitGoalRevoked=(S.sitGoalRevoked||0)+1;
   S.sitGoalMetToday=ls.prevGoalMet;
   S.sessionSecTotal=ls.prevSessionTotal;
   S.longestSit=ls.prevLongest;
@@ -5264,7 +5299,7 @@ function processPendingRolloverEffects(){
   const toasts=[];
   if(S._pendingSnackLevelCheck){
     delete S._pendingSnackLevelCheck;
-    checkPetLevelUp('snack');
+    settlePetType('snack');
   }
   if(S._pendingGardenArchive){
     const mode=S._pendingGardenArchive;
