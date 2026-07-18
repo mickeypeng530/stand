@@ -1635,6 +1635,9 @@ function defS(){return{
   // Seed system: per-type progression
   sitStageIdx:0,sitStageXP:0,
   waterStageIdx:0,waterStageXP:0,
+  // Harvest settlement (monotonic pair — see settleSeedHarvests)
+  sitHarvestCount:0,sitPlantedCount:0,
+  waterHarvestCount:0,waterPlantedCount:0,
   // Pet system: days-met-goal based
   sitPetDays:0,waterPetDays:0,
   sitGoalMetToday:false,waterGoalMetToday:false,
@@ -1729,7 +1732,7 @@ function loadL(){
       if(!d.history||Array.isArray(d.history))d.history={};
       if(!Array.isArray(d.garden))d.garden=[];
       if(!d.gardenArchive||typeof d.gardenArchive!=='object')d.gardenArchive={};
-      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays','todaySnack','totalSnacks','snackPetDays','over45CountToday'].forEach(k=>{if(!d[k])d[k]=0;});
+      ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays','todaySnack','totalSnacks','snackPetDays','over45CountToday','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount'].forEach(k=>{if(!d[k])d[k]=0;});
       if(!d.thresh)d.thresh=30;
       if(!d.snackLimit)d.snackLimit=3;
       if(!d.theme||!THEMES.includes(d.theme))d.theme='default';
@@ -1839,6 +1842,10 @@ onAuthStateChanged(fbAuth,async u=>{
     updateLoginBtn(u);
     setSyncChip('cloud','已同步');
     await cloudPull(true);
+    // Settle AFTER the first pull — never before. Settlement plants from the counter pair,
+    // so acting on stale local counters (another machine may already have planted and
+    // advanced PlantedCount) would duplicate plants in the garden.
+    if(runSettlement()){saveLocal();cloudSave();}
     renderAll();
     // Set up realtime listener — triggers when cloud data changes from another device
     cloudListenerUnsub=onValue(dbRef,snap=>{
@@ -1928,11 +1935,8 @@ onAuthStateChanged(fbAuth,async u=>{
         // accumulated past 8 while this tab was closed). Must run AFTER the garden
         // union above — the same-day dedupe guard in checkPetLevelUp needs the other
         // device's freshly-merged graduation to be visible, or it re-graduates.
-        let resolvedPet=false;
-        ['sit','water','snack'].forEach(tp=>{
-          const dk=tp==='sit'?'sitPetDays':(tp==='water'?'waterPetDays':'snackPetDays');
-          if((S[dk]||0)>=PET_ADULT_THRESHOLD){checkPetLevelUp(tp);resolvedPet=true;}
-        });
+        // 2026-07-18: now also settles seed harvests mini completed, as one batch.
+        const resolvedPet=runSettlement();
 
         // lastCloudSnap reflects cloud's actual state (flat form)
         lastCloudSnap=flatCloud;
@@ -1955,6 +1959,9 @@ onAuthStateChanged(fbAuth,async u=>{
     lastCloudSnap=null;
     updateLoginBtn(null);
     setSyncChip('local','本地');
+    // Local-only mode: mini shares this device's localStorage, so a backlog can still
+    // exist. No cloud means no stale-counter risk — settle right away.
+    if(runSettlement()){saveLocal();renderAll();}
   }
 });
 
@@ -1987,7 +1994,7 @@ const APP_VERSION='v2.5-0602';
 // Keys that live under state/ (session-level, last-write-wins)
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
 // Keys under pets/ (pet progress, last-write-wins)
-const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
+const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount'];
 // Seed-stage fields must NOT merge via Math.max — a completed seed resets idx/XP to 0,
 // and a stale client's old high value would resurrect it and re-harvest (same mechanism
 // as the 69 水滴滴 incident; same-day dedupe can't help since a seed can legitimately
@@ -3361,7 +3368,15 @@ function showToast(text,celebrate){
 }
 
 // Big celebration (pet hatching, seed completion)
+// When non-null, celebrate() buffers instead of showing — lets a batch settlement collect
+// N graduations/harvests and emit ONE summary instead of N overlays that overwrite each
+// other's text while stacking N× confetti and N× beep.
+let _celebrateBatch=null;
 function celebrate(icon,title,sub){
+  if(_celebrateBatch){_celebrateBatch.push({icon,title,sub});return;}
+  celebrateNow(icon,title,sub);
+}
+function celebrateNow(icon,title,sub){
   const ov=$id('celebrateOverlay');
   if(!ov)return;
   $id('celebrateIcon').textContent=icon;
@@ -3783,6 +3798,10 @@ function addSeedXP(type,xp){
         const pos=randPos(zone);
         S.garden=S.garden||[];
         S.garden.push({type:type,svg:svg,source:'seed',x:pos.x,y:pos.y,at:now()});
+        // Monotonic settlement pair: index harvests AND plants in the same breath, so the
+        // two stay level and no backlog accrues during normal live use.
+        S[type+'HarvestCount']=(S[type+'HarvestCount']||0)+1;
+        S[type+'PlantedCount']=(S[type+'PlantedCount']||0)+1;
         // Reset seed for next round
         S[idxKey]=0;S[xpKey]=0;
         const name=type==='sit'?'樹':'花';
@@ -3898,6 +3917,84 @@ function checkPetLevelUp(type){
     const n=nameMap[species];
     celebrate('🐣',`${n} 孵化了！`,'繼續照顧，再 5 天就能長大');
   }
+}
+
+// ===== BATCH SETTLEMENT (結帳) =====
+// mini.html can complete a seed but has no garden logic, so it only bumps *HarvestCount.
+// index settles the backlog here: plant the difference, then advance *PlantedCount.
+//
+// Why a monotonic COUNTER PAIR rather than a "_pendingHarvest" flag: any field that gets
+// CLEARED (delete, or reset to 0) cannot survive Math.max merging — a stale client pushes
+// the old value back and the work repeats forever. That is precisely the 69 水滴滴 loop.
+// Both counters here only ever grow, so Math.max is the correct merge and a stale push is
+// a harmless no-op.   pending = HarvestCount − PlantedCount
+const SETTLE_MAX_PER_RUN=50; // sanity cap; any remainder stays pending for the next run
+function settleSeedHarvests(){
+  const out=[];
+  // `at` is the garden item's identity (union key in mergeGarden + its cloud path), so every
+  // plant needs a globally distinct one. Start past both the clock AND the newest existing
+  // item, then hand out consecutive values across BOTH types — a per-type now() would collide
+  // between types within the same millisecond and silently dedupe plants away.
+  let seq=Math.max(now(),(S.garden||[]).reduce((m,g)=>Math.max(m,g?.at||0),0)+1);
+  for(const type of ['sit','water']){
+    const hKey=type+'HarvestCount',pKey=type+'PlantedCount';
+    const pending=(S[hKey]||0)-(S[pKey]||0);
+    if(pending<=0)continue;
+    const n=Math.min(pending,SETTLE_MAX_PER_RUN);
+    const finals=type==='sit'?SIT_FINALS:WATER_FINALS;
+    const zone=type==='sit'?'back':'front';
+    S.garden=S.garden||[];
+    for(let i=0;i<n;i++){
+      const svg=finals[Math.floor(Math.random()*finals.length)];
+      const pos=randPos(zone);
+      S.garden.push({type:type,svg:svg,source:'seed',x:pos.x,y:pos.y,at:seq++});
+    }
+    S[pKey]=(S[pKey]||0)+n; // monotonic advance — never a reset
+    out.push({type,n});
+    syncLog('SETTLE',{type,planted:n,pending:pending,capped:pending>n});
+  }
+  return out;
+}
+
+// Seed settlement + pet promotions as ONE batch, emitting a single summary instead of
+// N overlays. Returns true if anything changed (caller persists + pushes).
+function runSettlement(){
+  let planted=[],changed=false;
+  _celebrateBatch=[];
+  try{
+    planted=settleSeedHarvests();
+    if(planted.length)changed=true;
+    ['sit','water','snack'].forEach(tp=>{
+      const dk=tp==='sit'?'sitPetDays':(tp==='water'?'waterPetDays':'snackPetDays');
+      if((S[dk]||0)>=PET_ADULT_THRESHOLD){checkPetLevelUp(tp);changed=true;}
+    });
+  }finally{
+    const pets=_celebrateBatch||[];
+    _celebrateBatch=null;
+    showSettlementSummary(planted,pets);
+  }
+  return changed;
+}
+
+function showSettlementSummary(planted,pets){
+  const plantTotal=planted.reduce((a,p)=>a+p.n,0);
+  const events=plantTotal+pets.length;
+  if(events===0)return;
+  // One event needs no summary screen — show it the ordinary way.
+  if(events===1){
+    if(pets.length===1)celebrateNow(pets[0].icon,pets[0].title,pets[0].sub);
+    else{
+      const t=planted[0].type;
+      celebrateNow(t==='sit'?'🌳':'🌸',`收成一${t==='sit'?'棵樹':'朵花'}！`,'已進入花園 🏡');
+    }
+    beep();
+    return;
+  }
+  const parts=[];
+  for(const p of planted)parts.push(`${p.type==='sit'?'🌳':'🌸'} × ${p.n}`);
+  if(pets.length)parts.push(`🐾 寵物 × ${pets.length}`);
+  celebrateNow('📦','結算完成！',parts.join('　')+'　已進駐花園');
+  beep();
 }
 
 // ===== MASCOT VISUAL =====
@@ -4402,6 +4499,7 @@ function renderGarden(){
 // ===== SOUND =====
 let audioCtx=null;
 function beep(){
+  if(_celebrateBatch)return; // batched settlement — the summary emits a single beep
   if(!S.soundOn)return;
   try{
     if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
@@ -5022,21 +5120,12 @@ if(checkMonthlyArchive()){
 if((S.longestSit||0)>=LONGEST_WARN_SEC&&(S.over45CountToday||0)===0){
   S.over45CountToday=1;
 }
-// Auto-recover: if any pet has reached adult threshold but wasn't promoted (e.g. mini.html
-// updated days but didn't run checkPetLevelUp), trigger the promotion now.
-{
-  let recovered=false;
-  ['sit','water','snack'].forEach(type=>{
-    const daysKey=type==='sit'?'sitPetDays':(type==='water'?'waterPetDays':'snackPetDays');
-    if((S[daysKey]||0)>=PET_ADULT_THRESHOLD){
-      checkPetLevelUp(type);
-      recovered=true;
-    }
-  });
-  // 2026-07-17: persist the counter reset immediately — otherwise a reload (or a stale
-  // client's Math.max push) resurrects the counter and re-graduates another pet.
-  if(recovered){saveLocal();if(dbRef)cloudSave();}
-}
+// 2026-07-18: pet auto-recovery used to run HERE, at init. That is before auth resolves and
+// before the first cloudPull, i.e. on counters not yet merged with the cloud. Harmless-ish
+// for pets (the same-day dedupe guard caps the damage) but unsafe for seed settlement, which
+// plants from a counter difference and would duplicate plants against a cloud that already
+// advanced PlantedCount. Both now run via runSettlement() once auth resolves — after the
+// first pull when logged in, immediately in the local-only branch. See onAuthStateChanged.
 renderAll();
 // Update water countdown every 30s (works regardless of session state)
 setInterval(updateWaterCountdown,30000);

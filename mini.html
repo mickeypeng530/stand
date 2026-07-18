@@ -267,7 +267,7 @@ const SCHEMA_VERSION=2;
 const APP_VERSION='v2.5-0602';
 (function(){const m=document.getElementById('miniVer'); if(m) m.textContent=APP_VERSION;})();
 const STATE_KEYS=['todayStand','todayWater','todaySnack','lastDate','sessionSecTotal','longestSit','over45CountToday','sessionStartAt','sitStartAt','inSession','sessionAccum','alerted','lastWaterRemindAt','sitGoalMetToday','waterGoalMetToday','snackGoalMetToday','restToday','_over45TriggeredThisSession','_rolledOver','streak','sessionsToday','lastStand'];
-const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP'];
+const PETS_KEYS=['sitPetDays','sitPetSpecies','sitStageIdx','sitStageXP','waterPetDays','waterPetSpecies','waterStageIdx','waterStageXP','snackPetDays','snackPetSpecies','stageIdx','stageXP','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount'];
 // Stage fields follow LWW, not Math.max — a completed seed resets idx/XP to 0 and a
 // stale client's old high value would resurrect it (see index.html PET_LWW_KEYS).
 const PET_LWW_KEYS=new Set(['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','stageIdx','stageXP']);
@@ -718,9 +718,13 @@ function addSeedXP(type,xp){
     if(S[xpKey]>=need){
       S[xpKey]-=need;S[idxKey]++;
       if(S[idxKey]===7){
-        // Reset for next seed (main app handles garden placement when open)
+        // Record the harvest as a FACT; index plants it into the garden on next open
+        // (mini has no garden logic). HarvestCount only ever grows, so Math.max merging
+        // is correct — unlike a "pending" flag, which index would have to clear and a
+        // stale client would resurrect (the 69 水滴滴 mechanism).
+        S[type+'HarvestCount']=(S[type+'HarvestCount']||0)+1;
         S[idxKey]=0;S[xpKey]=0;
-        toast(type==='sit'?'🌳 收成一棵樹！':'🌸 收成一朵花！');
+        toast(type==='sit'?'🌳 種子完成！開主程式種進花園':'🌸 種子完成！開主程式種進花園');
       }
     }else break;
   }
