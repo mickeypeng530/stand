@@ -1841,6 +1841,16 @@ function $id(id){return _domCache[id]??=document.getElementById(id);}
 
 const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-scheduler-f752b.firebaseapp.com",databaseURL:"https://case-scheduler-f752b-default-rtdb.firebaseio.com",projectId:"case-scheduler-f752b",storageBucket:"case-scheduler-f752b.firebasestorage.app",messagingSenderId:"703006186929",appId:"1:703006186929:web:57ac5b059678005455f190"};
 const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),fbStorage=getStorage(fbApp),prov=new GoogleAuthProvider();
+
+// LWW clock correction: every last-write-wins ordering in this app (state/updatedAt,
+// history editedAt, deletedDays tombstones) rides on device wall clocks. A drifting
+// always-on writer (桌寵 runs 24h) would win every conflict with symptoms that look like
+// random rollbacks. RTDB exposes its clock skew for free — stamp via cloudNow() everywhere
+// an LWW timestamp is WRITTEN. (Identity keys like garden `at` stay on local now(): they
+// need uniqueness, not cross-device ordering.)
+let _serverTimeOffset=0;
+try{onValue(ref(fbDb,'.info/serverTimeOffset'),s=>{_serverTimeOffset=s.val()||0;});}catch(e){}
+function cloudNow(){return Date.now()+_serverTimeOffset;}
 let fbUser=null,dbRef=null;
 
 function setSyncChip(mode,text){
@@ -2183,7 +2193,7 @@ let _syncInFlight=false;
 async function cloudSave(){
   if(!dbRef)return;
   try{
-    S.updatedAt=Date.now();
+    S.updatedAt=cloudNow();
     const multiPath={};
     const summary={state:0,history:0,pets:0,settings:0,meta:0,garden:0};
 
@@ -5121,7 +5131,7 @@ window.saveEditHistory=function(){
       over45Count:over45,
       // Review #3: manual-edit stamp. Out-stamps any deletion tombstone (isDeadDay), so
       // editing a previously-deleted day legitimately revives it.
-      editedAt:Date.now()
+      editedAt:cloudNow()
     };
     window.closeEditHistoryModal();
     syncLog('EDIT_HIST',{date:dateKey,stand,water,workSec,longestSec,snack});
@@ -5143,7 +5153,7 @@ window.deleteEditHistory=function(){
   // the cloud's union merge would just re-add the day. Tombstone it — cloudSave pushes
   // the tombstone plus an explicit history/{day}=null, and merges filter it everywhere.
   S.deletedDays=S.deletedDays||{};
-  S.deletedDays[dateKey]=Date.now();
+  S.deletedDays[dateKey]=cloudNow();
   if(S.history)delete S.history[dateKey];
   window.closeEditHistoryModal();
   showToast(`🗑 已刪除 ${dateKey.slice(0,10)} 紀錄`);

@@ -122,6 +122,12 @@ import{getDatabase,ref,set,update,get,onValue}from"https://www.gstatic.com/fireb
 const fbCfg={apiKey:"AIzaSyATCaOlYxkYTle1hPzYAcuXNlQHaAuO3-8",authDomain:"case-scheduler-f752b.firebaseapp.com",databaseURL:"https://case-scheduler-f752b-default-rtdb.firebaseio.com",projectId:"case-scheduler-f752b",storageBucket:"case-scheduler-f752b.firebasestorage.app",messagingSenderId:"703006186929",appId:"1:703006186929:web:57ac5b059678005455f190"};
 const fbApp=initializeApp(fbCfg),fbAuth=getAuth(fbApp),fbDb=getDatabase(fbApp),prov=new GoogleAuthProvider();
 
+// LWW clock correction (same as index.html): stamp updatedAt with server-corrected time so
+// a drifting device can't win every LWW conflict. Identity keys (garden at) stay local.
+let _serverTimeOffset=0;
+try{onValue(ref(fbDb,'.info/serverTimeOffset'),s=>{_serverTimeOffset=s.val()||0;});}catch(e){}
+function cloudNow(){return Date.now()+_serverTimeOffset;}
+
 // get() with a timeout — Firebase's get() has no built-in timeout, so on a flaky network
 // it can stay pending forever, leaving the sync chip stuck on "同步中". This rejects after
 // `ms` so callers can surface an error / retry instead of hanging.
@@ -406,7 +412,7 @@ async function saveSync(){
   saveLocal();
   if(!dbRef)return;
   try{
-    S.updatedAt=Date.now();
+    S.updatedAt=cloudNow();
     const multiPath={};
     const summary={state:0,history:0,pets:0,settings:0,meta:0,garden:0};
 
