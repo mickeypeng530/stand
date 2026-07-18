@@ -203,7 +203,9 @@ function maybeRollover(d){
       snack:d.todaySnack||0
     };
     const existing=d.history[oldLastDate];
-    if(existing){
+    if(existing&&(existing.editedAt||0)>0){
+      // Review #6: manually-edited entry wins wholesale — don't resurrect via field-max
+    }else if(existing){
       // Merge with existing — Math.max preserves whichever is more complete
       d.history[oldLastDate]={
         water:Math.max(existing.water||0,incoming.water),
@@ -313,6 +315,10 @@ function mergeGarden(localArr,cloudArr,archivedAt){
 function mergeDayMax(a,b){
   if(!a)return b;
   if(!b)return a;
+  // Review #6: newer manual-edit stamp wins wholesale (same as index.html) — field-max
+  // would resurrect numbers the user corrected down. Tie (both unedited) → field max.
+  const ea=a.editedAt||0,eb=b.editedAt||0;
+  if(ea!==eb)return ea>eb?a:b;
   return {
     stands:Math.max(a.stands||0,b.stands||0),
     water:Math.max(a.water||0,b.water||0),
