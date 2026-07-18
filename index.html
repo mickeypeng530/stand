@@ -1628,6 +1628,10 @@ const GARDEN_ZONES={
 function defS(){return{
   thresh:30,todayStand:0,todayWater:0,streak:0,lastDate:null,
   garden:[],history:{},
+  // Tombstones for manually-deleted history days: {dateKey: deletedAtTs}. Grow-only —
+  // union/max merge is correct; a day is dead while deletedAt > entry.editedAt (re-editing
+  // the day later out-stamps the tombstone, so no un-deletable ghosts).
+  deletedDays:{},
   soundOn:true,totalStands:0,totalWater:0,restToday:false,
   sessionSecTotal:0,longestSit:0,sessionsToday:0,
   inSession:false,sitStartAt:0,sessionStartAt:0,sessionAccum:0,lastWaterRemindAt:0,alerted:false,
@@ -1691,7 +1695,8 @@ function maybeRollover(d){
         rested:!!(existing.rested||incoming.rested),
         overLongSit:!!(existing.overLongSit||incoming.overLongSit),
         over45Count:Math.max(existing.over45Count||0,incoming.over45Count),
-        snack:Math.max(existing.snack||0,incoming.snack)
+        snack:Math.max(existing.snack||0,incoming.snack),
+        editedAt:existing.editedAt||0 // keep the manual-edit stamp (review #3)
       };
     }else{
       d.history[oldLastDate]=incoming;
@@ -1730,6 +1735,7 @@ function loadL(){
       // For users without cloud (not logged in), rollover will trigger after init when
       // we know there's no cloud data — see the init logic below.
       if(!d.history||Array.isArray(d.history))d.history={};
+      if(!d.deletedDays||typeof d.deletedDays!=='object')d.deletedDays={};
       if(!Array.isArray(d.garden))d.garden=[];
       if(!d.gardenArchive||typeof d.gardenArchive!=='object')d.gardenArchive={};
       ['sitStageIdx','sitStageXP','waterStageIdx','waterStageXP','todayWater','todayStand','totalStands','totalWater','sessionSecTotal','longestSit','sessionsToday','sitPetDays','waterPetDays','todaySnack','totalSnacks','snackPetDays','over45CountToday','sitHarvestCount','sitPlantedCount','waterHarvestCount','waterPlantedCount'].forEach(k=>{if(!d[k])d[k]=0;});
@@ -1872,10 +1878,16 @@ onAuthStateChanged(fbAuth,async u=>{
       try{
         const wasInSession=S.inSession;
 
-        // History: union + Math.max merge (never shrinks)
+        // Tombstones first (grow-only union) — the history merge below consults them
+        S.deletedDays=mergeDeletedDays(S.deletedDays,cn.deletedDays);
+
+        // History: union + Math.max merge (never shrinks), minus tombstoned days (review #3)
         const mergedHist={...(S.history||{})};
         for(const day of Object.keys(cn.history)){
           mergedHist[day]=mergeDayMax(mergedHist[day],cn.history[day]);
+        }
+        for(const day of Object.keys(mergedHist)){
+          if(mergedHist[day]==null||isDeadDay(day,mergedHist[day]))delete mergedHist[day];
         }
         if(Object.keys(mergedHist).length!==localHistN){
           syncLog('MERGE',{histBefore:localHistN,histAfter:Object.keys(mergedHist).length,delta:Object.keys(mergedHist).length-localHistN,trigger:'listener'});
@@ -2051,7 +2063,10 @@ function mergeDayMax(a,b){
     snack:Math.max(a.snack||0,b.snack||0),
     over45Count:Math.max(a.over45Count||0,b.over45Count||0),
     rested:!!(a.rested||b.rested),
-    overLongSit:!!(a.overLongSit||b.overLongSit)
+    overLongSit:!!(a.overLongSit||b.overLongSit),
+    // editedAt: manual-edit stamp (review #3) — must survive merging or a re-created day
+    // would lose its proof-of-life against the deletion tombstone.
+    editedAt:Math.max(a.editedAt||0,b.editedAt||0)
   };
 }
 
@@ -2070,10 +2085,27 @@ function normDay(d){
     snack:d.snack||0,
     over45Count:d.over45Count||0,
     rested:!!d.rested,
-    overLongSit:!!d.overLongSit
+    overLongSit:!!d.overLongSit,
+    editedAt:d.editedAt||0
   };
 }
 function dayEq(a,b){return JSON.stringify(normDay(a))===JSON.stringify(normDay(b));}
+
+// Review #3: a history day is dead when its deletion tombstone is newer than the entry's
+// manual-edit stamp. Re-editing the day later (editedAt > deletedAt) revives it — no need
+// to remove the tombstone itself, which would just re-introduce the "deletes never
+// propagate" problem one level up.
+function isDeadDay(day,entry){
+  return ((S.deletedDays||{})[day]||0) > ((entry&&entry.editedAt)||0);
+}
+// Per-key max union of tombstone maps (grow-only).
+function mergeDeletedDays(local,cloud){
+  const out={...(local||{})};
+  for(const day of Object.keys(cloud||{})){
+    out[day]=Math.max(out[day]||0,cloud[day]||0);
+  }
+  return out;
+}
 
 // Extract legacy (v1) root-level fields into a fake "state" object for backward compat.
 // When we read cloud and find no state/ path, we treat the root itself as state.
@@ -2122,18 +2154,38 @@ async function cloudSave(){
     }
     multiPath['state/updatedAt']=S.updatedAt;
 
+    // === DELETED DAYS (tombstones — grow-only union, review #3) ===
+    const localDel=S.deletedDays||{};
+    const snapDel=lastCloudSnap?.deletedDays||{};
+    for(const day of Object.keys(localDel)){
+      if((localDel[day]||0)>(snapDel[day]||0)){
+        multiPath[`deletedDays/${day}`]=localDel[day];
+      }
+    }
+
     // === HISTORY (per-day) ===
     const localHist=S.history||{};
     const snapHist=lastCloudSnap?.history||{};
     for(const day of Object.keys(localHist)){
+      if(isDeadDay(day,localHist[day]))continue; // dead — the null push below handles it
       if(!dayEq(localHist[day],snapHist[day])){
         multiPath[`history/${day}`]=localHist[day];
         summary.history++;
       }
     }
+    // Review #3: the diff loop above only walks keys that EXIST locally, so a locally
+    // deleted day would never reach the cloud. Push an explicit null for any tombstoned
+    // day the cloud still has — that's a deletion the diff can express.
+    for(const day of Object.keys(snapHist)){
+      if(snapHist[day]!=null && isDeadDay(day,snapHist[day]) && !(`history/${day}` in multiPath)){
+        multiPath[`history/${day}`]=null;
+        summary.history++;
+        syncLog('TOMBSTONE_PUSH',{day});
+      }
+    }
     // Sanity check: any local day missing from snap → force push
     if(lastCloudSnap){
-      const missing=Object.keys(localHist).filter(d=>!(d in snapHist));
+      const missing=Object.keys(localHist).filter(d=>!(d in snapHist)&&!isDeadDay(d,localHist[d]));
       for(const day of missing){
         if(!(`history/${day}` in multiPath)){
           multiPath[`history/${day}`]=localHist[day];
@@ -2292,6 +2344,7 @@ function normalizeCloudSnap(c){
     _schemaVersion:c._schemaVersion||(isV2?2:1),
     state:isV2?(c.state||{}):extractLegacyState(c),
     history:c.history||{},
+    deletedDays:c.deletedDays||{},
     garden:scopedGarden,
     gardenArchive:c.gardenArchive||{},
     pets:isV2?(c.pets||{}):extractLegacyPets(c),
@@ -2315,6 +2368,7 @@ function flattenCloudForSnap(norm){
   for(const k of META_KEYS) if(k in norm.meta) flat[k]=norm.meta[k];
   // history
   flat.history=norm.history||{};
+  flat.deletedDays=norm.deletedDays||{};
   // garden: convert {at: g} dict back to sorted array
   if(typeof norm.garden==='object'&&!Array.isArray(norm.garden)){
     flat.garden=Object.values(norm.garden).sort((a,b)=>(a?.at||0)-(b?.at||0));
@@ -2368,10 +2422,16 @@ async function cloudPull(firstPull){
 
     syncLog('PULL',{result:'v2',firstPull,schema:cn._schemaVersion,cloud:{histN:cloudHistN,lD:cn.state.lastDate,uA:cloudStateUpdated},local:snapshotS()});
 
-    // === HISTORY: union + Math.max merge (NEVER shrinks) ===
+    // Tombstones first (grow-only union) — the history merge below consults them
+    S.deletedDays=mergeDeletedDays(S.deletedDays,cn.deletedDays);
+
+    // === HISTORY: union + Math.max merge (NEVER shrinks), minus tombstoned days (review #3) ===
     const mergedHist={...(S.history||{})};
     for(const day of Object.keys(cn.history)){
       mergedHist[day]=mergeDayMax(mergedHist[day],cn.history[day]);
+    }
+    for(const day of Object.keys(mergedHist)){
+      if(mergedHist[day]==null||isDeadDay(day,mergedHist[day]))delete mergedHist[day];
     }
     const mergedHistN=Object.keys(mergedHist).length;
     if(mergedHistN!==localHistN){
@@ -5003,7 +5063,10 @@ window.saveEditHistory=function(){
       snack:snack,
       rested:rested,
       overLongSit:longestSec>=LONGEST_WARN,
-      over45Count:over45
+      over45Count:over45,
+      // Review #3: manual-edit stamp. Out-stamps any deletion tombstone (isDeadDay), so
+      // editing a previously-deleted day legitimately revives it.
+      editedAt:Date.now()
     };
     window.closeEditHistoryModal();
     syncLog('EDIT_HIST',{date:dateKey,stand,water,workSec,longestSec,snack});
@@ -5021,6 +5084,11 @@ window.deleteEditHistory=function(){
   if(!_editHistDate)return;
   const dateKey=_editHistDate;  // capture before close clears it
   if(!confirm(`確定刪除 ${dateKey} 的紀錄？`))return;
+  // Review #3: a bare local delete never syncs (cloudSave only walks existing keys) and
+  // the cloud's union merge would just re-add the day. Tombstone it — cloudSave pushes
+  // the tombstone plus an explicit history/{day}=null, and merges filter it everywhere.
+  S.deletedDays=S.deletedDays||{};
+  S.deletedDays[dateKey]=Date.now();
   if(S.history)delete S.history[dateKey];
   window.closeEditHistoryModal();
   showToast(`🗑 已刪除 ${dateKey.slice(0,10)} 紀錄`);

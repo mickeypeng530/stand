@@ -215,7 +215,8 @@ function maybeRollover(d){
         rested:!!(existing.rested||incoming.rested),
         overLongSit:!!(existing.overLongSit||incoming.overLongSit),
         over45Count:Math.max(existing.over45Count||0,incoming.over45Count),
-        snack:Math.max(existing.snack||0,incoming.snack)
+        snack:Math.max(existing.snack||0,incoming.snack),
+        editedAt:existing.editedAt||0 // keep the manual-edit stamp (review #3)
       };
     }else{
       d.history[oldLastDate]=incoming;
@@ -322,14 +323,28 @@ function mergeDayMax(a,b){
     snack:Math.max(a.snack||0,b.snack||0),
     over45Count:Math.max(a.over45Count||0,b.over45Count||0),
     rested:!!(a.rested||b.rested),
-    overLongSit:!!(a.overLongSit||b.overLongSit)
+    overLongSit:!!(a.overLongSit||b.overLongSit),
+    editedAt:Math.max(a.editedAt||0,b.editedAt||0) // manual-edit stamp (review #3)
   };
 }
 function normDay(d){
   d=d||{};
-  return {stands:d.stands||0,water:d.water||0,waterMl:d.waterMl||0,workTimeSec:d.workTimeSec||0,longestSitSec:d.longestSitSec||0,sessions:d.sessions||0,snack:d.snack||0,over45Count:d.over45Count||0,rested:!!d.rested,overLongSit:!!d.overLongSit};
+  return {stands:d.stands||0,water:d.water||0,waterMl:d.waterMl||0,workTimeSec:d.workTimeSec||0,longestSitSec:d.longestSitSec||0,sessions:d.sessions||0,snack:d.snack||0,over45Count:d.over45Count||0,rested:!!d.rested,overLongSit:!!d.overLongSit,editedAt:d.editedAt||0};
 }
 function dayEq(a,b){return JSON.stringify(normDay(a))===JSON.stringify(normDay(b));}
+
+// Review #3 (same as index.html): a history day is dead while its deletion tombstone is
+// newer than the entry's manual-edit stamp. Tombstones are grow-only → union/max merge.
+function isDeadDay(day,entry){
+  return ((S.deletedDays||{})[day]||0) > ((entry&&entry.editedAt)||0);
+}
+function mergeDeletedDays(local,cloud){
+  const out={...(local||{})};
+  for(const day of Object.keys(cloud||{})){
+    out[day]=Math.max(out[day]||0,cloud[day]||0);
+  }
+  return out;
+}
 function normalizeCloudSnap(c){
   c=c||{};
   const isV2=(c._schemaVersion||0)>=2 || !!c.state;
@@ -342,6 +357,7 @@ function normalizeCloudSnap(c){
     _schemaVersion:c._schemaVersion||(isV2?2:1),
     state:isV2?(c.state||{}):legacyState(),
     history:c.history||{},
+    deletedDays:c.deletedDays||{},
     garden:scopeGardenToPeriod(rawGarden,activeKey,settings._gardenPeriodStart),
     gardenArchive:c.gardenArchive||{},
     pets:isV2?(c.pets||{}):extractLegacy(PETS_KEYS),
@@ -357,6 +373,7 @@ function flattenCloudForSnap(norm){
   for(const k of SETTINGS_KEYS) if(k in norm.settings) flat[k]=norm.settings[k];
   for(const k of META_KEYS) if(k in norm.meta) flat[k]=norm.meta[k];
   flat.history=norm.history||{};
+  flat.deletedDays=norm.deletedDays||{};
   if(typeof norm.garden==='object'&&!Array.isArray(norm.garden)){
     flat.garden=Object.values(norm.garden).sort((a,b)=>(a?.at||0)-(b?.at||0));
   }else{flat.garden=norm.garden||[];}
@@ -380,17 +397,34 @@ async function saveSync(){
     }
     multiPath['state/updatedAt']=S.updatedAt;
 
-    // HISTORY (per-day)
+    // DELETED DAYS (tombstones — grow-only union, review #3)
+    const localDel=S.deletedDays||{};
+    const snapDel=lastCloudSnap?.deletedDays||{};
+    for(const day of Object.keys(localDel)){
+      if((localDel[day]||0)>(snapDel[day]||0)){
+        multiPath[`deletedDays/${day}`]=localDel[day];
+      }
+    }
+
+    // HISTORY (per-day) — tombstoned days are skipped and nulled (review #3)
     const localHist=S.history||{};
     const snapHist=lastCloudSnap?.history||{};
     for(const day of Object.keys(localHist)){
+      if(isDeadDay(day,localHist[day]))continue;
       if(!dayEq(localHist[day],snapHist[day])){
         multiPath[`history/${day}`]=localHist[day];
         summary.history++;
       }
     }
+    for(const day of Object.keys(snapHist)){
+      if(snapHist[day]!=null && isDeadDay(day,snapHist[day]) && !(`history/${day}` in multiPath)){
+        multiPath[`history/${day}`]=null;
+        summary.history++;
+        syncLog('TOMBSTONE_PUSH',{day});
+      }
+    }
     if(lastCloudSnap){
-      const missing=Object.keys(localHist).filter(d=>!(d in snapHist));
+      const missing=Object.keys(localHist).filter(d=>!(d in snapHist)&&!isDeadDay(d,localHist[d]));
       for(const day of missing){
         if(!(`history/${day}` in multiPath)){
           multiPath[`history/${day}`]=localHist[day];
@@ -523,10 +557,16 @@ onAuthStateChanged(fbAuth,async u=>{
 
       _miniSyncInFlight=true;
       try{
-        // HISTORY union + Math.max (never shrinks)
+        // Tombstones first (grow-only union) — the history merge below consults them
+        S.deletedDays=mergeDeletedDays(S.deletedDays,cn.deletedDays);
+
+        // HISTORY union + Math.max (never shrinks), minus tombstoned days (review #3)
         const mergedHist={...(S.history||{})};
         for(const day of Object.keys(cn.history)){
           mergedHist[day]=mergeDayMax(mergedHist[day],cn.history[day]);
+        }
+        for(const day of Object.keys(mergedHist)){
+          if(mergedHist[day]==null||isDeadDay(day,mergedHist[day]))delete mergedHist[day];
         }
         if(Object.keys(mergedHist).length!==localHistN){
           syncLog('MERGE',{histBefore:localHistN,histAfter:Object.keys(mergedHist).length,delta:Object.keys(mergedHist).length-localHistN,trigger:'mini-listener'});
@@ -602,10 +642,16 @@ async function cloudPull(first){
 
     syncLog('PULL',{result:'v2',firstPull:first,schema:cn._schemaVersion,cloud:{histN:cloudHistN,lD:cn.state.lastDate,uA:cloudUA},local:snapS()});
 
-    // HISTORY union + Math.max (never shrinks)
+    // Tombstones first (grow-only union) — the history merge below consults them
+    S.deletedDays=mergeDeletedDays(S.deletedDays,cn.deletedDays);
+
+    // HISTORY union + Math.max (never shrinks), minus tombstoned days (review #3)
     const mergedHist={...(S.history||{})};
     for(const day of Object.keys(cn.history)){
       mergedHist[day]=mergeDayMax(mergedHist[day],cn.history[day]);
+    }
+    for(const day of Object.keys(mergedHist)){
+      if(mergedHist[day]==null||isDeadDay(day,mergedHist[day]))delete mergedHist[day];
     }
     if(Object.keys(mergedHist).length!==localHistN){
       syncLog('MERGE',{histBefore:localHistN,histAfter:Object.keys(mergedHist).length,delta:Object.keys(mergedHist).length-localHistN,trigger:'mini-v2'});
