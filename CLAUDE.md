@@ -85,7 +85,7 @@ cd C:\Users\彭嗣翔\Claude_Work\stand
 git push origin main
 ```
 - 雲端資料檢視:用 `../Pet/secrets.json` 機器帳號 + REST,參考 `../Pet/cloud.js` 的 auth 寫法;API key 有 referrer 白名單,請求帶 `Referer: https://dashsean.web.app/`
-  - ⚠ 該機器帳號(`2ct8XD…`)的實際權限**不只 health-tracker**:還有 `scheduler` 整棵(含 OPD caselist PHI)+ `hub/todos` 唯讀。憑證明文躺在每台裝 DeskPet 的 PC → 那台被拿到 = 這些全可讀。權限清單以 `../whole/database.rules.json` 為準
+  - ⚠ 該機器帳號(`2ct8XD…`)的實際權限**不只 health-tracker**:另有 `scheduler/cellData/$cell` 逐格唯讀(2026-07-27 從「整棵 scheduler 含 caselist PHI」收斂而來)+ `hub/todos` 唯讀。憑證明文躺在每台裝 DeskPet 的 PC → 那台被拿到 = 這些全可讀。權限清單以 `../whole/database.rules.json` 為準
   - 2026-07-27 起 `health-tracker` / `health-tracker-backups` 的 `$uid` 已從 `=== auth.uid` 改成硬編 owner UID(原本任何登入者都能自建子樹寫任意資料)。代理讀寫 owner 資料的條款保留 → 機器帳號不受影響;但**用非 owner 的 Google 帳號登入 stand 會被拒**(index/mini 已補 `notePermDenied` 明示提醒)
 - 資料備份:`../Pet/.backup-health-tracker-*.json`(69 事件前全量)
 - 結帳查帳:index console `s=JSON.parse(localStorage.health_v6);({種子H:s.sitHarvestCount,種子P:s.sitPlantedCount,寵G:s.sitGoalDays,寵畢:s.sitGraduated,撤:s.sitGoalRevoked})` — 穩態:種子差值 0;寵物 `floor((G−撤)/8)===畢`
