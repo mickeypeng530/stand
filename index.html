@@ -1861,6 +1861,25 @@ function setSyncChip(mode,text){
   else{chip.classList.add('offline');t.textContent=text||'本地';}
 }
 
+// RTDB rules 把 health-tracker 鎖到資料擁有者 UID(2026-07-27 收緊,原本是 $uid===auth.uid,
+// 等於任何登入者都能自建子樹)。所以「登入成功但沒有權限」現在是真實情境:用非擁有者的
+// Google 帳號登入 stand → 每一次讀寫都 PERMISSION_DENIED。
+// 這跟離線/逾時本質不同 —— 重試永遠不會好,必須換帳號,所以要講清楚而不是混進「同步失敗」。
+function isPermDenied(e){
+  const c=String((e&&e.code)||'').toUpperCase();
+  const m=String((e&&e.message)||'').toLowerCase();
+  return c.includes('PERMISSION_DENIED')||m.includes('permission_denied')||m.includes('permission denied');
+}
+let _permDeniedNotified=false;
+function notePermDenied(){
+  setSyncChip('local','帳號無權限');
+  if(_permDeniedNotified)return;   // 讀+寫+listener 會各撞一次,只彈一次
+  _permDeniedNotified=true;
+  const who=(fbUser&&fbUser.email)||'目前登入的帳號';
+  alert('⚠ 雲端同步被拒\n\n'+who+' 不是這份健康資料的擁有者帳號。\n\n'
+       +'資料只會留在這台裝置,不會上傳、也不會蓋掉雲端。\n請登出後改用資料擁有者的 Google 帳號登入。');
+}
+
 function updateLoginBtn(u){
   const btn=$id('loginBtn');
   if(!btn)return;
@@ -1889,8 +1908,12 @@ onAuthStateChanged(fbAuth,async u=>{
     dbRef=ref(fbDb,`health-tracker/${u.uid}`);
     try{localStorage.setItem('had_cloud_login','1');}catch(e){}
     updateLoginBtn(u);
-    setSyncChip('cloud','已同步');
+    _permDeniedNotified=false;   // 換帳號要能重新提示
+    setSyncChip('cloud','連線中…');
     const pulled=await cloudPull(true);
+    // 只有真的拉到雲端資料才敢說「已同步」。原本在 pull 之前就樂觀寫死「已同步」,
+    // 帳號無權限/離線時 chip 會停在「已同步」而其實什麼都沒同步。
+    if(pulled)setSyncChip('cloud','已同步');
     // Settle only after a SUCCESSFUL first pull — never before, never on failure.
     // Settlement plants from the counter pair, so acting on stale/unmerged local counters
     // (another machine may already have planted and advanced PlantedCount) would duplicate
@@ -2010,6 +2033,11 @@ onAuthStateChanged(fbAuth,async u=>{
       }finally{
         _syncInFlight=false;
       }
+    },err=>{
+      // onValue 原本沒給 error callback → 權限錯誤被 SDK 靜默吞掉,即時同步整個死掉但 UI 無感。
+      syncLog('ERROR',{where:'listener',msg:err&&err.message});
+      console.warn('cloud listener err',err);
+      if(isPermDenied(err))notePermDenied();
     });
   }else{
     dbRef=null;
@@ -2320,7 +2348,8 @@ async function cloudSave(){
   }catch(e){
     syncLog('ERROR',{where:'cloudSave',msg:e.message});
     console.warn('cloudSave err',e);
-    setSyncChip('local','儲存失敗');
+    if(isPermDenied(e))notePermDenied();
+    else setSyncChip('local','儲存失敗');
   }
 }
 
@@ -2577,7 +2606,9 @@ async function cloudPull(firstPull){
   }catch(e){
     syncLog('ERROR',{where:'cloudPull',msg:e.message});
     console.warn('cloudPull err',e);
-    if(firstPull)setSyncChip('local',e.message==='timeout'?'離線':'同步失敗');
+    // 權限被拒不分 firstPull —— 重試不會好,任何一次撞到都要講。
+    if(isPermDenied(e))notePermDenied();
+    else if(firstPull)setSyncChip('local',e.message==='timeout'?'離線':'同步失敗');
     return false;
   }finally{
     _syncInFlight=false;

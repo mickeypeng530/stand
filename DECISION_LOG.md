@@ -4,6 +4,13 @@
 
 ---
 
+**2026-07-27|權限被拒獨立成一種可見狀態(不再混進「同步失敗/錯誤」)**
+RTDB rules 把 `health-tracker` 從 `$uid===auth.uid` 改成硬編 owner UID(原本任何登入者都能自建子樹寫任意資料,見 `../OPD/DECISION_LOG.md` 同日)。副作用:**「登入成功但無權限」變成真實情境** —— 用非 owner 的 Google 帳號登入 stand,每次讀寫都 PERMISSION_DENIED。
+原本的碼會把它吞掉:`onValue` **沒給 error callback**(SDK 靜默丟棄)、`setSyncChip('cloud','已同步')` 在任何成功讀取**之前**就樂觀寫死、`cloudSave` catch 只顯示模糊的「儲存失敗」、mini 還會空轉三次 backoff 重試才顯示「錯誤」。淨效果 = chip 停在「已同步」但什麼都沒同步。
+**選了**:`isPermDenied()` + `notePermDenied()`(chip「帳號無權限」+ 只彈一次 alert 講明「換帳號」,`onAuthStateChanged` 重置旗標);`onValue` 補 error callback;chip 改「連線中…」→ 真的 pull 到才寫「已同步」;mini 的權限錯誤直接 return 不進重試迴圈。index/mini 兩份都改。
+**沒選**:① 只改 index —— mini 同一個缺口,補一半等於沒補;② 白名單同時放第二個 Google 帳號(`JQUk1…`)讓它不會被拒 —— user 要的就是硬報錯,默默開第二棵空樹更難查。
+代價:多一個一次性 alert;`isPermDenied` 靠 `e.code`/訊息字串比對(SDK 換措辭要跟)。狀態:active。
+
 **2026-07-17|「69 水滴滴」事件:選逐點補丁,不做合併層重構**
 桌寵接入後 user 久違開 index,花園被重複灌入水寵成體(峰值 232 筆)。根因鏈:mini 無上限累加 `pets/waterPetDays`(到 12)→ index auto-recovery 畢業無防重入 → 歸零被 Math.max 合併復活 → 每次開頁/合併再畢業。
 **修法(3 commits)**:①checkPetLevelUp 同日防重入 ②auto-recovery/listener 消化後立即 saveLocal+cloudSave ③listener 消化移到 garden merge 之後 ④mini 計數 cap 8。資料清理:花園復原 81 筆、計數歸零(備份 `../Pet/.backup-health-tracker-*.json`)。

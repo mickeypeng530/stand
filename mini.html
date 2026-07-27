@@ -511,7 +511,8 @@ async function saveSync(){
     await update(dbRef,multiPath);
     lastCloudSnap=JSON.parse(JSON.stringify(S));
     setSync('cloud','已同步');
-  }catch(e){syncLog('ERROR',{where:'saveSync',msg:e.message});setSync('err','錯誤');}
+  }catch(e){syncLog('ERROR',{where:'saveSync',msg:e.message});
+    if(isPermDenied(e))notePermDenied();else setSync('err','錯誤');}
 }
 
 S=loadL();
@@ -532,6 +533,23 @@ function setSync(mode,text){
   el.className='sync '+(mode==='cloud'?'':(mode==='err'?'err':'off'));
   el.textContent=text;
 }
+
+// 同 index.html:RTDB rules 2026-07-27 起把 health-tracker 鎖到資料擁有者 UID,
+// 「登入成功但無權限」變成真實情境。重試永遠不會好,要跟離線/逾時分開講。
+function isPermDenied(e){
+  const c=String((e&&e.code)||'').toUpperCase();
+  const m=String((e&&e.message)||'').toLowerCase();
+  return c.includes('PERMISSION_DENIED')||m.includes('permission_denied')||m.includes('permission denied');
+}
+let _permDeniedNotified=false;
+function notePermDenied(){
+  setSync('err','帳號無權限');
+  if(_permDeniedNotified)return;
+  _permDeniedNotified=true;
+  const who=(fbUser&&fbUser.email)||'目前登入的帳號';
+  alert('⚠ 雲端同步被拒\n\n'+who+' 不是這份健康資料的擁有者帳號。\n\n'
+       +'資料只會留在這台裝置,不會上傳。請登出後改用資料擁有者的 Google 帳號登入。');
+}
 function applyTheme(name){
   document.body.className=name==='default'?'':'theme-'+name;
 }
@@ -551,6 +569,7 @@ onAuthStateChanged(fbAuth,async u=>{
   if(u){
     dbRef=ref(fbDb,`health-tracker/${u.uid}`);
     updateLogin(u);
+    _permDeniedNotified=false;   // 換帳號要能重新提示
     setSync('cloud','同步中');
     // Monitor real connection state. Firebase exposes /.info/connected (true/false).
     // When the network drops the chip shows 離線; when it returns we re-pull.
@@ -640,6 +659,11 @@ onAuthStateChanged(fbAuth,async u=>{
       }finally{
         _miniSyncInFlight=false;
       }
+    },err=>{
+      // 原本沒給 error callback → 權限錯誤被 SDK 靜默吞掉,即時同步死掉但 chip 無感。
+      syncLog('ERROR',{where:'mini-listener',msg:err&&err.message});
+      console.warn('mini listener err',err);
+      if(isPermDenied(err))notePermDenied();
     });
   }else{
     dbRef=null;
@@ -735,6 +759,8 @@ async function cloudPull(first){
   }catch(e){
     const isTimeout=e&&e.message==='timeout';
     syncLog('ERROR',{where:'mini-cloudPull',msg:e.message,firstPull:first});
+    // 權限被拒:不要進重試迴圈(重試三次也一樣被拒,只會拖到「錯誤」才顯示)
+    if(isPermDenied(e)){notePermDenied();return;}
     if(isTimeout && _miniPullRetries<3){
       // Network hiccup — show retrying state and try again with backoff.
       _miniPullRetries++;
